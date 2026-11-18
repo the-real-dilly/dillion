@@ -76,7 +76,17 @@ views.home = () => {
       <p class="sub small-note">Desktop browser + keyboard. Cartoon chaos: nobody gets hurt, they just see stars.</p>
     </div>
   </section>
-  <a class="card pack link" href="#/games"><div><h3>✚ More games</h3><p>Dilly Goes Wild · Crossword · Orbit Scramble · Rover Rescue · Memory · Higher or Lower</p></div><b class="t-dillion">play</b></a>
+  <section class="card promo">
+    <a class="promo-shot" href="dilly-gone-mad.html#trailer"><img src="img/dilly-gone-mad.jpg" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: a red convertible cruising a neon-lit city street at night, with a circular minimap and a speedometer."></a>
+    <div class="promo-copy">
+      <p class="eyebrow">Coming soon <span class="tag">TRAILER</span></p>
+      <h2>Dilly Gone Mad</h2>
+      <p>A cinematic 3D open-world romp through the sunset city of Los Pepinos. Chase cams, police pursuits, stunt jumps and a radio full of brine.</p>
+      <div class="row"><a class="btn big" href="dilly-gone-mad.html#trailer">▶ Watch the trailer</a></div>
+      <p class="sub small-note">Coming soon. Best on a desktop browser.</p>
+    </div>
+  </section>
+  <a class="card pack link" href="#/games"><div><h3>✚ More games</h3><p>Dilly Gone Mad (soon) · Dilly Goes Wild · Crossword · Orbit Scramble · Rover Rescue · Memory · Higher or Lower</p></div><b class="t-dillion">play</b></a>
   <footer class="foot">one in a dillion.</footer>`;
 };
 
