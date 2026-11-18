@@ -16,6 +16,10 @@ const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&
 const store = { get(k, d) { try { return JSON.parse(localStorage.getItem("dillion:" + k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem("dillion:" + k, JSON.stringify(v)); } catch {} } };
 const toast = msg => { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 1800); };
 const rankOf = d => [...window.RANKS].reverse().find(r => d >= r.min).name;
+const TW = { none: { name: "Clear skies", desc: "No twist today. Pure thrust." }, gravity: { name: "Gravity Well", desc: "A miss costs you 30 km." }, flare: { name: "Solar Flare", desc: "Dust answers score nothing." }, jackpot: { name: "Jackpot Burn", desc: "The final prompt counts double." } };
+const TWK = ["gravity", "flare", "jackpot"];
+const twistFor = seed => TWK[hash("twist" + seed) % 3];
+const twistBanner = run => { const t = TW[run.twist || "none"]; return `<div class="twist"><b>Twist · ${t.name}</b> ${t.desc} <span>Boulder-or-better streaks add ×0.25 each.</span></div>`; };
 const dayNo = d => Math.floor((Date.parse(d) - Date.parse("2026-01-01")) / 864e5) + 1;
 
 function pixel(art, px = 8) {
@@ -34,7 +38,7 @@ function judge(p, guess) {
   return { tier, pts: T[tier].pts, idx: hit, name: [].concat(p.a[hit])[0], rank: hit + 1 };
 }
 const gem = p => [].concat(p.a[p.a.length - 1])[0];
-const depthOf = run => run.res.reduce((s, r) => s + r.pts, 0);
+const depthOf = run => Math.max(0, run.res.reduce((s, r) => s + r.pts, 0));
 function setDepth(m) { const f = Math.min(1, m / MAXDEPTH); document.documentElement.style.setProperty("--depth", f); chip.textContent = m + " km"; }
 
 function dust() { const b = $(".dust"); b.innerHTML = ""; for (let i = 0; i < 26; i++) { const e = document.createElement("i"); e.style.cssText = `top:${Math.random() * 90}%;--dy:${(Math.random() * 60 - 30) | 0}px;animation-duration:${10 + Math.random() * 18}s;animation-delay:-${Math.random() * 28}s;opacity:${.25 + Math.random() * .5};width:${2 + (Math.random() * 4 | 0)}px;height:${2 + (Math.random() * 3 | 0)}px`; b.append(e); } }
@@ -56,11 +60,13 @@ views.home = () => {
     <p class="eyebrow">Mission #${dayNo(d)} · ${d}</p>
     <h1>The daily <em>landing</em></h1>
     <p class="lede">Seven prompts. Same for everyone. <b>Rare answers launch you farther from Earth.</b> Obvious ones barely count.</p>
+    <p class="twist"><b>Today's twist · ${TW[twistFor(d)].name}</b> ${TW[twistFor(d)].desc}</p>
     <div class="row center"><a class="btn big" href="#/dive">${done ? "View your mission" : run ? "Resume mission" : "Launch"}</a><a class="btn ghost" href="#/unlimited">∞ Unlimited</a></div>
     ${done ? `<p class="done">Today's distance: <b>${depthOf(run)} m</b> · ${rankOf(depthOf(run))}</p>` : ""}
   </section>
   <section class="card legend"><h3>How far can you go?</h3><ul class="tierlist">${window.TIERS.map(t => `<li class="t-${t.id}"><span><i class="sw" style="background:currentColor"></i>${t.name}</span><b>${t.pts ? "+" + t.pts + " km" : "0 km"}</b></li>`).join("")}</ul>
   <p class="sub">Type any answer. The more people would say it, the shallower it lands.</p></section>
+  <a class="card pack link" href="#/games"><div><h3>✚ More games</h3><p>Crossword · Orbit Scramble · Rover Rescue · Memory · Higher or Lower</p></div><b class="t-dillion">play</b></a>
   <footer class="foot">one in a dillion.</footer>`;
 };
 
@@ -70,7 +76,7 @@ function diveView(run, save, opts) {
     setDepth(depthOf(run));
     if (i >= set.length) return summary();
     const p = P[set[i]];
-    app.innerHTML = `${gauge(run)}<div class="prog">${set.map((_, k) => `<span class="${k < i ? "d t-" + run.res[k].tier : k === i ? "cur" : ""}"></span>`).join("")}</div>
+    app.innerHTML = `${gauge(run)}${twistBanner(run)}<div class="prog">${set.map((_, k) => `<span class="${k < i ? "d t-" + run.res[k].tier : k === i ? "cur" : ""}"></span>`).join("")}</div>
       <div class="prompt"><small>Prompt ${i + 1} of ${set.length}</small>${esc(p.q)}</div>
       <form class="guess" autocomplete="off"><input id="g" placeholder="type your answer…" autofocus enterkeyhint="go"><button class="btn">Launch</button></form>
       <div id="out"></div><div class="row"><button class="btn ghost small" id="skip">Skip (0 km)</button></div>`;
@@ -79,13 +85,20 @@ function diveView(run, save, opts) {
     $("#skip").onclick = () => reveal(p, { tier: "miss", pts: 0, idx: -1 }, "—");
   };
   const reveal = (p, r, guess) => {
-    run.res.push({ ...r, guess }); save(run); const t = T[r.tier], total = depthOf(run);
+    const HOT = ["rare", "deepcut", "dillion"], hot = HOT.includes(r.tier), notes = []; let streak = 0, pts = r.pts;
+    for (let k = run.res.length - 1; k >= 0 && HOT.includes(run.res[k].tier); k--) streak++;
+    if (hot && streak) { const m = 1 + .25 * Math.min(streak, 4); pts = Math.round(pts * m); notes.push(`Thrust streak ×${m}`); }
+    const tw = run.twist || "none";
+    if (tw === "gravity" && r.tier === "miss") { pts = -30; notes.push("Gravity well −30 km"); }
+    if (tw === "flare" && r.tier === "plankton") { pts = 0; notes.push("Solar flare wiped it out"); }
+    if (tw === "jackpot" && i === run.set.length - 1) { pts *= 2; notes.push("Jackpot burn ×2"); }
+    r = { ...r, pts }; run.res.push({ ...r, guess }); save(run); const t = T[r.tier], total = depthOf(run);
     const msg = { plankton: "Everyone's here. Just dust on the wind.", schooler: "Solid. You're in the pebble field.", rare: "Now we're getting somewhere.", deepcut: "Crater-sized answer. Impressive.", dillion: "ONE IN A DILLION. You found the gem!", miss: "Nothing out here but red dust." }[r.tier];
     $("form").remove(); $("#skip").remove();
-    $("#out").innerHTML = `<div class="result t-${r.tier}"><div class="tier">${t.glyph} ${t.name}${r.name ? " · " + esc(r.name) : ""}</div><div class="meters">+<span id="cnt">0</span> km</div><div>${msg}</div>
+    $("#out").innerHTML = `<div class="result t-${r.tier}"><div class="tier">${t.glyph} ${t.name}${r.name ? " · " + esc(r.name) : ""}</div><div class="meters">${r.pts < 0 ? "−" : "+"}<span id="cnt">0</span> km</div><div>${msg}</div>${notes.length ? `<div class="notes">${notes.join(" · ")}</div>` : ""}
       ${r.tier !== "dillion" ? `<div class="gem">The gem here was <b>${esc(gem(p))}</b>.</div>` : ""}</div>
       <div class="row center"><button class="btn big" id="next">${i + 1 >= run.set.length ? "Touch down" : "Next ▲"}</button></div>`;
-    countUp($("#cnt"), r.pts); setDepth(total); const g = $(".gauge .mark"); if (g) g.style.top = Math.min(100, total / MAXDEPTH * 100) + "%";
+    countUp($("#cnt"), Math.abs(r.pts)); setDepth(total); fx(hot ? "boost" : ""); const g = $(".gauge .mark"); if (g) g.style.top = Math.min(100, total / MAXDEPTH * 100) + "%";
     $("#next").focus(); $("#next").onclick = () => { i++; render(); };
   };
   const summary = () => {
@@ -110,12 +123,12 @@ function countUp(el, to, ms = 600) { const t0 = performance.now(); (function f(t
 function recordStats(key, depth) { const s = store.get("stats", { dives: 0, best: 0, total: 0, days: [] }); if (!s.days.includes(key)) { s.days.push(key); s.dives++; s.total += depth; s.best = Math.max(s.best, depth); store.set("stats", s); } }
 
 views.dive = date => {
-  const d = date || today(), key = "run:" + d; let run = store.get(key) || { set: setFor("dillion-" + d), res: [] };
+  const d = date || today(), key = "run:" + d; let run = store.get(key) || { set: setFor("dillion-" + d), res: [], twist: twistFor(d) };
   diveView(run, r => store.set(key, r), { label: `Mission #${dayNo(d)}`, record: depth => recordStats(d, depth) });
 };
 views.unlimited = () => {
-  const seed = Date.now().toString(36); let run = { set: setFor(seed), res: [] };
-  const start = () => { run = { set: setFor(Math.random().toString(36)), res: [] }; diveView(run, () => {}, { label: "Unlimited", again: start }); };
+  const seed = Date.now().toString(36); let run = { set: setFor(seed), res: [], twist: TWK[Math.floor(Math.random() * 3)] };
+  const start = () => { run = { set: setFor(Math.random().toString(36)), res: [], twist: TWK[Math.floor(Math.random() * 3)] }; diveView(run, () => {}, { label: "Unlimited", again: start }); };
   diveView(run, () => {}, { label: "Unlimited", again: start });
 };
 views.archive = () => {
@@ -158,6 +171,14 @@ views.party = () => {
       used.add(r.idx); score++; ms = Math.max(2500, 7000 - score * 250); size = Math.min(1.6, size + .02); $("#sc").textContent = score; $("#ch").insertAdjacentHTML("beforeend", `<span class="t-${r.tier}">${esc(r.name)}</span>`); };
   }; mk();
 };
+
+/* ---------- starship + game wiring ---------- */
+const ship = $("#ship");
+function fx(kind) { if (!ship || !kind) return; ship.classList.remove("launch", "boost"); void ship.offsetWidth; ship.classList.add(kind === "boost" ? "boost" : "launch"); }
+if (ship) { $("#shipSvg").innerHTML = pixel(window.STARSHIP, 6); ship.addEventListener("animationend", e => { if (e.target === ship) ship.classList.remove("launch", "boost"); }); ship.onclick = () => fx("launch");
+  setInterval(() => { if (!document.hidden) fx("launch"); }, 45000); setTimeout(() => fx("launch"), 2500); }
+const H = { app, esc, store, toast, onLeave, pixel, setDepth, today, dayNo, fx };
+Object.entries(window.GAME_VIEWS || {}).forEach(([k, f]) => { views[k] = a => f(H, a); });
 
 /* ---------- chrome ---------- */
 const drawer = $("#drawer"), scrim = $("#scrim");

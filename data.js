@@ -68,3 +68,9 @@ window.ELON = {
     "..kkkkwwkkkkkk"
   ]
 };
+
+// Stainless-steel starship sprite (7 wide)
+window.STARSHIP = {
+  pal:{"a":"#f2f6fb","b":"#c3ceda","c":"#7f8c9b","f":"#59616e","r":"#ff7a45"},
+  rows:["...a...","..aba..","..bbb..","..bbb..",".fbcbf.",".fbbbf.","..bcb..","..bbb..","..bcb..","..bbb..","..bcb..","..bbb..",".fbbbf.",".ffbff.","..rrr.."]
+};
