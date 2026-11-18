@@ -81,8 +81,6 @@
   #flash { position: absolute; inset: 0; background: #fff6e8; opacity: 0; }
   #tcard { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; }
   #tcard .txt { font: min(11vw, 150px)/1 Anton, Impact, "Arial Black", sans-serif; letter-spacing: .06em; color: var(--cream); text-shadow: 0 0 30px rgba(0,0,0,.6), 0 4px 0 rgba(0,0,0,.35); opacity: 0; white-space: nowrap; }
-  .soonbig { margin-top: 14px; font: 44px Anton, Impact, sans-serif; letter-spacing: .18em; color: #ffd166; text-shadow: 3px 3px 0 #000, 0 0 24px #ff7a4588; }
-  .btn.soon { cursor: default; opacity: .9; }
   #tlogo { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(8,3,2,.6) 0%, rgba(8,3,2,.25) 45%, transparent 70%); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; }
   .logo { font: min(15vw, 190px)/0.86 Anton, Impact, "Arial Black", sans-serif; text-transform: uppercase; text-align: center; letter-spacing: .02em; background: linear-gradient(180deg, #fff3c4 0%, #ffd166 38%, #ff7a45 72%, #b8401c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 5px 0 #2a0e08) drop-shadow(0 0 26px rgba(255,122,69,.55)); }
   .logo .l2 { display: block; font-size: .62em; letter-spacing: .09em; }
@@ -131,7 +129,7 @@
   <div id="vig"></div>
   <div id="grain"></div>
   <div id="tcard"><div class="txt"></div></div>
-  <div id="tlogo"><div class="logo">Dilly<span class="l2">Gone Mad</span></div><div class="tagline">Los Pepinos · one pickle · no brakes</div><div class="soonbig">COMING SOON</div><div class="tagline" id="tpress" style="opacity:0;letter-spacing:.2em;font-size:13px">press any key</div></div>
+  <div id="tlogo"><div class="logo">Dilly<span class="l2">Gone Mad</span></div><div class="tagline">Los Pepinos · one pickle · no brakes</div><div class="tagline" id="tpress" style="opacity:0;letter-spacing:.2em;font-size:13px">press any key</div></div>
   <div class="bar" id="barT"></div><div class="bar" id="barB"></div>
   <div id="skiphint">press any key to skip</div>
   <div id="flash"></div>
@@ -144,7 +142,7 @@
     <p class="eyebrow">Dillion presents · Los Pepinos</p>
     <div class="logo">Dilly<span class="l2">Gone Mad</span></div>
     <p>Dilly the pickle got out of the jar and into a convertible. Now the sunset city of <b>Los Pepinos</b> is one big playground: deliver crates, hit stunt ramps, hunt golden pickles and shake off the cops. Cartoon chaos only: nobody gets hurt, they just see stars.</p>
-    <div class="btns"><button class="btn soon" id="playBtn" disabled>Coming soon</button><button class="btn ghost" id="trailerBtn">▶ Watch trailer</button></div>
+    <div class="btns"><button class="btn" id="playBtn">Play</button><button class="btn ghost" id="trailerBtn">▶ Watch trailer</button></div>
     <div class="stats" id="stats"></div>
     <p class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows drive · <kbd>Space</kbd> drift · <kbd>Shift</kbd> pickle boost · <kbd>H</kbd> horn · <kbd>C</kbd> camera · <kbd>N</kbd> time of day · <kbd>T</kbd> radio · <kbd>M</kbd> mute · <kbd>Esc</kbd> pause</p>
     <p id="msg"></p>
@@ -1951,7 +1949,7 @@ function startGame() {
   showRadio();
 }
 function pauseGame() { if (mode !== "game") return; mode = "pause"; $("pause").classList.remove("hidden"); setTimeout(() => $("resumeBtn").focus({ preventScroll: true }), 30); }
-$("playBtn").addEventListener("click", () => { location.hash = "#dev-play"; startGame(); });
+$("playBtn").addEventListener("click", () => { location.hash = "#play"; startGame(); });
 $("trailerBtn").addEventListener("click", () => startTrailer());
 $("resumeBtn").addEventListener("click", () => { $("pause").classList.add("hidden"); mode = "game"; });
 $("quitBtn").addEventListener("click", () => { persist(); history.replaceState(null, "", location.pathname + location.search); showTitle(); });
@@ -2084,7 +2082,7 @@ window.DGM = {
 resize(); updateEnv();
 showTitle();
 if (location.hash === "#trailer") startTrailer();
-else if (location.hash === "#dev-play") startGame();
+else if (location.hash === "#play") startGame();
 requestAnimationFrame((t) => { last = t; frame(t); });
 })();
 </script>
