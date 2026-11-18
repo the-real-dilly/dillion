@@ -1042,14 +1042,13 @@ if (typeof statuePos !== "undefined") {
   const parts = [[new THREE.CylinderGeometry(0.2, 0.32, 1, 7), MX(0, 0.5, 0), 0x8a6a48]];
   for (let k = 1; k < 8; k++) parts.push([new THREE.CylinderGeometry(0.2 - k * 0.006, 0.22 - k * 0.006, 1.1, 7), MX(k * k * 0.012, 0.5 + k * 1.02, 0, 0, 0, -k * 0.022), k % 2 ? 0x7a5a3a : 0x8f6c48]);
   const tx = 0.6, ty = 8.4;
-  for (let f = 0; f < 11; f++) {
-    const a = f / 11 * Math.PI * 2 + (f % 2) * 0.2; let m4 = new THREE.Matrix4().makeTranslation(tx, ty, 0).multiply(new THREE.Matrix4().makeRotationY(-a));
-    let pitch = 0.55 - (f % 3) * 0.12; const segs = 5;
+  for (let f = 0; f < 9; f++) {
+    const a = f / 9 * Math.PI * 2 + (f % 2) * 0.2; let m4 = new THREE.Matrix4().makeTranslation(tx, ty, 0).multiply(new THREE.Matrix4().makeRotationY(-a));
+    let pitch = 0.5 - (f % 3) * 0.12; const segs = 3;
     for (let k = 0; k < segs; k++) {
-      const len = 0.85, wdt = 0.95 * (1 - k / segs * 0.75);
+      const len = 1.1, wdt = 1.0 * (1 - k / segs * 0.7);
       m4 = m4.clone().multiply(new THREE.Matrix4().makeRotationZ(pitch));
       parts.push([G.box, m4.clone().multiply(MX(len / 2, 0, 0, 0, 0, 0, len, 0.05, wdt)), f % 3 === 0 ? 0x2f7a2a : f % 3 === 1 ? 0x3f9433 : 0x56a83c]);
-      parts.push([G.box, m4.clone().multiply(MX(len / 2, -0.02, 0, 0.5, 0, 0, len, 0.03, wdt * 0.9)), 0x2c6a26]);
       m4 = m4.clone().multiply(new THREE.Matrix4().makeTranslation(len, 0, 0)); pitch = -0.32 - k * 0.04;
     }
   }
@@ -1299,7 +1298,7 @@ const ferris = new THREE.Group();
   const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const z = p.getZ(i) + 45; p.setY(i, -0.35 - z / 90 * 1.6 + Math.sin(p.getX(i) * 0.05) * 0.08); } g.translate(0, 0, SEA + 45); g.computeVertexNormals();
   const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * W2 / 10, uv.getY(i) * 9);
   addMesh(g, new THREE.MeshStandardMaterial({ map: sandTex, roughness: 0.95 }), false, true);
-  const og = new THREE.PlaneGeometry(4200, 2000, 280, 120); og.rotateX(-Math.PI / 2); og.translate(0, -0.95, SEA + 1000);
+  const og = new THREE.PlaneGeometry(4200, 2000, 170, 70); og.rotateX(-Math.PI / 2); og.translate(0, -0.95, SEA + 1000);
   const om = new THREE.MeshStandardMaterial({ color: 0x0b3a4c, roughness: 0.06, metalness: 0.75, normalMap: waterNormal, normalScale: new THREE.Vector2(0.45, 0.45), envMapIntensity: 1.3 });
   om.onBeforeCompile = (sh) => {
     sh.uniforms.oT = ocean.t;
@@ -1498,10 +1497,10 @@ function makeCar(kind, paintMat) {
 }
 /* wheels and number plates for every car: two instanced meshes, updated each frame */
 const WHEEL_CAP = 160;
-const tyreGeo = (() => { const g = new THREE.CylinderGeometry(1, 1, 0.62, 24, 1); g.rotateZ(Math.PI / 2); const t = new THREE.TorusGeometry(0.9, 0.16, 8, 24); t.rotateY(Math.PI / 2); return merge([[g, null, 0x151515], [t, MX(0.24, 0, 0), 0x1c1c1c], [t, MX(-0.24, 0, 0), 0x1c1c1c]]); })();
+const tyreGeo = (() => { const g = new THREE.CylinderGeometry(1, 1, 0.62, 18, 1); g.rotateZ(Math.PI / 2); const t = new THREE.TorusGeometry(0.9, 0.16, 5, 18); t.rotateY(Math.PI / 2); return merge([[g, null, 0x151515], [t, MX(0.24, 0, 0), 0x1c1c1c], [t, MX(-0.24, 0, 0), 0x1c1c1c]]); })();
 const rimGeo = (() => { const parts = [[G.cyl, MX(0.3, 0, 0, 0, 0, Math.PI / 2, 0.66, 0.05, 0.66), 0xd0d4da], [G.cyl, MX(0.34, 0, 0, 0, 0, Math.PI / 2, 0.16, 0.08, 0.16), 0x9aa0a8]];
   for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; parts.push([G.box, MX(0.33, Math.cos(a) * 0.32, Math.sin(a) * 0.32, a, 0, 0, 0.06, 0.62, 0.12), 0xe2e6ec]); }
-  parts.push([new THREE.TorusGeometry(0.66, 0.05, 6, 24).rotateY(Math.PI / 2), MX(0.31, 0, 0), 0xf0f2f6]); return merge(parts); })();
+  parts.push([new THREE.TorusGeometry(0.66, 0.05, 4, 18).rotateY(Math.PI / 2), MX(0.31, 0, 0), 0xf0f2f6]); return merge(parts); })();
 const tyreIM = new THREE.InstancedMesh(tyreGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }), WHEEL_CAP);
 const rimIM = new THREE.InstancedMesh(rimGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.18, metalness: 1, envMapIntensity: 1.5 }), WHEEL_CAP);
 for (const im of [tyreIM, rimIM]) { im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(im); }
@@ -1669,7 +1668,7 @@ function buildAvatar() {
     part(head, AG.lsph, AVM.pupil, s * 0.041, 0.1325, 0.106, 0.0062, 0.0062, 0.003);
     part(head, AG.lsph, AVM.white, s * 0.041 + 0.002, 0.1365, 0.1078, 0.0022, 0.0022, 0.0012);
     part(head, AG.caps(0.0045, 0.044, 6), AVM.brow, s * 0.041, 0.149, 0.1, 1, 1, 1, 0.15, 0, Math.PI / 2);
-    part(head, AG.caps(0.0085, 0.044, 6), AVM.brow, s * 0.043, 0.171, 0.103, 1, 1, 0.7, 0, 0, Math.PI / 2 - s * 0.14);
+    part(head, AG.caps(0.0085, 0.044, 6), AVM.brow, s * 0.043, 0.171, 0.103, 1, 1, 0.7, 0, 0, Math.PI / 2 + s * 0.05);
   }
   part(head, new THREE.ConeGeometry(0.017, 0.048, 6), AVM.skin, 0, 0.1, 0.108, 1, 1, 0.9, -0.62, 0, 0);
   part(head, AG.lsph, AVM.skin, 0, 0.08, 0.118, 0.016, 0.012, 0.012);
@@ -2969,7 +2968,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
 window.DGM = {
   get mode() { return mode; }, get player() { return { x: P.x, z: P.z, h: P.h, speed: Math.hypot(P.vx, P.vz) }; }, get wanted() { return { stars: W.stars, heat: W.heat, cops: cops.length }; },
   get mission() { return mission && { stage: mission.stage, x: mission.x, z: mission.z, name: mission.name }; }, get cash() { return save.cash; }, get trailerT() { return TR.t; },
-  info() { const i = renderer.info.render; return { calls: i.calls, triangles: i.triangles, pr: Q.pr }; }, ava: AVA, get postersReady() { return posters.ready; }, quality(l) { Q.locked = true; setQuality(l); }, get q() { return Q.level; }, rain(on) { rain = !!on; rainMesh.visible = rain; applyTOD(0); }, heat(n) { addHeat(n); }, camAt(px, py, pz, lx, ly, lz, fov) { camHold = true; setCam(px, py, pz, lx, ly, lz, fov); }, get dilly() { return { x: D.x, y: D.y, z: D.z, h: D.h }; }, toggleCar, get onFoot() { return D.onFoot; }, get me() { return { x: ME.x, z: ME.z, v: ME.v }; }, teleport(x, z, h = P.h) { placePlayer(x, z, h); camState.init = false; }, preset(n, snap = true) { setPreset(n, snap); }, trailer: startTrailer, seek(t) { TR.t = t; }, play: startGame,
+  get scene() { return scene; }, info() { renderer.info.autoReset = false; renderer.info.reset(); renderer.setRenderTarget(composer.renderTarget1); renderer.render(scene, camera); renderer.setRenderTarget(null); const i = renderer.info.render, o = { calls: i.calls, triangles: i.triangles, pr: Q.pr }; renderer.info.autoReset = true; return o; }, ava: AVA, get postersReady() { return posters.ready; }, quality(l) { Q.locked = true; setQuality(l); }, get q() { return Q.level; }, rain(on) { rain = !!on; rainMesh.visible = rain; applyTOD(0); }, heat(n) { addHeat(n); }, camAt(px, py, pz, lx, ly, lz, fov) { camHold = true; setCam(px, py, pz, lx, ly, lz, fov); }, get dilly() { return { x: D.x, y: D.y, z: D.z, h: D.h }; }, toggleCar, get onFoot() { return D.onFoot; }, get me() { return { x: ME.x, z: ME.z, v: ME.v }; }, teleport(x, z, h = P.h) { placePlayer(x, z, h); camState.init = false; }, preset(n, snap = true) { setPreset(n, snap); }, trailer: startTrailer, seek(t) { TR.t = t; }, play: startGame,
   missionNow() { if (!mission) startPickup(); }, endTrailer
 };
 
