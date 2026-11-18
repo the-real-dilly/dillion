@@ -77,7 +77,7 @@ views.home = () => {
     </div>
   </section>
   <section class="card promo">
-    <a class="promo-shot" href="dilly-gone-mad.html#trailer"><img src="img/dilly-gone-mad.jpg" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: a red convertible cruising a neon-lit city street at night, with a circular minimap and a speedometer."></a>
+    <a class="promo-shot" href="dilly-gone-mad.html#trailer"><img src="img/dilly-gone-mad.jpg" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: Dilly waves next to a cherry-red convertible on a sunset city street lined with palms and high-rises."></a>
     <div class="promo-copy">
       <p class="eyebrow">Coming soon <span class="tag">TRAILER</span></p>
       <h2>Dilly Gone Mad</h2>
