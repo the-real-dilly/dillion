@@ -9,6 +9,7 @@ const bestOf = (H, k) => H.store.get("games", {})[k];
 /* ---------- hub ---------- */
 V.games = H => {
   const g = [
+    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html"],
     ["crossword", "Mini Crossword", "A 5×5 cosmic crossword. A new grid each day.", "✚"],
     ["scramble", "Orbit Scramble", "Unjumble five space words before the clock runs out.", "🌀"],
     ["rescue", "Rover Rescue", "Guess the word before the rover runs out of oxygen.", "🤖"],
@@ -16,7 +17,7 @@ V.games = H => {
     ["hilo", "Higher or Lower", "Which world is bigger? Which sits farther from the Sun?", "⚖"],
     ["party", "Rocket Relay", "Name answers fast — don't let the rocket blow up.", "🚀"]
   ];
-  H.app.innerHTML = `<h1>Games</h1><p class="sub">more ways to spend a Sol</p>${g.map(([id, n, d, ic]) => `<a class="card pack link" href="#/${id}"><div><h3><span class="ic">${ic}</span> ${n}</h3><p>${d}</p></div><b class="t-dillion">${bestOf(H, id) != null ? "best " + bestOf(H, id) : "play"}</b></a>`).join("")}`;
+  H.app.innerHTML = `<h1>Games</h1><p class="sub">more ways to spend a Sol</p>${g.map(([id, n, d, ic, href]) => `<a class="card pack link" href="${href || "#/" + id}"><div><h3><span class="ic">${ic}</span> ${n}${href ? ' <span class="tag">NEW</span>' : ""}</h3><p>${d}</p></div><b class="t-dillion">${bestOf(H, id) != null ? "best " + bestOf(H, id) : "play"}</b></a>`).join("")}`;
 };
 
 /* ---------- crossword ---------- */

@@ -222,3 +222,14 @@ form.guess input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #ff7a4533}
 .vs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .vs .card{text-align:center}.vs h3{font-size:28px}.big2{font-size:40px;color:var(--t-dillion)}
 @media (max-width:640px){.ship{left:6px}.cwclues{grid-template-columns:1fr}}
+
+/* ---------- Dilly Goes Wild promo ---------- */
+.promo{display:grid;gap:16px;grid-template-columns:1fr;border-color:var(--t-dillion);background:#120604e6}
+.promo-shot{display:block;border:2px solid var(--line);box-shadow:4px 4px 0 #0008;line-height:0}
+.promo-shot:hover{border-color:var(--t-dillion)}
+.promo-shot img{width:100%;height:auto;display:block}
+.promo h2{font-size:44px;margin:0 0 6px;color:var(--t-dillion);letter-spacing:.05em;text-transform:uppercase;text-shadow:3px 3px 0 #7a2c12}
+.promo p{margin:0 0 12px}
+.promo .eyebrow{margin:0 0 4px}
+.promo .row{flex-wrap:wrap}
+.small-note{font-size:18px;margin:10px 0 0}

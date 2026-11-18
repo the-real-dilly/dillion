@@ -66,7 +66,17 @@ views.home = () => {
   </section>
   <section class="card legend"><h3>How far can you go?</h3><ul class="tierlist">${window.TIERS.map(t => `<li class="t-${t.id}"><span><i class="sw" style="background:currentColor"></i>${t.name}</span><b>${t.pts ? "+" + t.pts + " km" : "0 km"}</b></li>`).join("")}</ul>
   <p class="sub">Type any answer. The more people would say it, the shallower it lands.</p></section>
-  <a class="card pack link" href="#/games"><div><h3>✚ More games</h3><p>Crossword · Orbit Scramble · Rover Rescue · Memory · Higher or Lower</p></div><b class="t-dillion">play</b></a>
+  <section class="card promo">
+    <a class="promo-shot" href="dilly-goes-wild.html#play"><img src="img/dilly-goes-wild.png" width="1512" height="798" loading="lazy" alt="Dilly Goes Wild: Dilly the pickle on a rainy night street, with headlights, lit windows and a police car closing in."></a>
+    <div class="promo-copy">
+      <p class="eyebrow">New game <span class="tag">NEW</span></p>
+      <h2>Dilly Goes Wild</h2>
+      <p>Dilly the pickle has had enough of the jar. Steal a car, tear through a rain-soaked city after dark, bonk pedestrians for cash, and shake off the cops.</p>
+      <div class="row"><a class="btn big" href="dilly-goes-wild.html#play">Play now</a><a class="btn ghost" href="dilly-goes-wild.html#trailer">▶ Trailer</a></div>
+      <p class="sub small-note">Desktop browser + keyboard. Cartoon chaos: nobody gets hurt, they just see stars.</p>
+    </div>
+  </section>
+  <a class="card pack link" href="#/games"><div><h3>✚ More games</h3><p>Dilly Goes Wild · Crossword · Orbit Scramble · Rover Rescue · Memory · Higher or Lower</p></div><b class="t-dillion">play</b></a>
   <footer class="foot">one in a dillion.</footer>`;
 };
 
