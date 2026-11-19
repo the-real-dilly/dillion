@@ -1068,16 +1068,17 @@ function near(x, z, r = 4) {
   _near.length = 0;
   const a0 = clamp(Math.floor((x - r + HALF) / CELL), -1, N), a1 = clamp(Math.floor((x + r + HALF) / CELL), -1, N);
   const b0 = clamp(Math.floor((z - r + HALF) / CELL), -1, N), b1 = clamp(Math.floor((z + r + HALF) / CELL), -1, N);
-  for (let a = a0; a <= a1; a++) for (let b = b0; b <= b1; b++) { const L = sgrid.get(gk(a, b)); if (L) for (let i = 0; i < L.length; i++) if (_near.indexOf(L[i]) < 0) _near.push(L[i]); }
+  if (Math.abs(x) - r < CORE + 70 && z + r > -CORE - 70) for (let a = a0; a <= a1; a++) for (let b = b0; b <= b1; b++) { const L = sgrid.get(gk(a, b)); if (L) for (let i = 0; i < L.length; i++) if (_near.indexOf(L[i]) < 0) _near.push(L[i]); }
+  if (Math.abs(x) + r > HALF - 30 || Math.abs(z) + r > HALF - 30) nearOuter(x, z, r, _near);
   return _near;
 }
-function solidAt(x, z) { const L = near(x, z, 0.5); for (let i = 0; i < L.length; i++) { const s = L[i]; if (x > s.x0 && x < s.x1 && z > s.z0 && z < s.z1) return true; } return false; }
+function solidAt(x, z) { const L = near(x, z, 0.5); for (let i = 0; i < L.length; i++) { const s = L[i]; if (s.ya != null) continue; if (x > s.x0 && x < s.x1 && z > s.z0 && z < s.z1) return true; } return false; }
 function los(x0, z0, x1, z1) { const d = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(d / 5); for (let i = 1; i < n; i++) { const t = i / n; if (solidAt(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t)) return false; } return true; }
 let lastNX = 0, lastNZ = 0;
 function collideCircle(c, px, pz, r, rest) {
   let imp = 0; const L = near(px, pz, r + 1);
   for (let i = 0; i < L.length; i++) {
-    const b = L[i]; const cx = clamp(px, b.x0, b.x1), cz = clamp(pz, b.z0, b.z1); const dx = px - cx, dz = pz - cz, d2 = dx * dx + dz * dz;
+    const b = L[i]; if (b.ya != null && ((c.y || 0) > b.yb || (c.y || 0) + 1.6 < b.ya)) continue; const cx = clamp(px, b.x0, b.x1), cz = clamp(pz, b.z0, b.z1); const dx = px - cx, dz = pz - cz, d2 = dx * dx + dz * dz;
     if (d2 >= r * r) continue;
     let nx, nz, pen;
     if (d2 > 1e-8) { const d = Math.sqrt(d2); nx = dx / d; nz = dz / d; pen = r - d; }
@@ -1111,13 +1112,176 @@ function rampAt(x, z) {
   }
   return -1;
 }
+/* =====================================================================
+   Greater Los Pepinos: a ~3.6 km world around the downtown grid.
+   Deterministic terrain + a road graph (polylines with heights) shared by
+   physics, traffic, cops, GPS, the maps and the streamed chunk builder.
+   ===================================================================== */
+const WORLD = { x0: -1800, x1: 1800, z0: -1900, z1: 420, CH: 200 };
+const CORE = EDGE + 6;
+const inCore = (x, z) => x > -CORE && x < CORE && z > -CORE;
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function hash2(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
+function vnoise(x, z) { const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi, u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf); const a = hash2(xi, zi), b = hash2(xi + 1, zi), c = hash2(xi, zi + 1), d = hash2(xi + 1, zi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
+function fbm(x, z) { return vnoise(x, z) * 0.6 + vnoise(x * 2.07, z * 2.07) * 0.28 + vnoise(x * 4.3, z * 4.3) * 0.12; }
+const INLET = { x: -862, w: 52, zTop: -1250 };
+const RIDGE = { x: 700, z: -900, r: 105, h: 44 };
+const HSIGN = { x: 0, z: -1655 };
+function terrainRaw(x, z) {
+  let h = 0;
+  const hill = sstep(-800, -1450, z) * (1 - sstep(520, 780, x));
+  if (hill > 0) h += hill * (48 + 62 * fbm(x / 240 + 3, z / 240)) + hill * hill * 36;
+  const des = sstep(760, 900, x) * sstep(-560, -720, z);
+  if (des > 0) { h += des * (fbm(x / 110, z / 110) * 7 + sstep(-1500, -1850, z) * 60 * fbm(x / 180, z / 180)); }
+  const rd = Math.hypot(x - RIDGE.x, z - RIDGE.z); h += RIDGE.h * Math.exp(-(rd * rd) / (RIDGE.r * RIDGE.r));
+  const sub = sstep(-900, -1000, x); if (sub > 0) h += sub * 2.2 * fbm(x / 90, z / 90);
+  const inl = sstep(INLET.w + 30, INLET.w, Math.abs(x - INLET.x)) * sstep(INLET.zTop - 40, INLET.zTop + 40, z);
+  if (inl > 0) h = lerp(h, -9, inl);
+  if (z > SEA - 30) h = Math.min(h, lerp(0.2, -9, sstep(SEA - 30, SEA + 25, z)));
+  return h;
+}
+/* ---------- road graph ---------- */
+const R_FWY = 22, R_ART = 18, R_ST = 12, R_HILL = 12;
+const EDGEDEF = [
+  // freeway loop (N leg rises over the hill road at x = 0)
+  [R_FWY, "fwy", [[-700, -700, 0], [-168, -700, 0]]], [R_FWY, "fwy", [[-168, -700, 0], [-104, -700, 8.5], [104, -700, 8.5], [168, -700, 0]]], [R_FWY, "fwy", [[168, -700, 0], [700, -700, 0]]],
+  [R_FWY, "fwy", [[700, -700, 0], [700, -84, 0]]], [R_FWY, "fwy", [[700, -84, 0], [700, 300, 0]]], [R_FWY, "fwy", [[700, 300, 0], [700, 336, 0]]],
+  [R_FWY, "fwy", [[700, 336, 0], [640, 336, 0], [575, 336, 7.5], [445, 336, 7.5], [385, 336, 0], [336, 336, 0]]],
+  [R_FWY, "fwy", [[-336, 336, 0], [-385, 336, 0], [-445, 336, 7.5], [-575, 336, 7.5], [-640, 336, 0], [-700, 336, 0]]],
+  [R_FWY, "fwy", [[-700, 336, 0], [-700, 0, 0]]], [R_FWY, "fwy", [[-700, 0, 0], [-700, -700, 0]]],
+  // exits from the downtown grid
+  [R_ART, "art", [[-168, -336], [-168, -700]]], [R_ART, "art", [[168, -336], [168, -700]]],
+  [R_ART, "art", [[-336, 0], [-700, 0]]], [R_ART, "art", [[336, -84], [700, -84]]],
+  // west: Dill Bridge over Brine Bay into the suburbs
+  [R_ART, "bridge", [[-700, 0, 0], [-760, 0, 0], [-806, 0, 7], [-918, 0, 7], [-964, 0, 0], [-1050, 0, 0]]],
+  // hill road: under the freeway, then switchbacks up to the sign
+  [R_HILL, "hill", [[0, -336], [0, -700], [0, -930], [180, -1010], [230, -1060], [180, -1110], [-150, -1150], [-210, -1200], [-160, -1250], [170, -1290], [220, -1340], [170, -1390], [-60, -1440], [-40, -1520], [0, -1560]]],
+  // north-east highway through the Pickle Ridge tunnel to the desert
+  [R_ART, "art", [[700, -700, 0], [700, -800, 0]]], [R_ART, "tunnel", [[700, -800, 0], [700, -1000, 0]]], [R_ART, "art", [[700, -1000, 0], [700, -1100]]],
+  [R_ART, "art", [[700, -1100], [1100, -1100]]], [R_ART, "art", [[1100, -1100], [1700, -1100]]], [R_ART, "art", [[1100, -1100], [1100, -1450], [1180, -1600], [1150, -1780]]],
+  // port
+  [R_ART, "art", [[700, -84], [1000, -84]]], [R_ART, "art", [[1000, -84], [1300, -84]]], [R_ART, "art", [[1300, -84], [1580, -84]]],
+  [R_ST, "street", [[1000, -84], [1000, 300]]], [R_ST, "street", [[1300, -84], [1300, 300]]],
+  [R_ST, "street", [[700, 300], [1000, 300]]], [R_ST, "street", [[1000, 300], [1300, 300]]], [R_ST, "street", [[1300, 300], [1580, 300]]],
+  // north side ring roads between downtown and the freeway
+  [R_ST, "street", [[-700, -420], [-168, -420]]], [R_ST, "street", [[168, -420], [700, -420]]],
+  [R_ST, "street", [[-168, -420], [0, -420]]], [R_ST, "street", [[0, -420], [168, -420]]],
+  [R_ST, "street", [[-700, -250], [-450, -250], [-450, 150], [-700, 150]]], [R_ST, "street", [[700, -300], [450, -300], [450, 120], [700, 120]]]
+];
+// suburb grid (Cucumber Heights), with a few cul-de-sacs
+{
+  const XS = [-1050, -1200, -1350, -1500, -1650], ZS = [-600, -400, -200, 0, 200];
+  for (let i = 0; i < XS.length; i++) for (let j = 0; j < ZS.length; j++) {
+    if (i < XS.length - 1 && !(j === 1 && i === 2)) EDGEDEF.push([R_ST, "street", [[XS[i], ZS[j]], [XS[i + 1], ZS[j]]]]);
+    if (j < ZS.length - 1 && !(i === 3 && j === 2)) EDGEDEF.push([R_ST, "street", [[XS[i], ZS[j]], [XS[i], ZS[j + 1]]]]);
+  }
+  for (const [x, z, dx, dz] of [[-1200, -600, 0, -1], [-1350, -600, 0, -1], [-1500, 200, 0, 1], [-1650, -300, 1, 0], [-1050, 200, 0, 1]]) EDGEDEF.push([R_ST, "culdesac", [[x, z], [x + dx * 70, z + dz * 70]]]);
+  EDGEDEF.push([R_ART, "art", [[-1050, 0], [-1050, -600]]]);
+}
+const RNODES = [], RNMAP = new Map(), REDGES = [];
+function rnode(x, z) { const k = Math.round(x) + "," + Math.round(z); let n = RNMAP.get(k); if (n == null) { n = RNODES.length; RNODES.push({ x, z, e: [], core: inCore(x, z) || (Math.abs(x) <= 337 && Math.abs(z) <= 337) }); RNMAP.set(k, n); } return n; }
+function catmull(pts, step) {
+  if (pts.length < 3) return pts;
+  const out = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)], L = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), n = Math.max(1, Math.ceil(L / step));
+    for (let k = 0; k < n; k++) { const t = k / n, t2 = t * t, t3 = t2 * t, f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); out.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]); }
+  }
+  out.push(pts[pts.length - 1]); return out;
+}
+for (const [w, kind, raw] of EDGEDEF) {
+  const elevated = raw.some((p) => p[2] > 0.5), curvy = kind === "hill";
+  // resample at ~8 m with heights: explicit y where given, else the terrain
+  let base = curvy ? catmull(raw.map((p) => [p[0], p[1]]), 9) : raw;
+  const pts = [];
+  for (let i = 0; i < base.length - 1; i++) {
+    const a = base[i], b = base[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / 8));
+    for (let k = 0; k < n; k++) { const t = k / n; pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] != null && b[2] != null ? lerp(a[2], b[2], t) : null]); }
+  }
+  const last = base[base.length - 1]; pts.push([last[0], last[1], last[2] != null ? last[2] : null]);
+  for (const p of pts) if (p[2] == null) p[2] = inCore(p[0], p[1]) ? 0 : Math.max(0, terrainRaw(p[0], p[1]));
+  if (!elevated && kind !== "tunnel") for (let pass = 0; pass < 6; pass++) for (let i = 1; i < pts.length - 1; i++) pts[i][2] = (pts[i - 1][2] + pts[i][2] * 2 + pts[i + 1][2]) / 4;
+  if (kind === "tunnel" || kind === "bridge") for (const p of pts) if (!(p[2] > 0.5)) p[2] = 0;
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const a = rnode(pts[0][0], pts[0][1]), b = rnode(last[0], last[1]);
+  const e = { i: REDGES.length, w, kind, pts, cum, len: cum[cum.length - 1], a, b, elev: elevated, spd: kind === "fwy" ? 31 : kind === "art" || kind === "bridge" || kind === "tunnel" ? 20 : kind === "hill" ? 14 : 11 };
+  REDGES.push(e); RNODES[a].e.push(e.i); RNODES[b].e.push(e.i);
+}
+// spatial hash of road segments (50 m cells)
+const RCELL = 50, RHASH = new Map();
+for (const e of REDGES) for (let i = 0; i < e.pts.length - 1; i++) {
+  const p = e.pts[i], q = e.pts[i + 1], r = e.w / 2 + 14, seg = { e, i, ax: p[0], az: p[1], ay: p[2], bx: q[0], bz: q[1], by: q[2] };
+  for (let cx = Math.floor((Math.min(p[0], q[0]) - r) / RCELL); cx <= Math.floor((Math.max(p[0], q[0]) + r) / RCELL); cx++) for (let cz = Math.floor((Math.min(p[1], q[1]) - r) / RCELL); cz <= Math.floor((Math.max(p[1], q[1]) + r) / RCELL); cz++) { const k = cx * 1000 + cz; let L = RHASH.get(k); if (!L) RHASH.set(k, (L = [])); L.push(seg); }
+}
+const RQ = { on: false, y: 0, d: 1e9, seg: null, t: 0, ny: 0, nd: 1e9 };
+// nearest road surface at (x, z); y-aware so overpasses and bridges stack
+function roadQuery(x, z, y) {
+  RQ.on = false; RQ.y = -1e9; RQ.d = 1e9; RQ.seg = null; RQ.nd = 1e9; RQ.ny = 0;
+  const L = RHASH.get(Math.floor(x / RCELL) * 1000 + Math.floor(z / RCELL)); if (!L) return RQ;
+  for (let i = 0; i < L.length; i++) {
+    const s = L[i], dx = s.bx - s.ax, dz = s.bz - s.az, ll = dx * dx + dz * dz, t = ll > 0 ? clamp(((x - s.ax) * dx + (z - s.az) * dz) / ll, 0, 1) : 0, px = s.ax + dx * t - x, pz = s.az + dz * t - z, d = Math.sqrt(px * px + pz * pz), sy = s.ay + (s.by - s.ay) * t;
+    if (!s.e.elev && d < RQ.nd) { RQ.nd = d; RQ.ny = sy; RQ.nw = s.e.w; }
+    if (d <= s.e.w / 2) { if (y != null && sy > y + 1.6) continue; if (sy > RQ.y) { RQ.on = true; RQ.y = sy; RQ.d = d; RQ.seg = s; RQ.t = t; } }
+  }
+  return RQ;
+}
+// terrain flattened to nearby roads
+function terrainH(x, z) {
+  const h = terrainRaw(x, z); roadQuery(x, z);
+  if (RQ.nd < 1e8) { const inner = RQ.nw / 2 + 2, outer = inner + 16; if (RQ.nd < outer) return lerp(RQ.ny - 0.12, h, sstep(inner, outer, RQ.nd)); }
+  return h;
+}
+function outerGround(x, z, y) {
+  roadQuery(x, z, y);
+  if (RQ.on) return RQ.y;
+  const h = terrainRaw(x, z);
+  if (RQ.nd < 1e8) { const inner = RQ.nw / 2 + 2, outer = inner + 16; if (RQ.nd < outer) return lerp(RQ.ny - 0.12, h, sstep(inner, outer, RQ.nd)); }
+  return h;
+}
+/* outer collision solids (32 m hash; chunks add and remove theirs) */
+const OCELL = 32, OHASH = new Map();
+function addOuterSolid(x0, x1, z0, z1, list, ya, yb) {
+  const s = { x0, x1, z0, z1, ya, yb, k: [] };
+  for (let a = Math.floor(x0 / OCELL); a <= Math.floor(x1 / OCELL); a++) for (let b = Math.floor(z0 / OCELL); b <= Math.floor(z1 / OCELL); b++) { const k = a * 1000 + b; let L = OHASH.get(k); if (!L) OHASH.set(k, (L = [])); L.push(s); s.k.push(k); }
+  if (list) list.push(s); return s;
+}
+function removeOuterSolid(s) { for (const k of s.k) { const L = OHASH.get(k); if (L) { const i = L.indexOf(s); if (i >= 0) L.splice(i, 1); } } }
+function nearOuter(x, z, r, out) {
+  for (let a = Math.floor((x - r) / OCELL); a <= Math.floor((x + r) / OCELL); a++) for (let b = Math.floor((z - r) / OCELL); b <= Math.floor((z + r) / OCELL); b++) { const L = OHASH.get(a * 1000 + b); if (L) for (let i = 0; i < L.length; i++) if (out.indexOf(L[i]) < 0) out.push(L[i]); }
+}
+// tunnel walls, bridge and viaduct rails (height-banded so traffic underneath is unaffected)
+addOuterSolid(686, 689, -1000, -800); addOuterSolid(711, 714, -1000, -800);
+for (const s of WORLD_STATIC_SOLIDS()) addOuterSolid(...s);
+function WORLD_STATIC_SOLIDS() {
+  return [[-918, -806, -11.5, -9.5, null, 5, 11], [-918, -806, 9.5, 11.5, null, 5, 11],
+    [-104, 104, -712.5, -711, null, 6, 12], [-104, 104, -689, -687.5, null, 6, 12],
+    [445, 575, 323.5, 325, null, 5, 11], [445, 575, 347, 348.5, null, 5, 11], [-575, -445, 323.5, 325, null, 5, 11], [-575, -445, 347, 348.5, null, 5, 11],
+    // sea wall along the coast outside downtown and the world edge
+    [-1900, -CORE - 40, SEA + 2, SEA + 40], [CORE + 40, 1900, SEA + 2, SEA + 40],
+    [-1900, -1795, -1950, 450], [1795, 1900, -1950, 450], [-1900, 1900, -1950, -1895]];
+}
+function districtOuter(x, z) {
+  if (z < -820 && x < 640) return z < -1450 ? "Pepino Peak" : "Los Pepinos Hills";
+  if (x > 760 && z < -600) return "Salt Flats";
+  if (x > 760) return "Port of Brine";
+  if (x < -930) return "Cucumber Heights";
+  if (x < -760) return "Brine Bay";
+  if (z < -380) return x < 0 ? "Northgate West" : "Northgate East";
+  if (z > SEA - 40) return "Pepino Beach";
+  return x < 0 ? "West Pepino" : "East Pepino";
+}
+function biome(x, z) { const d = districtOuter(x, z); return d === "Salt Flats" ? "desert" : d === "Port of Brine" ? "port" : d === "Cucumber Heights" ? "suburb" : /Hills|Peak/.test(d) ? "hills" : d === "Brine Bay" ? "bay" : "city"; }
+
 function isRoad(x, z) {
-  if (Math.abs(x) > EDGE || Math.abs(z) > EDGE) return false;
+  if (!inCore(x, z)) { roadQuery(x, z); return RQ.on; }
+  if (Math.abs(x) > EDGE || Math.abs(z) > EDGE) { roadQuery(x, z); return RQ.on; }
   const u = ((x + HALF) % CELL + CELL) % CELL, v = ((z + HALF) % CELL + CELL) % CELL;
   return u < HR || u > CELL - HR || v < HR || v > CELL - HR;
 }
-function groundH(x, z) {
+function groundH(x, z, y) {
   const r = rampAt(x, z); if (r >= 0) return r;
+  if (!inCore(x, z) || ((Math.abs(x) > EDGE || z < -EDGE) && !isRoad(x, z) && false)) return outerGround(x, z, y);
+  if (Math.abs(x) > EDGE || z < -EDGE) { roadQuery(x, z, y); if (RQ.on) return RQ.y; }
   return isRoad(x, z) ? 0 : CURB;
 }
 
@@ -1297,24 +1461,19 @@ for (let bi = 0; bi < N; bi++) for (let bj = 0; bj < N; bj++) {
 slab(-WALLD, WALLD, -WALLD, -EDGE); slab(-WALLD, -EDGE, -EDGE, EDGE); slab(EDGE, WALLD, -EDGE, EDGE);
 slab(-WALLD - 40, WALLD + 40, EDGE, SEA, woodAcc, CURB);
 woodAcc.sides(0, SEA + 0.5, 2 * WALLD + 80, 1, -2, 2 + CURB, "world");
-addSolid(-900, 900, -900, -WALLD); addSolid(-900, 143.6, SEA - 0.6, 900); addSolid(156.4, 900, SEA - 0.6, 900); addSolid(143.6, 156.4, 548, 900); addSolid(-900, -WALLD, -900, 900); addSolid(WALLD, 900, -900, 900);
+addSolid(-CORE - 40, 143.6, SEA - 0.6, 900); addSolid(156.4, CORE + 40, SEA - 0.6, 900); addSolid(143.6, 156.4, 548, 900);
 for (let side = 0; side < 3; side++) {
   let t = -WALLD - 30;
   while (t < WALLD + 30) {
     const len = sr(14, 34), dep = sr(16, 34), h = sr(8, 34), st = spick([2, 5, 2, 0, 1, 4]);
-    const a = t + 1, b = t + len - 1;
+    const a = t + 1, b = t + len - 1, gaps = side === 0 ? [-168, 0, 168] : side === 1 ? [0, 336] : [-84, 336];
+    t += len; if (gaps.some((g) => b > g - 17 && a < g + 17)) { t -= len; t += len; continue; }
+    t -= len;
+    if (side === 0) addOuterSolid(a, b, -WALLD - 1 - dep, -WALLD - 1); else { const sx = side === 1 ? -1 : 1, xa = sx * (WALLD + 1), xb = sx * (WALLD + 1 + dep); addOuterSolid(Math.min(xa, xb), Math.max(xa, xb), a, b); }
     if (side === 0) facadeAcc[st].sides((a + b) / 2, -WALLD - 1 - dep / 2, b - a, dep, 0, h, "facade", 0), roofAcc.top((a + b) / 2, -WALLD - 1 - dep / 2, b - a, dep, h);
     else { const sx = side === 1 ? -1 : 1; facadeAcc[st].sides(sx * (WALLD + 1 + dep / 2), (a + b) / 2, dep, b - a, 0, h, "facade", 0); roofAcc.top(sx * (WALLD + 1 + dep / 2), (a + b) / 2, dep, b - a, h); }
     t += len;
   }
-}
-// far skyline silhouettes
-for (let i = 0; i < 70; i++) {
-  const a = sr(-Math.PI * 0.95, Math.PI * 0.45) - Math.PI / 2, r = sr(520, 900), x = Math.cos(a) * r, z = Math.sin(a) * r;
-  if (z > 250 || z < -380) continue;
-  const w = sr(18, 50), d = sr(18, 50), h = sr(30, 170) * (r < 700 ? 1 : 0.7), st = spick([3, 4, 4, 1, 2]);
-  facadeAcc[st].sides(x, z, w, d, 0, h, "facade", 0); roofAcc.top(x, z, w, d, h);
-  if (h > 100) blinkers.push([x, h + 1, z]);
 }
 for (let x = -WALLD - 30; x <= WALLD + 30; x += 22) palmList.push([x + sr(-3, 3), SEA - 2.6, sr(0.95, 1.3), sr(0, 6)]);
 for (const p of palmList) addSolid(p[0] - 0.4, p[0] + 0.4, p[1] - 0.4, p[1] + 0.4);
@@ -1351,9 +1510,9 @@ MAT.asphalt.onBeforeCompile = (sh) => {
 };
 function addMesh(geo, mat, cast = true, recv = true) { const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = recv; m.matrixAutoUpdate = false; m.updateMatrix(); scene.add(m); return m; }
 {
-  const g = new THREE.PlaneGeometry(2600, 2600 - (1300 - SEA)); g.rotateX(-Math.PI / 2);
-  const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 2600 / 14, uv.getY(i) * (2600 - (1300 - SEA)) / 14);
-  const m = addMesh(g, MAT.asphalt, false, true); m.position.set(0, 0, (-1300 + SEA) / 2); m.updateMatrix(); reflHide.push(m);
+  const GW = 2 * (CORE + 16), GD = SEA + CORE + 16; const g = new THREE.PlaneGeometry(GW, GD); g.rotateX(-Math.PI / 2);
+  const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * GW / 14, uv.getY(i) * GD / 14);
+  const m = addMesh(g, MAT.asphalt, false, true); m.position.set(0, 0, (SEA - CORE - 16) / 2); m.updateMatrix(); reflHide.push(m);
 }
 facadeAcc.forEach((a, i) => addMesh(a.geo(), facadeMats[i]));
 addMesh(roofAcc.geo(), MAT.roof); addMesh(slabAcc.geo(), MAT.walk, false, true); addMesh(grassAcc.geo(), MAT.grass, false, true); addMesh(woodAcc.geo(), MAT.wood, false, true);
@@ -2283,7 +2442,7 @@ let mode = "title"; // title | game | pause | trailer | busted
 const P = makeCar("dilly", DILLY_PAINT); P.mesh.add(crateMesh);
 for (const zf of [1, -1]) { const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.26), new THREE.MeshStandardMaterial({ map: heroPlateTex, roughness: 0.4, metalness: 0.3 })); pm.position.set(0, CAR_GEOS.dilly.plateY, zf * (CAR_DEF.dilly.L / 2 + 0.13)); pm.rotation.y = zf > 0 ? 0 : Math.PI; P.mesh.add(pm); }
 const SPAWN = { x: 58, z: roadC(5) - 2.25, h: -Math.PI / 2 };
-function placePlayer(x, z, h) { Object.assign(P, { x, z, h, y: 0, vx: 0, vz: 0, vy: 0, yaw: 0, air: false, pitch: 0, roll: 0 }); }
+function placePlayer(x, z, h) { Object.assign(P, { x, z, h, y: groundH(x, z), vx: 0, vz: 0, vy: 0, yaw: 0, air: false, pitch: 0, roll: 0 }); }
 placePlayer(SPAWN.x, SPAWN.z, SPAWN.h);
 avatarInCar();
 const traffic = [], cops = [], peds = [];
@@ -4884,9 +5043,8 @@ function nextLine() {
   const l = VOX.q.shift(); VOX.cur = l || null; if (!l) return;
   const g = spatialGain(l) * S.voice / 100 * (l.radio ? Math.max(0.25, RADIO.audible) : 1);
   if (g < 0.03) { VOX.cur = null; nextLine(); return; }
-  if (!l.radio) RADIO.duck++;
   const c = castFor(l.who, l.seed); l.started = performance.now();
-  const done = () => { if (VOX.cur !== l) return; if (!l.radio) RADIO.duck = Math.max(0, RADIO.duck - 1); VOX.cur = null; clearTimeout(l.timer); setTimeout(nextLine, 140); };
+  const done = () => { if (VOX.cur !== l) return; VOX.cur = null; clearTimeout(l.timer); setTimeout(nextLine, 140); };
   const estimate = 600 + l.text.length * 62 / c.rate;
   l.timer = setTimeout(done, estimate + 2500); // safety net if onend never fires
   if (voiceStyle() === "real") {
@@ -4897,7 +5055,7 @@ function nextLine() {
   }
   l.dur = gibberish(l.text, c, g, l.radio || c.radio); clearTimeout(l.timer); l.timer = setTimeout(done, l.dur * 1000 + 120);
 }
-function stopVoices() { VOX.q = []; if (VOX.cur) { clearTimeout(VOX.cur.timer); if (!VOX.cur.radio) RADIO.duck = Math.max(0, RADIO.duck - 1); } VOX.cur = null; try { if (SS) SS.cancel(); } catch (e) { /* ignore */ } }
+function stopVoices() { VOX.q = []; if (VOX.cur) clearTimeout(VOX.cur.timer); VOX.cur = null; try { if (SS) SS.cancel(); } catch (e) { /* ignore */ } }
 /* gibberish ("Simlish"-style): formant-filtered pulses per syllable, with a cop-radio band-pass for megaphones */
 const VOWELS = [[730, 1090], [270, 2290], [530, 1840], [570, 840], [300, 870], [660, 1720], [440, 1020]];
 function gibberish(text, c, g, radioFx) {
@@ -4928,7 +5086,7 @@ function gibberish(text, c, g, radioFx) {
 }
 function updateVoices(dt) {
   const talking = VOX.cur && VOX.cur.who === "Dilly";
-  VOX.talkT = talking ? VOX.talkT + dt : 0;
+  VOX.talkT = talking ? VOX.talkT + dt : 0; RADIO.duck = VOX.cur && !VOX.cur.radio ? 1 : 0;
   AVA.mouth.scale.y = talking ? 0.0015 + Math.abs(Math.sin(VOX.talkT * 17)) * 0.009 : 0.0012;
   if (talking && AVA.head) { AVA.head.rotation.x += Math.sin(VOX.talkT * 9) * 0.06; AVA.head.rotation.y += Math.sin(VOX.talkT * 3.1) * 0.05; }
 }
@@ -4982,7 +5140,7 @@ function pedBark(p, kind) {
   const pool = (DISTRICT_BARKS[districtGroup(p.x, p.z)] || {})[kind], line = pool && Math.random() < 0.45 ? pick(pool) : pick(BARKS[kind]);
   if (Math.hypot(p.x - camera.position.x, p.z - camera.position.z) > 40) return;
   VOX.lastBark = gameTime;
-  if (say("Ped", line, { prio: 0, x: p.x, z: p.z, seed: peds.indexOf(p) })) subtitle(`<span class="spk" style="color:${SPK_COL.Ped}">Passer-by</span>${line}`, 1.8);
+  if (say("Ped", line, { prio: 0, x: p.x, z: p.z, seed: peds.indexOf(p) }) && subT <= 0.3) subtitle(`<span class="spk" style="color:${SPK_COL.Ped}">Passer-by</span>${line}`, 1.8);
 }
 const COPLINES = {
   start: ["Pull over!", "Hey, stop that pickle!", "This is the police! Pull over now!", "Suspect is a large pickle in a red convertible!", "Halt, in the name of the brine!"],
@@ -5237,7 +5395,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
 window.DGM = {
   get mode() { return mode; }, get player() { return { x: P.x, z: P.z, h: P.h, speed: Math.hypot(P.vx, P.vz) }; }, get wanted() { return { stars: W.stars, heat: W.heat, cops: cops.length }; },
   get mission() { return mission && { stage: mission.stage, x: mission.x, z: mission.z, name: mission.name }; }, get cash() { return save.cash; }, get trailerT() { return TR.t; },
-  get scene() { return scene; }, crowdAt(list) { list.forEach(([x, z], k) => { const q = peds[k]; Object.assign(q, { state: "walk", pause: 99, x, z, y: groundH(x, z) }); }); }, carAim(o) { WEP.locked = true; camState.orbit = o; }, seekStep(t) { if (t < TR.t) TR.t = Math.max(0, t - 1.0); while (TR.t < t - 1e-6) tick(Math.min(1 / 30, t - TR.t), false); paused = true; tick(0.0001, true); }, get stores() { return storefronts.length; }, store(k) { const sf = storefronts[k], n = [[0, 1], [1, 0], [0, -1], [-1, 0]][sf.f], hw = (sf.f % 2 ? sf.w : sf.d) / 2; return { x: sf.cx + n[0] * hw, z: sf.cz + n[1] * hw, nx: n[0], nz: n[1] }; }, noHeat(on) { W.noHeat = !!on; }, get radio() { const c = AU.ctx; return { station, name: STATIONS[station].name, np: radioNowPlaying(), voices: AU.voices, ctx: c ? c.state : "none", audible: RADIO.audible, chains: Object.keys(RADIO.chains).length, line: RADIO.line, wheel: RADIO.wheel }; },
+  get scene() { return scene; }, crowdAt(list) { list.forEach(([x, z], k) => { const q = peds[k]; Object.assign(q, { state: "walk", pause: 99, x, z, y: groundH(x, z) }); }); }, carAim(o) { WEP.locked = true; camState.orbit = o; }, seekStep(t) { if (t < TR.t) TR.t = Math.max(0, t - 1.0); while (TR.t < t - 1e-6) tick(Math.min(1 / 30, t - TR.t), false); paused = true; tick(0.0001, true); }, get stores() { return storefronts.length; }, store(k) { const sf = storefronts[k], n = [[0, 1], [1, 0], [0, -1], [-1, 0]][sf.f], hw = (sf.f % 2 ? sf.w : sf.d) / 2; return { x: sf.cx + n[0] * hw, z: sf.cz + n[1] * hw, nx: n[0], nz: n[1] }; }, noHeat(on) { W.noHeat = !!on; }, get voice() { return { style: voiceStyle(), voices: VOX.voices.length, cur: VOX.cur && { who: VOX.cur.who, text: VOX.cur.text }, q: VOX.q.length, duck: RADIO.duck, mouth: +AVA.mouth.scale.y.toFixed(4), ss: !!SS }; }, say(w, t, o) { return say(w, t, o || {}); }, quip(k) { VOX.lastQuip._any = -99; VOX.lastQuip[k] = -99; quip(k, 0); }, bark(i, k) { VOX.lastBark = -99; pedBark(peds[i], k); }, copSay(k) { VOX.lastQuip["cop" + k] = -99; copSay(k, cops[0]); }, get radio() { const c = AU.ctx; return { station, name: STATIONS[station].name, np: radioNowPlaying(), voices: AU.voices, ctx: c ? c.state : "none", audible: RADIO.audible, chains: Object.keys(RADIO.chains).length, line: RADIO.line, wheel: RADIO.wheel }; },
   tune(i) { radioTune(i); }, radioWheel(on) { radioWheel(on); },
   async radioRender(si, secs = 8, startBar = 8) {
     const save0 = { ctx: AU.ctx, noise: AU.noise, music: AU.music, bus: RADIO.bus, lp: RADIO.lp, level: RADIO.level, verb: RADIO.verb, wob: RADIO.wob, wobG: RADIO.wobG, chains: RADIO.chains, voices: AU.voices };
