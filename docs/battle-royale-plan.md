@@ -1,6 +1,18 @@
-# Battle royale game plan (working title: **ZONE NINE**)
+# DILLION: LAST ZONE (battle royale game plan)
 
-Status: **plan v3, decisions locked: realistic tone, self-hosted server, same universe as Dilly Gone Mad.** Nothing here is built yet.
+Status: **plan v4. Decisions locked:** name **DILLION: LAST ZONE**, realistic tone, self-hosted server (later), same universe as Dilly Gone Mad as a gritty spin-off, free CC0 model packs. **First release (P0) scope is locked, see §0. Building started.**
+
+(Earlier drafts used the working title "Zone Nine"; the in-fiction restricted area can still be called Zone Nine.)
+
+## 0. First release (P0) scope, as chosen
+
+An **offline** single-player match against bots, in the browser, no server needed:
+1. **Plane drop + gas circle:** ride a transport plane, jump, free-fall, parachute in, survive a shrinking safe zone.
+2. **Gunplay + 8 guns:** aim down sights, recoil, reload, hit markers, armour plates and healing, sprint/crouch/jump. 8 guns from the CC0 pack (pistol, revolver, SMG x2, assault rifle x2, shotgun, sniper).
+3. **Bots:** 20-30 AI players that drop, loot, fight and run from the gas.
+4. **Los Pepinos district:** a scaled-down version of the Dilly Gone Mad downtown on the map, with the hillside sign, pier and Ferris wheel; **Dilly** is the playable operator.
+
+**Art actually available (honest note):** the free CC0 packs we could reach are **Quaternius low-poly models** (41 guns; a 53-bone humanoid mannequin rig with 46 animations: idle, walk, sprint, crouch, jump, pistol aim/reload/shoot, hit, death). They look stylised low-poly, not photoreal. kenney.nl and poly.pizza refuse automated downloads from this sandbox, so they're not used; if you want those packs, download them yourself and drop them in `assets/` with the licence noted in `assets/CREDITS.md`. True photoreal guns and soldiers would need purchased or commissioned models.
 
 A Warzone-style battle royale for the browser: drop onto a big map with a squad, loot up, fight, survive a shrinking gas circle, and be the last squad standing. This replicates the genre's *mechanics*. Names, art, maps, weapons and audio are original: no Activision / Call of Duty assets, names, logos, weapon names or real-world factions.
 
