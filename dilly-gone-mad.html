@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261119171709";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261119215553";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -3022,7 +3022,7 @@ function audioUpdate(dt) {
   if (AU.blowG) { AU.blowG.gain.setTargetAtTime(WEP.blowSnd ? 0.11 : 0, t, 0.08); AU.blowF.frequency.setTargetAtTime(WEP.blowSnd ? 650 + Math.sin(gameTime * 13) * 120 : 400, t, 0.05); }
   RADIO.la = clamp(dt * 1.6, 0.18, 0.9); seqTick();
 }
-function setMute(m) { AU.muted = m; if (AU.master) AU.master.gain.setTargetAtTime(masterLevel(), AU.ctx.currentTime, 0.05); toast(m ? "MUTED" : "SOUND ON", "gold"); }
+function setMute(m) { AU.muted = m; if (m && window.__voxReady) stopVoices(); if (AU.master) AU.master.gain.setTargetAtTime(masterLevel(), AU.ctx.currentTime, 0.05); toast(m ? "MUTED" : "SOUND ON", "gold"); }
 
 /* =====================================================================
    HUD
@@ -3041,9 +3041,10 @@ function district(x, z) {
   if (bj <= 1) return bi < 4 ? "Vinegar Hill" : "Gherkin Docks";
   return bi < 4 ? "Dill Heights" : "Crunch Park";
 }
-function subtitle(html, dur = 3.4) { const s = $("sub"); s.innerHTML = styleSub(html); s.classList.add("on"); subT = dur; }
+function subtitle(html, dur = 3.4) { const s = $("sub"); s.innerHTML = styleSub(html); s.classList.add("on"); subT = dur;
+  const m = /^\s*<(?:b|span class="?n"?)>([^<:]{1,24}):\s*<\/(?:b|span)>\s*([\s\S]*)$/.exec(html); if (m && window.__voxReady) say(m[1], m[2], { prio: 2 }); }
 function splash(big, small, cls = "", dur = 2.8) { const s = $("splash"); s.className = "on " + cls; s.querySelector(".big").textContent = big; s.querySelector(".small").textContent = small || ""; splashT = dur; passCount = null; }
-function missionPassed(amount, note) { splash("MISSION PASSED", "$0", "", 4.2); addFeed("mission"); passCount = { t: 0, amount, note: note || "", last: -1 }; }
+function missionPassed(amount, note) { splash("MISSION PASSED", "$0", "", 4.2); addFeed("mission"); if (window.__voxReady) setTimeout(() => quip("mission", 5), 900); passCount = { t: 0, amount, note: note || "", last: -1 }; }
 function toast(text, cls = "") {
   const box = $("pops"); if (box.children.length > 3) box.firstChild.remove();
   const d = document.createElement("div"); d.className = "pop " + cls; d.textContent = text; box.appendChild(d);
@@ -3140,7 +3141,8 @@ function pickNode(minD, maxD) {
 function startPickup() {
   const [i, j] = pickNode(80, 210);
   mission = { stage: "pickup", i, j, x: roadC(i), z: roadC(j) }; crateMesh.visible = false;
-  subtitle("<b>Dilly:</b> " + pick(["Somebody's got a crate of premium pickles that needs moving. Let's roll.", "New job on the pager. Grab the crate at the yellow marker.", "Crates don't deliver themselves. Unfortunately."]));
+  if (window.__voxReady && Math.random() < 0.7) { if (AU.ctx) { const t = AU.ctx.currentTime; for (let i = 0; i < 2; i++) { tone(t + i * 0.25, 1320, 0.12, "square", 0.03, 5000, AU.sfx); tone(t + i * 0.25 + 0.06, 1760, 0.12, "square", 0.03, 5000, AU.sfx); } } setTimeout(() => { if (mode === "game") subtitle("<b>Auntie Brine:</b> " + pick(GIVER_LINES), 4.2); }, 700); }
+  else subtitle("<b>Dilly:</b> " + pick(["Somebody's got a crate of premium pickles that needs moving. Let's roll.", "New job on the pager. Grab the crate at the yellow marker.", "Crates don't deliver themselves. Unfortunately."]));
 }
 function startDeliver() {
   const [i, j, d] = pickNode(220, 460), name = pick(PLACES);
@@ -3185,7 +3187,7 @@ function updatePickles(t, dt) {
     dynGlow.add(p.x, p.mesh.position.y, p.z, 1, 0.8, 0.3, 4.5, 0.7);
     if (mode === "game" && Math.hypot(ME.x - p.x, ME.z - p.z) < 3.2) {
       p.got = true; p.mesh.visible = false; save.pickles.push(i); saveDirty = true;
-      splash("GOLDEN PICKLE", save.pickles.length + " of " + PICKLES.length + " found", "", 2.2); addFeed("pickle"); addCash(100, "GOLDEN PICKLE", "gold"); sfxStinger(false);
+      splash("GOLDEN PICKLE", save.pickles.length + " of " + PICKLES.length + " found", "", 2.2); addFeed("pickle"); if (window.__voxReady) quip("pickle", 5); addCash(100, "GOLDEN PICKLE", "gold"); sfxStinger(false);
       if (save.pickles.length === PICKLES.length) setTimeout(() => { splash("ALL PICKLES FOUND", "Dilly is the brine king of " + CITY, "", 4); addCash(5000, "COLLECTOR", "gold"); }, 2500);
     }
   }
@@ -3194,7 +3196,7 @@ function starsFor(h) { return h >= 125 ? 5 : h >= 88 ? 4 : h >= 56 ? 3 : h >= 30
 function addHeat(n, why) {
   if (mode !== "game" || W.noHeat) return;
   W.heat += n; const s = Math.max(W.stars, starsFor(W.heat));
-  if (s > W.stars) { W.stars = s; W.evade = 0; toast(s === 1 ? "THE COPS NOTICED" : "WANTED LEVEL UP", "red"); }
+  if (s > W.stars) { if (W.stars === 0 && window.__voxReady) { quip("wanted", 20); setTimeout(() => copSay("start", cops[0]), 1800); } W.stars = s; W.evade = 0; W.lostSaid = false; toast(s === 1 ? "THE COPS NOTICED" : "WANTED LEVEL UP", "red"); }
   if (why) toast(why, "red");
 }
 function updateWanted(dt) {
@@ -3205,22 +3207,22 @@ function updateWanted(dt) {
   if (active < want && W.spawnT <= 0) { const sp = copSpawnPoint(); if (sp) { spawnCop(sp[0], sp[1], Math.atan2(ME.x - sp[0], ME.z - sp[1])); } W.spawnT = 2.2; }
   W.seen = false;
   for (const c of cops) if (!c.leaving && Math.hypot(c.x - ME.x, c.z - ME.z) < 80 && los(c.x, c.z, ME.x, ME.z)) { W.seen = true; break; }
-  if (W.seen) W.evade = 0; else { W.evade += dt; if (W.evade > 6 + W.stars) { const bounty = W.stars * 75; W.stars = 0; W.heat = 0; W.evade = 0; splash("WANTED LEVEL CLEARED", "Evaded the cops · +" + fmt$(bounty), "blue", 2.6); sfxStinger(false); addCash(bounty); } }
+  if (W.seen) W.evade = 0; else { W.evade += dt; if (W.evade > 3 && !W.lostSaid && window.__voxReady) { W.lostSaid = true; copSay("lose", cops[0]); } if (W.evade > 6 + W.stars) { if (window.__voxReady) setTimeout(() => quip("clear", 10), 1200); const bounty = W.stars * 75; W.stars = 0; W.heat = 0; W.evade = 0; splash("WANTED LEVEL CLEARED", "Evaded the cops · +" + fmt$(bounty), "blue", 2.6); sfxStinger(false); addCash(bounty); } }
   // busted?
   let nearest = 1e9; for (const c of cops) if (!c.leaving) nearest = Math.min(nearest, Math.hypot(c.x - ME.x, c.z - ME.z));
-  if (nearest < 7.5 && Math.hypot(ME.vx, ME.vz) < 3) { W.bust += dt; if (W.bust > 2.5) busted(); } else W.bust = Math.max(0, W.bust - dt * 2);
+  if (nearest < 7.5 && Math.hypot(ME.vx, ME.vz) < 3) { W.bust += dt; if (W.bust > 1 && window.__voxReady) copSay("bust", cops[0]); if (W.bust > 2.5) busted(); } else W.bust = Math.max(0, W.bust - dt * 2);
 }
 let bustedT = 0;
 function busted() {
   W.bust = 0; mode = "busted"; bustedT = 3.6;
   const fine = Math.min(save.cash, Math.max(50, Math.round(save.cash * 0.1)));
-  save.cash -= fine; save.busted++; saveDirty = true; if (fine) cashDelta(-fine); addFeed("busted");
+  save.cash -= fine; save.busted++; saveDirty = true; if (fine) cashDelta(-fine); addFeed("busted"); if (window.__voxReady) { VOX.lastQuip._any = -99; quip("busted", 0); }
   splash("BUSTED", "Bail: " + fmt$(fine) + " · the crate was confiscated", "white", 3.6); sfxFail();
   if (mission && mission.stage === "deliver") { mission = null; crateMesh.visible = false; missionWait = 5; }
 }
 function totalled() {
   if (mode !== "game") return;
-  const bill = Math.min(save.cash, 150); save.cash -= bill; saveDirty = true; if (bill) cashDelta(-bill); addFeed("totalled"); mode = "busted"; bustedT = 3.4;
+  const bill = Math.min(save.cash, 150); save.cash -= bill; saveDirty = true; if (bill) cashDelta(-bill); addFeed("totalled"); if (window.__voxReady) { VOX.lastQuip._any = -99; quip("crash", 0); } mode = "busted"; bustedT = 3.4;
   splash("TOTALLED", "Repair bill: " + fmt$(bill), "white", 3.4); sfxCrash(30); camState.shake += 1;
   for (let i = 0; i < 20; i++) emitSmoke(P.x, 1, P.z, 0.5, 3, 1.2, 0.35);
   if (mission && mission.stage === "deliver") { mission = null; crateMesh.visible = false; missionWait = 5; }
@@ -3267,13 +3269,13 @@ function updatePlayer(dt) {
     for (const s of [-1, 1]) if (Math.random() < 0.8) emitSmoke(P.x - fx * 1.5 + fz * s * 0.9, 0.35, P.z - fz * 1.5 - fx * s * 0.9, 0.32, 1.6, 0.3, 0.85);
   } else if (driftT > 0) {
     driftGrace -= dt;
-    if (driftGrace <= 0) { if (driftT > 1.0) { const amt = Math.round(driftT * driftT * 30); addCash(amt, "DRIFT " + driftT.toFixed(1) + "s"); if (driftT > save.bestDrift) save.bestDrift = +driftT.toFixed(1); if (driftT > 2.5) addFeed("drift"); } driftT = 0; }
+    if (driftGrace <= 0) { if (driftT > 1.0) { const amt = Math.round(driftT * driftT * 30); addCash(amt, "DRIFT " + driftT.toFixed(1) + "s"); if (driftT > save.bestDrift) save.bestDrift = +driftT.toFixed(1); if (driftT > 2.5) { addFeed("drift"); if (window.__voxReady) quip("drift", 15); } } driftT = 0; }
   }
   // stunts
   if (P.air) { if (airT === 0) { airFromRamp = wasOnRamp; airStartX = P.x; airStartZ = P.z; } airT += dt; }
   else if (airT > 0) {
     const dist = Math.hypot(P.x - airStartX, P.z - airStartZ);
-    if (airFromRamp && airT > 0.55) { const amt = Math.round(airT * 140 + dist * 4); addCash(amt, airT > 1.3 ? "INSANE STUNT JUMP" : "STUNT JUMP", "gold"); if (dist > save.bestJump) save.bestJump = Math.round(dist); camState.shake += 0.4; addFeed("jump"); }
+    if (airFromRamp && airT > 0.55) { const amt = Math.round(airT * 140 + dist * 4); addCash(amt, airT > 1.3 ? "INSANE STUNT JUMP" : "STUNT JUMP", "gold"); if (dist > save.bestJump) save.bestJump = Math.round(dist); camState.shake += 0.4; addFeed("jump"); if (window.__voxReady) { quip("jump", 10); for (const q of peds) if (q.state === "walk" && Math.hypot(q.x - P.x, q.z - P.z) < 35) { q.flee = 0; pedBark(q, Math.random() < 0.5 ? "cheer" : "photo"); break; } } }
     if ((P.landV || 0) < -7) { camState.shake += 0.35; sfxCrash(8); for (let i = 0; i < 6; i++) emitSmoke(P.x, 0.3, P.z, 0.3, 2, 1.4, 0.7); }
     airT = 0;
   }
@@ -3390,7 +3392,7 @@ function updatePeds(dt, t) {
         if (ahead > 0 && ahead < 5 + sp * 0.55 && Math.abs(lat) < 3.2) {
           const side = lat >= 0 ? 1 : -1, rx = -fz * side, rz = fx * side;
           Object.assign(p, { state: "dive", t: 0, vx: rx * 7.5 + P.vx * 0.15, vz: rz * 7.5 + P.vz * 0.15, vy: 4.5, spin: 0, nmT: 1.2 });
-          p.diveYaw = Math.atan2(rx, rz);
+          p.diveYaw = Math.atan2(rx, rz); if (window.__voxReady && Math.random() < 0.5) pedBark(p, "near");
         }
       }
     } else {
@@ -3413,7 +3415,7 @@ function updatePeds(dt, t) {
     if (p.state !== "tumble" && !D.onFoot && dP < 2.1 && sp > 3.5 && Math.abs(p.y - P.y - 0.3) < 2 && (mode === "game" || mode === "trailer")) {
       Object.assign(p, { state: "tumble", t: 0, vx: P.vx * 0.55 + rnd(-2, 2), vz: P.vz * 0.55 + rnd(-2, 2), vy: 6 + sp * 0.18, spin: rnd(6, 12) * (Math.random() < 0.5 ? -1 : 1), rx: 0, rz: 0, nmT: 0 });
       p.diveYaw = Math.atan2(P.vx, P.vz); P.vx *= 0.9; P.vz *= 0.9;
-      if (mode === "game") { addHeat(15, pick(OOF)); camState.shake += 0.25; sfxBonk(); }
+      if (mode === "game") { addHeat(15, pick(OOF)); camState.shake += 0.25; sfxBonk(); if (window.__voxReady) pedBark(p, "bumped"); }
     }
   }
 }
@@ -3569,10 +3571,11 @@ function knockPed(p, vx, vz, up, kind) {
   if (p.state === "tumble" || p.state === "slip") { p.vx += vx * 0.3; p.vz += vz * 0.3; return false; }
   if (kind === "slip") Object.assign(p, { state: "slip", t: 0, vx: vx * 0.3, vz: vz * 0.3, vy: 2.5, nmT: 0 });
   else Object.assign(p, { state: "tumble", t: 0, vx, vz, vy: up, spin: rnd(6, 11) * (Math.random() < 0.5 ? -1 : 1), rx: 0, rz: 0, nmT: 0 });
-  p.diveYaw = Math.atan2(vx, vz); p.wet = 0;
+  const wasWet = p.wet > 3; p.diveYaw = Math.atan2(vx, vz); p.wet = 0;
+  if (window.__voxReady && Math.random() < 0.55) pedBark(p, wasWet ? "soaked" : NUKES.length && NUKES[NUKES.length - 1].t < 0.3 ? "nuked" : "bonked");
   return true;
 }
-function dizzyCop(c, secs, slip) { c.dizzy = Math.max(c.dizzy || 0, secs); if (slip) c.slip = Math.max(c.slip || 0, slip); }
+function dizzyCop(c, secs, slip) { if (window.__voxReady && !(c.dizzy > 0)) copSay("dizzy", c); c.dizzy = Math.max(c.dizzy || 0, secs); if (slip) c.slip = Math.max(c.slip || 0, slip); }
 function weaponHeat(n, why, id) { if (mode !== "game") return; addHeat(n, why); const w = id || (WEP.cur >= 0 ? WEAPONS[WEP.cur].id : null); if (w) save.hits[w] = (save.hits[w] || 0) + 1; }
 /* aiming */
 const _aim = new THREE.Vector3();
@@ -3593,12 +3596,13 @@ function weaponFire(held) {
   if (id === "chucks") {
     if (held || WEP.swingT > 0.1) return;
     WEP.combo = gameTime - WEP.lastSwing < 0.75 ? WEP.combo % 3 + 1 : 1; WEP.lastSwing = gameTime;
-    WEP.swingDur = WEP.swingT = WEP.combo === 3 ? 0.42 : 0.28; WEP.swingHit = false; WEP.swingSide = WEP.combo; sfxSwing(); sfxSqueak(WEP.combo); return;
+    WEP.swingDur = WEP.swingT = WEP.combo === 3 ? 0.42 : 0.28; WEP.swingHit = false; WEP.swingSide = WEP.combo; sfxSwing(); sfxSqueak(WEP.combo); if (WEP.combo === 3 && window.__voxReady && Math.random() < 0.4) quip("chucks", 20); return;
   }
   if (id === "squirt" || id === "blower" || AUTO[id]) { WEP.trigger = true; return; }
   if (held || WEP.fireCd > 0) return;
   if (wcd(id) > 0) { toast((WEAPONS[WEP.cur].short || WEAPONS[WEP.cur].name).toUpperCase() + " RECHARGING", "red"); return; }
   const d = aimDir(), o = muzzlePos(_mz), src = D.onFoot ? D : P, svx = src.vx || 0, svz = src.vz || 0;
+  if (window.__voxReady && QUIPS[id] && Math.random() < 0.35) quip(id, 25);
   if (id === "potato") {
     if (!useAmmo("potato")) return;
     WEP.fireCd = 0.65;
@@ -3939,7 +3943,7 @@ const CREAMS = { t: 0, shown: -1 };
 function creamScreen() {
   CREAMS.t = 4.2; camState.shake += 0.3; sfxSplat();
   let h = ""; for (let i = 0; i < 7; i++) { const x = rnd(5, 85), y = rnd(5, 80), s = rnd(14, 34); h += '<i style="left:' + x.toFixed(1) + "%;top:" + y.toFixed(1) + "%;width:" + s.toFixed(1) + "vmin;height:" + (s * rnd(0.7, 1.1)).toFixed(1) + 'vmin"></i>'; }
-  creamEl.innerHTML = h; toast(pick(["CREAMED!", "PIE IN YOUR FACE!", "CAN'T SEE!"]), "red");
+  creamEl.innerHTML = h; toast(pick(["CREAMED!", "PIE IN YOUR FACE!", "CAN'T SEE!"]), "red"); if (window.__voxReady) quip("pies", 12);
 }
 function updateCopPies(dt) {
   if (CREAMS.t > 0) { CREAMS.t -= dt; const o = clamp(CREAMS.t / 1.5, 0, 1); const r = Math.round(o * 40); if (r !== CREAMS.shown) { CREAMS.shown = r; creamEl.style.opacity = (r / 40).toFixed(3); } }
@@ -4360,7 +4364,7 @@ const SHOTS = [
   // banana-peel spin-out (night chase)
   { t0: 48.9, night: true, enter() { blockRoads(["h6"]); trailerCops(1); TR.ban = null; TR.spin = -1; const c = TR.cops[0]; c.dizzy = 0; c.slip = 0; WEP.cur = WI.banana; updateWeaponMesh(); },
     update(lt, dt) { const z = roadC(6) + 2.25, x = -40 + 34 * lt, c = TR.cops[0]; scriptCar(P, x, z, Math.PI / 2, 0, 34);
-      if (lt > 0.25 && !TR.ban) { TR.ban = { x: x - 3.4, z }; dropMine("banana", TR.ban.x, z); MINES[MINES.length - 1].arm = 0; WEP.throwT = 0.3; }
+      if (lt > 0.25 && !TR.ban) { TR.ban = { x: x - 3.4, z }; dropMine("banana", TR.ban.x, z); MINES[MINES.length - 1].arm = 0; WEP.throwT = 0.3; subtitle("<span class=n>Dilly:</span> Slippery when wet!", 1.8); }
       if (TR.spin < 0) { scriptCar(c, x - 12, z, Math.PI / 2, 0, 34); if (TR.ban && c.x > TR.ban.x - 1.2) { TR.spin = lt; TR.sx = c.x; dizzyCop(c, 3, 3); } }
       else { const u = lt - TR.spin, v = 34 * Math.exp(-u * 1.6); TR.sx += v * dt; scriptCar(c, TR.sx, z + Math.min(3, u * 2.4), Math.PI / 2 + u * 7.5, 0, v); c.vx = 34 * Math.exp(-u * 1.6); camShakeT = Math.max(camShakeT, u < 0.2 ? 0.2 : 0); if (Math.random() < 0.6) emitSmoke(c.x, 0.4, c.z, 0.35, 1.6, 0.6, 0.85); }
     }, focus() { return TR.cops[0]; }, cam(lt) { const z = roadC(6); setCam(-4 - lt * 1.2, 1.1, z + 9, -22, 0.9, z + 1.2, 48); } },
@@ -4368,7 +4372,7 @@ const SHOTS = [
   // confetti bazooka at a night block party
   { t0: 53.5, night: true, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(60, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.confetti; updateWeaponMesh(); TR.fired = false; trailerPeds([[42, 88.5], [44, 80.5], [41, 79.6], [45.5, 89], [38, 89.5], [47, 82]]); },
     update(lt) { scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); D.h = -Math.PI / 2; avatarPose("walk", lt, { speed: 0, k: 1 }); weaponPose();
-      if (lt > 0.35 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("rocket", o.x, o.y, o.z, -36, 0.6, -0.9); for (let i = 0; i < 8; i++) emitSmoke(o.x + 1, o.y, o.z, 0.45, 1.4, 0.3, 0.95); sfxThunk(); sfxHorn(0.6); camShakeT = 0.3; } },
+      if (lt > 0.35 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("rocket", o.x, o.y, o.z, -36, 0.6, -0.9); subtitle("<span class=n>Dilly:</span> Surprise party!", 1.6); for (let i = 0; i < 8; i++) emitSmoke(o.x + 1, o.y, o.z, 0.45, 1.4, 0.3, 0.95); sfxThunk(); sfxHorn(0.6); camShakeT = 0.3; } },
     focus() { return TR.cops[0]; }, cam(lt) { setCam(67 - lt * 0.8, 1.8 + lt * 0.4, 91.5, 47, 2 + lt * 0.6, 84.8, 52); } },
   // logo over the sunset skyline
   { t0: 55.7, enter() { rain = false; rainMesh.visible = false; applyTOD(0); }, cam(lt) { setCam(-80 + lt * 4, 6 + lt * 1.2, SEA + 30, -20, 40 + lt, -150, 46); } }
@@ -4515,7 +4519,7 @@ function applySettings(fromUI) {
   document.documentElement.style.setProperty("--subS", { S: "17px", M: "21px", L: "26px", XL: "32px" }[S.subSize] || "21px");
   if (AU.ctx && AU.master) { const t = AU.ctx.currentTime; AU.master.gain.setTargetAtTime(masterLevel(), t, 0.05); AU.music.gain.setTargetAtTime(0.34 * S.music / 100 * S.radio / 100, t, 0.05); AU.sfx.gain.setTargetAtTime(0.9 * S.sfx / 100, t, 0.05); }
   if (fromUI === "quality") { if (S.quality === "auto") Q.locked = false; else { Q.locked = true; setQuality(S.quality, "settings"); } }
-  $("help").hidden = !S.hints;
+  $("help").hidden = !S.hints; if (!S.voiceOn && window.__voxReady) stopVoices();
   saveDirty = true;
 }
 function sfxUi(kind) { const c = AU.ctx; if (!c || !AU.sfx) return; const t = c.currentTime; if (kind) { tone(t, 1320, 0.05, "sine", 0.05, 8000, AU.sfx); tone(t + 0.05, 1980, 0.08, "sine", 0.04, 8000, AU.sfx); } else tone(t, 2400, 0.025, "sine", 0.018, 9000, AU.sfx); }
@@ -4801,6 +4805,7 @@ function updateUI(dt) {
   const id = WEP.cur >= 0 ? WEAPONS[WEP.cur].id : null, a = id && AMMO[id];
   setArc("aAm", "am", a ? save.wep[a[0]] / a[1] : 0); const ao = a ? "1" : "0"; if (hudCache.ao !== ao) { hudCache.ao = ao; $("aAm").style.opacity = ao; $("aAmB").style.opacity = ao; }
   if (PHONE.open) updatePhoneClock();
+  if (mode === "game" && D.onFoot && window.__voxReady && (UIS.gT = (UIS.gT || 0) + dt) > 0.7) { UIS.gT = 0; if (Math.random() < 0.25) for (const q of peds) if (q.state === "walk" && Math.hypot(q.x - D.x, q.z - D.z) < 3.2) { pedBark(q, "greet"); break; } }
   const play = RADIO.audible > 0.05 && station !== RADIO_OFF ? "1" : ""; if (hudCache.rplay !== play) { hudCache.rplay = play; $("radio").classList.toggle("play", !!play); }
   if (mode === "pause" && PAUSE.tab === "map" && (MAPV.t += dt) > 0.3) { MAPV.t = 0; drawBigMap(); }
   updateWaypoint();
@@ -4830,6 +4835,170 @@ buildRWheel();
 applySettings();
 for (let i = 0; i < 3; i++) { FEEDCD.idle = 0; addFeed("idle", true); }
 if (S.quality !== "auto" && !new URLSearchParams(location.search).has("q")) { Q.locked = true; setQuality(S.quality, "settings"); }
+
+/* =====================================================================
+   voiced dialogue: Web Speech API with a per-character voice, plus a
+   WebAudio "gibberish" fallback; one line at a time, low-priority barks
+   are dropped when busy, the radio ducks while anyone talks
+   ===================================================================== */
+const VOX = { q: [], cur: null, voices: [], until: 0, talkT: 0, lastBark: -99, lastQuip: {}, cast: {} };
+const SS = typeof window.speechSynthesis !== "undefined" ? window.speechSynthesis : null;
+function loadVoices() { try { VOX.voices = SS ? SS.getVoices().filter((v) => /^en/i.test(v.lang)) : []; VOX.cast = {}; } catch (e) { VOX.voices = []; } }
+if (SS) { loadVoices(); try { SS.addEventListener ? SS.addEventListener("voiceschanged", loadVoices) : (SS.onvoiceschanged = loadVoices); } catch (e) { /* ignore */ } }
+// archetypes: base pitch / rate, gibberish f0 and formant shift
+const ARCH = {
+  Dilly: { pitch: 1.05, rate: 1.06, f0: 150, fs: 1.05, pref: /male|daniel|alex|fred|david|guy|aaron|arthur/i },
+  "Auntie Brine": { pitch: 1.2, rate: 0.98, f0: 230, fs: 1.2, pref: /female|samantha|victoria|karen|moira|susan|zira|hazel/i },
+  "Coach Gherkin": { pitch: 0.8, rate: 1.12, f0: 115, fs: 0.92, pref: /male|tom|george|mark/i },
+  "Pickle Pete": { pitch: 1.3, rate: 1.2, f0: 175, fs: 1.1, pref: /male|rishi|lee/i },
+  "Officer Dill": { pitch: 0.9, rate: 1.0, f0: 125, fs: 0.95, pref: /male|daniel|james/i },
+  "Mayor Kosher": { pitch: 0.75, rate: 0.9, f0: 105, fs: 0.9, pref: /male|oliver|george/i },
+  Cop: { pitch: 0.85, rate: 1.1, f0: 120, fs: 0.95, radio: true, pref: /male/i },
+  DJ: { pitch: 1.0, rate: 1.08, f0: 140, fs: 1.0, pref: /./ },
+  Ad: { pitch: 1.15, rate: 1.25, f0: 165, fs: 1.1, pref: /./ },
+  ped: { pitch: 1, rate: 1.05, f0: 160, fs: 1, pref: /./ }
+};
+const SPK_COL = { Cop: "#ff6a6a", Ped: "#ffe9a8", DJ: "#ffc24a" };
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function castFor(who, seed) {
+  const key = who + "|" + (seed || 0); if (VOX.cast[key]) return VOX.cast[key];
+  const base = ARCH[who] || (who === "Ped" ? ARCH.ped : ARCH.DJ), h = hashStr(key), j = (k) => ((h >>> k) & 255) / 255 - 0.5;
+  const c = { pitch: clamp(base.pitch + j(3) * 0.35, 0.3, 1.9), rate: clamp(base.rate + j(11) * 0.18, 0.7, 1.5), f0: base.f0 * (1 + j(5) * 0.45), fs: base.fs * (1 + j(9) * 0.18), radio: base.radio, voice: null };
+  const vs = VOX.voices; if (vs.length) { const pref = vs.filter((v) => base.pref.test(v.name)); const pool = pref.length ? pref : vs; c.voice = pool[h % pool.length]; }
+  return VOX.cast[key] = c;
+}
+function voiceStyle() { return S.voiceStyle === "real" && SS && VOX.voices.length ? "real" : "gibberish"; }
+/* say(): who, text; o = { prio 0 bark | 1 normal | 2 story, x, z (spatial), seed, sub (show subtitle), radio (DJ through the radio) } */
+function say(who, text, o = {}) {
+  if (!S.voiceOn || AU.muted || !text) return false;
+  const prio = o.prio == null ? 1 : o.prio;
+  if (VOX.cur && prio === 0) return false;                         // busy: drop barks
+  if (prio === 0 && VOX.q.length) return false;
+  if (VOX.q.length > 3) VOX.q = VOX.q.filter((l) => l.prio > 0).slice(-2);
+  VOX.q.push({ who, text: text.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(), prio, x: o.x, z: o.z, seed: o.seed, radio: o.radio });
+  if (!VOX.cur) nextLine();
+  return true;
+}
+function spatialGain(l) { if (l.x == null) return 1; const cx = camera.position.x, cz = camera.position.z; const d = Math.hypot(l.x - cx, l.z - cz); return clamp(1 - (d - 6) / 40, 0, 1); }
+function nextLine() {
+  const l = VOX.q.shift(); VOX.cur = l || null; if (!l) return;
+  const g = spatialGain(l) * S.voice / 100 * (l.radio ? Math.max(0.25, RADIO.audible) : 1);
+  if (g < 0.03) { VOX.cur = null; nextLine(); return; }
+  const c = castFor(l.who, l.seed); l.started = performance.now();
+  const done = () => { if (VOX.cur !== l) return; VOX.cur = null; clearTimeout(l.timer); setTimeout(nextLine, 140); };
+  const estimate = 600 + l.text.length * 62 / c.rate;
+  l.timer = setTimeout(done, estimate + 2500); // safety net if onend never fires
+  if (voiceStyle() === "real") {
+    try {
+      const u = new SpeechSynthesisUtterance(l.text); if (c.voice) u.voice = c.voice; u.pitch = c.pitch; u.rate = c.rate; u.volume = clamp(g, 0, 1);
+      u.onend = done; u.onerror = done; SS.speak(u); l.dur = estimate / 1000; return;
+    } catch (e) { /* fall back to gibberish */ }
+  }
+  l.dur = gibberish(l.text, c, g, l.radio || c.radio); clearTimeout(l.timer); l.timer = setTimeout(done, l.dur * 1000 + 120);
+}
+function stopVoices() { VOX.q = []; if (VOX.cur) clearTimeout(VOX.cur.timer); VOX.cur = null; try { if (SS) SS.cancel(); } catch (e) { /* ignore */ } }
+/* gibberish ("Simlish"-style): formant-filtered pulses per syllable, with a cop-radio band-pass for megaphones */
+const VOWELS = [[730, 1090], [270, 2290], [530, 1840], [570, 840], [300, 870], [660, 1720], [440, 1020]];
+function gibberish(text, c, g, radioFx) {
+  const ctx = AU.ctx; if (!ctx || !AU.sfx) return Math.max(0.6, text.length * 0.055);
+  const words = text.split(/\s+/).filter(Boolean), t0 = ctx.currentTime + 0.03;
+  let out = ctx.createGain(); out.gain.value = 0.9 * g;
+  if (radioFx) { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1500; bp.Q.value = 1.1; const sh = ctx.createWaveShaper(); sh.curve = driveCurve(8); bp.connect(sh); sh.connect(out); out.connect(AU.sfx); out = bp; }
+  else out.connect(AU.sfx);
+  let t = t0; const h = hashStr(text);
+  words.forEach((w, wi) => {
+    const syl = Math.max(1, Math.round(w.replace(/[^a-z]/gi, "").length / 3));
+    for (let s = 0; s < syl; s++) {
+      const k = (h >>> ((wi * 3 + s) % 24)) & 7, vw = VOWELS[k % VOWELS.length], dur = (0.09 + ((h >>> (s + wi)) & 3) * 0.025) / c.rate;
+      const end = /[!?]$/.test(w) && s === syl - 1, f0 = c.f0 * (1 + (end ? (w.endsWith("?") ? 0.35 : 0.2) : 0) + Math.sin(wi * 1.7 + s) * 0.08);
+      try {
+        const o = ctx.createOscillator(), env = ctx.createGain(); o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * (end ? 1.25 : 0.94), t + dur);
+        env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(0.12, t + 0.015); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(env);
+        for (const [i, F] of vw.entries()) { const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = F * c.fs; f.Q.value = 7; const fg = ctx.createGain(); fg.gain.value = i ? 0.55 : 1; env.connect(f); f.connect(fg); fg.connect(out); }
+        o.start(t); o.stop(t + dur + 0.02);
+        if (((h >>> (s * 2 + wi)) & 1) === 1) noiseHit(t, 0.025, 0.05 * g, "highpass", 3500, out);
+      } catch (e) { /* ignore */ }
+      t += dur;
+    }
+    t += /[.,!?]$/.test(w) ? 0.16 : 0.045;
+  });
+  return t - t0 + 0.1;
+}
+function updateVoices(dt) {
+  const talking = VOX.cur && VOX.cur.who === "Dilly";
+  VOX.talkT = talking ? VOX.talkT + dt : 0; RADIO.duck = VOX.cur && !VOX.cur.radio ? 1 : 0;
+  AVA.mouth.scale.y = talking ? 0.0015 + Math.abs(Math.sin(VOX.talkT * 17)) * 0.009 : 0.0012;
+  if (talking && AVA.head) { AVA.head.rotation.x += Math.sin(VOX.talkT * 9) * 0.06; AVA.head.rotation.y += Math.sin(VOX.talkT * 3.1) * 0.05; }
+}
+/* ---------- lines ---------- */
+const QUIPS = {
+  jump: ["Look ma, no wheels!", "I can see my house from here!", "Gravity is more of a suggestion.", "Air brine!", "Ten out of ten, would launch again."],
+  drift: ["Smooth like pickle juice.", "Sideways is my favourite direction.", "Tires? Who needs 'em."],
+  busted: ["Okay, okay, I'll come quietly. Mostly.", "Can I at least keep the crate?", "This is a big misunderstanding involving pickles."],
+  wanted: ["Uh oh. Blue lights.", "Act natural. Act pickled.", "They'll never catch a pickle with places to be."],
+  clear: ["And they're gone. Like brine in the sun.", "Lost 'em. Easy peasy, lemon squeezy.", "Heat's off. Time for a snack."],
+  nuke: ["Fire in the hole!", "Everybody, mind the puddle!", "That one's for science."],
+  pie: ["Dessert's served!", "Banana cream, special delivery!"],
+  confetti: ["Surprise party!", "Happy un-birthday!"],
+  glitter: ["Sparkle sparkle, officers!", "Now you see me!"],
+  banana: ["Slippery when wet!", "Banana for scale!"],
+  bubble: ["Float on, buddy.", "Pop quiz!"],
+  chucks: ["Bawk bawk!", "Chicken combo!"],
+  mission: ["Crate delivered, pickles crunchy.", "Another happy customer.", "Easy money, extra brine."],
+  pickle: ["Golden pickle! Shiny!", "Ooh, that's a keeper."],
+  crash: ["My bumper!", "That wall came out of nowhere!", "Oops. Insurance covers that, right?"],
+  pies: ["Hey! I'm sticky now!", "Is that lemon meringue?"],
+  idle: ["Nice night for a drive.", "I should really get a pickle-shaped car.", "Brine Blvd, my favourite street."]
+};
+function quip(kind, cd = 8) {
+  if (mode !== "game" && mode !== "trailer") return;
+  if ((VOX.lastQuip[kind] || -99) > gameTime - cd || gameTime - (VOX.lastQuip._any || -99) < 3.5) return;
+  VOX.lastQuip[kind] = gameTime; VOX.lastQuip._any = gameTime;
+  subtitle("<b>Dilly:</b> " + pick(QUIPS[kind]), 2.6);
+}
+/* peds and cops: barks by situation, flavoured by district */
+const BARKS = {
+  bumped: ["Hey, watch it!", "Rude!", "Excuse you!", "My shoes!", "Seriously?", "I just got these pants!", "Who raised you?"],
+  near: ["Whoa! Slow down!", "Are you nuts?", "Missed me!", "Learn to drive!", "That was close!", "My life flashed before my eyes!"],
+  soaked: ["I'm soaked!", "That's cold!", "My hair!", "Not the suede!", "Ugh, water!", "Who does that?"],
+  bonked: ["Ow!", "Bonk!", "Hey, I felt that!", "Not cool!", "Seeing stars here!", "Why me?"],
+  nuked: ["Why is it yellow?!", "Ew, ew, ew!", "My poor shoes!", "I'm never coming downtown again!"],
+  cheer: ["Woo!", "Do it again!", "Sick jump!", "Legend!", "Ten out of ten!", "Encore!"],
+  photo: ["I'm posting this!", "Say pickle!", "Getting this on Pickl!", "Nobody's gonna believe this!"],
+  greet: ["Hey, nice car!", "Morning!", "Love the convertible!", "Lovely evening, huh?", "Hey there!", "Nice jacket!"]
+};
+const DISTRICT_BARKS = {
+  beach: { greet: ["Surf's up, dude!", "Nice tan!", "Catch any waves?"], bumped: ["Dude, my surfboard!", "Watch the sandcastle!"], cheer: ["Gnarly!", "Radical, dude!"] },
+  downtown: { greet: ["Can't stop, I'm late!", "Busy, busy!", "Nice suit. Kidding."], bumped: ["I'm on a call here!", "My latte!"], cheer: ["Now that's a commute!"] },
+  port: { greet: ["Ahoy!", "Mind the forklifts!", "Smells like brine today."], bumped: ["Hey, I'm working here!", "Watch the crates!"], cheer: ["Better than unloading boxes!"] },
+  hills: { greet: ["Darling, the view!", "Lovely weather in the hills.", "Ciao!"], bumped: ["Do you know who I am?", "My agent will hear about this!"], cheer: ["Bravo! Bravo!"] },
+  suburbs: { greet: ["Hi neighbor!", "Lawn's looking good!", "Barbecue Saturday?"], bumped: ["There are kids around!", "I'm calling the HOA!"], cheer: ["Wait till the neighbors hear!"] }
+};
+function districtGroup(x, z) { const d = district(x, z); return /Beach|Pier/.test(d) ? "beach" : /Downtown|Relish/.test(d) ? "downtown" : /Docks|Port/.test(d) ? "port" : /Hills|Vinegar/.test(d) ? "hills" : "suburbs"; }
+function pedBark(p, kind) {
+  if (!p || mode !== "game" || gameTime - VOX.lastBark < 1.2) return;
+  const pool = (DISTRICT_BARKS[districtGroup(p.x, p.z)] || {})[kind], line = pool && Math.random() < 0.45 ? pick(pool) : pick(BARKS[kind]);
+  if (Math.hypot(p.x - camera.position.x, p.z - camera.position.z) > 40) return;
+  VOX.lastBark = gameTime;
+  if (say("Ped", line, { prio: 0, x: p.x, z: p.z, seed: peds.indexOf(p) }) && subT <= 0.3) subtitle(`<span class="spk" style="color:${SPK_COL.Ped}">Passer-by</span>${line}`, 1.8);
+}
+const COPLINES = {
+  start: ["Pull over!", "Hey, stop that pickle!", "This is the police! Pull over now!", "Suspect is a large pickle in a red convertible!", "Halt, in the name of the brine!"],
+  lose: ["Where'd he go?", "Lost visual on the pickle!", "Anybody see a convertible?", "He went thataway! I think."],
+  bust: ["Hands where we can see 'em!", "Out of the car, slowly!", "End of the road, pickle!"],
+  dizzy: ["Everything's spinning!", "Whoa, which way is up?", "I see three pickles!", "My cruiser is sticky!"]
+};
+function copSay(kind, c) {
+  if (mode !== "game" || gameTime - (VOX.lastQuip["cop" + kind] || -99) < (kind === "dizzy" ? 6 : 9)) return;
+  VOX.lastQuip["cop" + kind] = gameTime;
+  const line = pick(COPLINES[kind]); if (say("Cop", line, { prio: kind === "bust" ? 1 : 0, x: c && c.x, z: c && c.z, seed: c ? cops.indexOf(c) : 0 })) subtitle(`<span class="spk" style="color:${SPK_COL.Cop}">Megaphone</span>${line}`, 2.2);
+}
+/* mission givers phone in at the start of each job */
+const GIVER_LINES = ["Got a crate with your name on it, sugar. Yellow marker. Don't dawdle.", "Sweetie, a crate of premium pickles needs a ride. Chop chop.", "Another job, hon. Gentle with the crate this time.", "My favourite courier! Pick up at the yellow marker."];
+AVA.mouth = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshStandardMaterial({ color: 0x3a0f12, roughness: 0.7 })); AVA.mouth.scale.set(0.013, 0.0012, 0.006); AVA.mouth.position.set(0, 0.0538, 0.1); AVA.head.add(AVA.mouth);
+RADIO.onSpeak = (line, st) => { if (mode === "game" && !D.onFoot) say(line.who === "Ad" ? "Ad" : "DJ", line.text, { prio: 1, radio: true, seed: st.id }); };
+window.__voxReady = true;
 
 /* =====================================================================
    flow: title / game / pause
@@ -5014,6 +5183,7 @@ function tick(dt, doRender) {
   ocean.t.value = gameTime; skyU.time.value = gameTime; storeMat.uniforms.night.value = TOD.lamp; storeMat.uniforms.sky.value.copy(TOD.mid).lerp(TOD.top, 0.4);
   if (!D.onFoot) { const sIn = mode === "game" ? (P.steerIn || 0) : clamp(P.yaw * 0.6, -1, 1); P.look = lerp(P.look || 0, sIn * 0.45, Math.min(1, dt * 5)); avatarPose("seat", gameTime, { look: P.look + (WEP.locked ? camState.orbit * 0.3 : 0), bob: clamp(Math.hypot(P.vx, P.vz) / 20, 0, 1), k: Math.min(1, dt * 8) }); }
   if (!D.onFoot) weaponPose();
+  if (window.__voxReady) updateVoices(dt);
   syncAvatar();
   if (D.onFoot && mode !== "game" && mode !== "pause" && mode !== "busted") { const fx = camera.position.x - D.x, fz = camera.position.z - D.z, l = Math.hypot(fx, fz) || 1; keyLight.position.set(D.x + fx / l * 2.2 + fz / l * 0.8, D.y + 2.3, D.z + fz / l * 2.2 - fx / l * 0.8); keyLight.intensity = 1.6; }
   else if (mode === "trailer" && !D.onFoot && Math.abs(P.z) < 1000) { const w = localToWorld(P, 0.45, 2.0, 0.3), fx = camera.position.x - w[0], fz = camera.position.z - w[2], l = Math.hypot(fx, fz) || 1; keyLight.position.set(w[0] + fx / l * 1.8, w[1] + 0.8, w[2] + fz / l * 1.8); keyLight.intensity = 1.3; } else keyLight.intensity = 0;
@@ -5066,7 +5236,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
 window.DGM = {
   get mode() { return mode; }, get player() { return { x: P.x, z: P.z, h: P.h, speed: Math.hypot(P.vx, P.vz) }; }, get wanted() { return { stars: W.stars, heat: W.heat, cops: cops.length }; },
   get mission() { return mission && { stage: mission.stage, x: mission.x, z: mission.z, name: mission.name }; }, get cash() { return save.cash; }, get trailerT() { return TR.t; },
-  get scene() { return scene; }, crowdAt(list) { list.forEach(([x, z], k) => { const q = peds[k]; Object.assign(q, { state: "walk", pause: 99, x, z, y: groundH(x, z) }); }); }, carAim(o) { WEP.locked = true; camState.orbit = o; }, seekStep(t) { if (t < TR.t) TR.t = Math.max(0, t - 1.0); while (TR.t < t - 1e-6) tick(Math.min(1 / 30, t - TR.t), false); paused = true; tick(0.0001, true); }, get stores() { return storefronts.length; }, store(k) { const sf = storefronts[k], n = [[0, 1], [1, 0], [0, -1], [-1, 0]][sf.f], hw = (sf.f % 2 ? sf.w : sf.d) / 2; return { x: sf.cx + n[0] * hw, z: sf.cz + n[1] * hw, nx: n[0], nz: n[1] }; }, noHeat(on) { W.noHeat = !!on; }, get radio() { const c = AU.ctx; return { station, name: STATIONS[station].name, np: radioNowPlaying(), voices: AU.voices, ctx: c ? c.state : "none", audible: RADIO.audible, chains: Object.keys(RADIO.chains).length, line: RADIO.line, wheel: RADIO.wheel }; },
+  get scene() { return scene; }, crowdAt(list) { list.forEach(([x, z], k) => { const q = peds[k]; Object.assign(q, { state: "walk", pause: 99, x, z, y: groundH(x, z) }); }); }, carAim(o) { WEP.locked = true; camState.orbit = o; }, seekStep(t) { if (t < TR.t) TR.t = Math.max(0, t - 1.0); while (TR.t < t - 1e-6) tick(Math.min(1 / 30, t - TR.t), false); paused = true; tick(0.0001, true); }, get stores() { return storefronts.length; }, store(k) { const sf = storefronts[k], n = [[0, 1], [1, 0], [0, -1], [-1, 0]][sf.f], hw = (sf.f % 2 ? sf.w : sf.d) / 2; return { x: sf.cx + n[0] * hw, z: sf.cz + n[1] * hw, nx: n[0], nz: n[1] }; }, noHeat(on) { W.noHeat = !!on; }, get voice() { return { style: voiceStyle(), voices: VOX.voices.length, cur: VOX.cur && { who: VOX.cur.who, text: VOX.cur.text }, q: VOX.q.length, duck: RADIO.duck, mouth: +AVA.mouth.scale.y.toFixed(4), ss: !!SS }; }, say(w, t, o) { return say(w, t, o || {}); }, quip(k) { VOX.lastQuip._any = -99; VOX.lastQuip[k] = -99; quip(k, 0); }, bark(i, k) { VOX.lastBark = -99; pedBark(peds[i], k); }, copSay(k) { VOX.lastQuip["cop" + k] = -99; copSay(k, cops[0]); }, get radio() { const c = AU.ctx; return { station, name: STATIONS[station].name, np: radioNowPlaying(), voices: AU.voices, ctx: c ? c.state : "none", audible: RADIO.audible, chains: Object.keys(RADIO.chains).length, line: RADIO.line, wheel: RADIO.wheel }; },
   tune(i) { radioTune(i); }, radioWheel(on) { radioWheel(on); },
   async radioRender(si, secs = 8, startBar = 8) {
     const save0 = { ctx: AU.ctx, noise: AU.noise, music: AU.music, bus: RADIO.bus, lp: RADIO.lp, level: RADIO.level, verb: RADIO.verb, wob: RADIO.wob, wobG: RADIO.wobG, chains: RADIO.chains, voices: AU.voices };
