@@ -76,7 +76,7 @@ views.home = () => {
       <p class="sub small-note">Desktop browser + keyboard. Cartoon chaos: nobody gets hurt, they just see stars.</p>
     </div>
   </section>
-  <section class="card promo">
+  <section class="card promo mad">
     <a class="promo-shot" href="dilly-gone-mad.html?v=20261119115642#play"><img src="img/dilly-gone-mad.jpg?v=20261119115642" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: Dilly waves next to a cherry-red convertible on a sunset city street lined with palms and high-rises."></a>
     <div class="promo-copy">
       <p class="eyebrow">New game <span class="tag">OUT NOW</span></p>
