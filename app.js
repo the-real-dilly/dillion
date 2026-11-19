@@ -67,22 +67,22 @@ views.home = () => {
   <section class="card legend"><h3>How far can you go?</h3><ul class="tierlist">${window.TIERS.map(t => `<li class="t-${t.id}"><span><i class="sw" style="background:currentColor"></i>${t.name}</span><b>${t.pts ? "+" + t.pts + " km" : "0 km"}</b></li>`).join("")}</ul>
   <p class="sub">Type any answer. The more people would say it, the shallower it lands.</p></section>
   <section class="card promo">
-    <a class="promo-shot" href="dilly-goes-wild.html?v=20261119002555#play"><img src="img/dilly-goes-wild.png?v=20261119002555" width="1512" height="798" loading="lazy" alt="Dilly Goes Wild: Dilly the pickle on a rainy night street, with headlights, lit windows and a police car closing in."></a>
+    <a class="promo-shot" href="dilly-goes-wild.html?v=20261119115642#play"><img src="img/dilly-goes-wild.png?v=20261119115642" width="1512" height="798" loading="lazy" alt="Dilly Goes Wild: Dilly the pickle on a rainy night street, with headlights, lit windows and a police car closing in."></a>
     <div class="promo-copy">
       <p class="eyebrow">New game <span class="tag">NEW</span></p>
       <h2>Dilly Goes Wild</h2>
       <p>Dilly the pickle has had enough of the jar. Steal a car, tear through a rain-soaked city after dark, bonk pedestrians for cash, and shake off the cops.</p>
-      <div class="row"><a class="btn big" href="dilly-goes-wild.html?v=20261119002555#play">Play now</a><a class="btn ghost" href="dilly-goes-wild.html?v=20261119002555#trailer">▶ Trailer</a></div>
+      <div class="row"><a class="btn big" href="dilly-goes-wild.html?v=20261119115642#play">Play now</a><a class="btn ghost" href="dilly-goes-wild.html?v=20261119115642#trailer">▶ Trailer</a></div>
       <p class="sub small-note">Desktop browser + keyboard. Cartoon chaos: nobody gets hurt, they just see stars.</p>
     </div>
   </section>
   <section class="card promo">
-    <a class="promo-shot" href="dilly-gone-mad.html?v=20261119002555#play"><img src="img/dilly-gone-mad.jpg?v=20261119002555" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: Dilly waves next to a cherry-red convertible on a sunset city street lined with palms and high-rises."></a>
+    <a class="promo-shot" href="dilly-gone-mad.html?v=20261119115642#play"><img src="img/dilly-gone-mad.jpg?v=20261119115642" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: Dilly waves next to a cherry-red convertible on a sunset city street lined with palms and high-rises."></a>
     <div class="promo-copy">
       <p class="eyebrow">New game <span class="tag">OUT NOW</span></p>
       <h2>Dilly Gone Mad</h2>
       <p>A cinematic 3D open-world romp through the sunset city of Los Pepinos. Chase cams, police pursuits, stunt jumps and a radio full of brine.</p>
-      <div class="row"><a class="btn big" href="dilly-gone-mad.html?v=20261119002555#play">Play now</a><a class="btn ghost" href="dilly-gone-mad.html?v=20261119002555#trailer">▶ Trailer</a></div>
+      <div class="row"><a class="btn big" href="dilly-gone-mad.html?v=20261119115642#play">Play now</a><a class="btn ghost" href="dilly-gone-mad.html?v=20261119115642#trailer">▶ Trailer</a></div>
       <p class="sub small-note">Free in your browser. Desktop + keyboard; press Q to switch graphics quality.</p>
     </div>
   </section>
