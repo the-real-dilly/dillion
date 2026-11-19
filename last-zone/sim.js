@@ -169,7 +169,7 @@ function chooseNext(M) {
   g.nx = best[0]; g.nz = best[1]; g.nr = S.r;
 }
 function updateGas(M, dt) {
-  const g = M.gas; if (!g || !M.gasOn) return;
+  const g = M.gas; if (!g || !M.gasOn || M.over) return;
   g.t -= dt;
   if (g.ph === "wait" && g.t <= 0) { const S = GAS_STAGES[g.st]; g.ph = "shrink"; g.t = g.dur = S.shrink; g.ox = g.cx; g.oz = g.cz; g.or = g.r; g.dps = S.dps; ev(M, "gasShrink", { st: g.st }); }
   if (g.ph === "shrink") {
@@ -216,7 +216,7 @@ function killPlayer(M, p, atk, wid, head) {
   else setTimeout0(M, 2.5, () => respawnTarget(M, p));
   ev(M, "kill", { pid: p.id, by: atk ? atk.id : 0, wid, head, x: p.x, y: p.y, z: p.z, alive: M.alive });
   if (M.mode === "br" && !M.over && M.alive <= 1) {
-    M.over = true; M.winner = M.players.find((q) => q.st !== "dead" && !q.target) || null;
+    M.over = true; M.winner = M.players.find((q) => q.st !== "dead" && !q.target) || p;
     if (M.winner) M.winner.place = 1;
     ev(M, "win", { pid: M.winner ? M.winner.id : 0 });
   }
@@ -441,12 +441,12 @@ function moveAir(M, p, inp, dt) {
   for (let s = 0; s < steps && !landed; s++) {
     p.x += p.vx * dt / steps; p.z += p.vz * dt / steps; p.y += p.vy * dt / steps;
     collideCyl(W, p, RAD, STAND_H, 0.2);
-    const g = groundAt(W, p.x, p.z, p.y, 0.3, 0.2), th = terrainH(W, p.x, p.z);
+    const g = groundAt(W, p.x, p.z, p.y, 0.3, 0.2, true), th = terrainH(W, p.x, p.z);
     const surf = Math.max(g, th < SEA ? SEA - 1.25 : g);
     if (p.y <= surf + 0.02) { p.y = surf; landed = true; }
   }
   p.x = clamp(p.x, -990, 990); p.z = clamp(p.z, -990, 990);
-  const agl = p.y - Math.max(groundAt(W, p.x, p.z, p.y, 0.3), SEA);
+  const agl = p.y - Math.max(groundAt(W, p.x, p.z, p.y, 0.3, 0, true), SEA);
   if (landed) {
     const hard = p.st === "fall" && p.vy < -14;
     if (hard) damage(M, p, clamp((-p.vy - 14) * 4, 0, 200), null, "fall", "legs");
@@ -533,7 +533,12 @@ export function step(M, dt = DT) {
     } else if (p.st === "fall" || p.st === "chute") moveAir(M, p, inp, dt);
     else { moveGround(M, p, inp, dt); updateWeapon(M, p, inp, dt); }
     if (p.st === "ground") {
-      if (inp.interact) { const b = bestInteract(M, p); if (b) { if (b.crate) openCrate(M, b.crate, p); else takeItem(M, p, b.item); } }
+      if (inp.interact) {
+        let b = null;
+        if (inp.target) { const tg = inp.target; if (tg.crate) { if (!tg.crate.open && Math.hypot(tg.crate.x - p.x, tg.crate.z - p.z) < 2.8) b = tg; } else if (tg.item && !tg.item.gone && Math.hypot(tg.item.x - p.x, tg.item.z - p.z) < 2.8) b = tg; }
+        else b = bestInteract(M, p);
+        if (b) { if (b.crate) openCrate(M, b.crate, p); else takeItem(M, p, b.item); }
+      }
       p.autoT -= dt;
       if (p.autoT <= 0) { p.autoT = 0.15; itemsNear(M, p.x, p.z, 1.5, _items); for (const it of _items) if (it.k !== "weapon" && !it.gone && Math.abs(it.y - p.y) < 1.6) takeItem(M, p, it); }
     }
@@ -544,7 +549,7 @@ export function step(M, dt = DT) {
   if (M.sounds.length && M.t - M.sounds[0].t > 2) M.sounds = M.sounds.filter((s) => M.t - s.t < 2);
   if (M.mode === "range") for (const p of M.players) if (p.target && p.strafe && p.st !== "dead") { p.x = p.home.x + Math.sin(M.t * 0.9 + p.id) * p.strafe; p.moveSpd = Math.abs(Math.cos(M.t * 0.9 + p.id) * p.strafe * 0.9); p.yaw = Math.cos(M.t * 0.9 + p.id) > 0 ? -Math.PI / 2 : Math.PI / 2; }
 }
-function clearEdges(inp) { inp.jump = false; inp.reload = false; inp.interact = false; inp.melee = false; inp.slot = -1; inp.heal = null; inp.throw = null; }
+function clearEdges(inp) { inp.target = null; inp.jump = false; inp.reload = false; inp.interact = false; inp.melee = false; inp.slot = -1; inp.heal = null; inp.throw = null; }
 
 // ---------------------------------------------------------------------------------------------
 // practice range setup

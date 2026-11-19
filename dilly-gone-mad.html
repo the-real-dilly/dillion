@@ -3565,6 +3565,7 @@ function updatePeds(dt, t) {
       continue;
     }
     if (p.state === "walk") {
+      if (p.scareAt && gameTime >= p.scareAt) { p.scareAt = 0; p.flee = Math.max(p.flee, 4); }
       if (p.blind > 0) { p.flee = Math.max(p.flee, 0.3); if (Math.random() < dt * 0.9) p.dir *= -1; }
       if (p.flee > 0) { p.flee -= dt; p.pause = 0; }
       if (p.pause > 0) p.pause -= dt; else { const fs = p.flee > 0 ? 3.2 : 1; p.s += p.speed * fs * p.dir * dt; p.walkPh += dt * p.speed * fs * 5.2; if (p.flee <= 0 && Math.random() < dt * 0.04) p.pause = rnd(1, 3); if (p.flee <= 0 && Math.random() < dt * 0.02) p.dir *= -1; }
@@ -3789,7 +3790,7 @@ function weaponFire(held) {
   if (wcd(id) > 0) { toast((WEAPONS[WEP.cur].short || WEAPONS[WEP.cur].name).toUpperCase() + " RECHARGING", "red"); return; }
   const d = aimDir(), o = muzzlePos(_mz), src = D.onFoot ? D : P, svx = src.vx || 0, svz = src.vz || 0;
   if (window.__voxReady && QUIPS[id] && Math.random() < 0.35) quip(id, 25);
-  for (const q of peds) if (q.state === "walk" && !q.dance && Math.abs(q.x - src.x) + Math.abs(q.z - src.z) < 24) q.flee = Math.max(q.flee, 4);
+  for (const q of peds) if (q.state === "walk" && !q.dance && Math.abs(q.x - src.x) + Math.abs(q.z - src.z) < 24 && !q.scareAt) q.scareAt = gameTime + 0.9;
   if (id === "potato") {
     if (!useAmmo("potato")) return;
     WEP.fireCd = 0.65;
@@ -4486,7 +4487,7 @@ function buildRoads(ch, parts, solids) {
     }
   }
   const out = [];
-  if (acc.p.length) { const m = new THREE.Mesh(acc.geo(), MAT.asphalt); m.receiveShadow = true; out.push(m); }
+  if (acc.p.length) { const m = new THREE.Mesh(acc.geo(), MAT.asphalt); m.receiveShadow = true; m.userData.refl = true; reflHide.push(m); out.push(m); }
   if (mw.p.length) out.push(new THREE.Mesh(mw.geo(), WMAT.markW)); if (my.p.length) out.push(new THREE.Mesh(my.geo(), WMAT.markY));
   if (conc.p.length) { const m = new THREE.Mesh(conc.geo(), WMAT.tunnel); m.castShadow = true; m.receiveShadow = true; out.push(m); }
   if (glow.p.length) out.push(new THREE.Mesh(glow.geo(), WMAT.glow));
@@ -4578,7 +4579,7 @@ function buildChunk(ch) {
   const ms = performance.now() - t0; WSTAT.built++; WSTAT.buildMs = ms; WSTAT.maxMs = Math.max(WSTAT.maxMs, ms);
 }
 function disposeChunk(ch) {
-  if (ch.grp) { scene.remove(ch.grp); ch.grp.traverse((o) => { if (o.isMesh) o.geometry.dispose(); }); }
+  if (ch.grp) { scene.remove(ch.grp); ch.grp.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); if (o.userData.refl) { const k = reflHide.indexOf(o); if (k >= 0) reflHide.splice(k, 1); } } }); }
   for (const s of ch.solids || []) removeOuterSolid(s);
   WCH.delete(ch.key); WSTAT.disposed++;
 }
@@ -4724,19 +4725,19 @@ function setWeather(s, quiet) {
 }
 const boltGeo = new THREE.BufferGeometry(), boltPos = new Float32Array(40 * 3); boltGeo.setAttribute("position", new THREE.BufferAttribute(boltPos, 3));
 const bolt = new THREE.Line(boltGeo, new THREE.LineBasicMaterial({ color: new THREE.Color(4, 4, 6), toneMapped: false, transparent: true })); bolt.frustumCulled = false; bolt.visible = false; scene.add(bolt);
-function lightning() {
-  const a = rnd(0, 6.28), d = rnd(250, 700), x = camera.position.x + Math.cos(a) * d, z = camera.position.z + Math.sin(a) * d;
+function lightning(x0, z0) {
+  const a = rnd(0, 6.28), d0 = rnd(250, 700), x = x0 != null ? x0 : camera.position.x + Math.cos(a) * d0, z = z0 != null ? z0 : camera.position.z + Math.sin(a) * d0, d = Math.hypot(x - camera.position.x, z - camera.position.z);
   let px = x, py = 320, pz = z; for (let i = 0; i < 40; i++) { boltPos.set([px, py, pz], i * 3); px += rnd(-14, 14); pz += rnd(-14, 14); py -= 320 / 39; }
   boltGeo.attributes.position.needsUpdate = true; bolt.visible = true; WX.bolt = 1;
   flashEl.style.background = "#dfe8ff"; flashEl.style.opacity = 0.55;
   const delay = d / 340, c = AU.ctx; if (c && mode === "game") { const t = c.currentTime + delay; noiseHit(t, 2.6, 0.5 * (1 - d / 900), "lowpass", 260, AU.sfx); tone(t, 50, 2.2, "sine", 0.35 * (1 - d / 900), 200, AU.sfx, 32); noiseHit(t, 0.4, 0.25, "lowpass", 900, AU.sfx); }
 }
 function updateWeather(dt) {
+  if (WX.bolt > 0) { WX.bolt -= Math.max(dt, 0.016) * 5; flashEl.style.opacity = Math.max(0, WX.bolt * 0.55).toFixed(3); hemi.intensity = TOD.hi + Math.max(0, WX.bolt) * 2.5; if (WX.bolt <= 0) { bolt.visible = false; flashEl.style.opacity = 0; flashEl.style.background = ""; hemi.intensity = TOD.hi; } }
   if (mode !== "game") return;
   WX.t -= dt; if (WX.t <= 0) setWeather(WXSEQ[WX.s][0]);
   const tc = { clear: 0, cloudy: 0.75, rain: 1, storm: 1, clearing: 0.45 }[WX.s]; WX.cloud += (tc - WX.cloud) * Math.min(1, dt * 0.2);
   if (WX.s === "storm") { WX.nextBolt -= dt; if (WX.nextBolt <= 0) { WX.nextBolt = rnd(3.5, 9); lightning(); } }
-  if (WX.bolt > 0) { WX.bolt -= dt * 5; flashEl.style.opacity = Math.max(0, WX.bolt * 0.55).toFixed(3); hemi.intensity = TOD.hi + WX.bolt * 2.5; if (WX.bolt <= 0) { bolt.visible = false; flashEl.style.opacity = 0; flashEl.style.background = ""; hemi.intensity = TOD.hi; } }
 }
 /* day/night driver (called from updateTOD) */
 function updateClock(dt) {
@@ -4980,7 +4981,9 @@ const SHOTS = [
   // drive-off
   { t0: 14.6, enter() { avatarInCar(); }, update(lt) { scriptCar(P, 2.25, 150 - 4 * lt * lt - 10 * lt, Math.PI, 0, 18); }, cam(lt) { setCam(P.x - 5.6, 1.5, P.z - 5 + lt * 1.6, P.x - 0.2, 1.45, P.z - 0.6, 40); } },
   // the LOS PEPINOS sign on the hills at sunset
-  { t0: 18, enter() { blockRoads([]); scriptCar(P, 0, -2000, 0, 0, 0); }, cam(lt) { const e = ease(lt / 5), cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60 - e * 30, SIGN.y - 2 + e * 14, SIGN.z + 250 - e * 40, cx - 6, SIGN.y + 4, SIGN.z, 50 - e * 4); } },
+  { t0: 18, enter() { blockRoads([]); scriptCar(P, 0, -2000, 0, 0, 0); const cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60, SIGN.y - 2, SIGN.z + 250, cx, SIGN.y, SIGN.z, 50); updateWorld(true); }, cam(lt) { const e = ease(lt / 5), cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60 - e * 30, SIGN.y - 2 + e * 14, SIGN.z + 250 - e * 40, cx - 6, SIGN.y + 4, SIGN.z, 50 - e * 4); } },
+  // scale: aerial over Northgate toward Pickle Ridge and the hills, blimp in frame
+  { t0: 21, enter() { setCam(-320, 190, -520, 500, 10, -1000, 50); updateWorld(true); AMB.t = 140; }, cam(lt) { const e = ease(lt / 2); setCam(-320 + e * 90, 190 + e * 25, -520 - e * 150, 520, 10, -1010, 50 - e * 3); } },
   // drift through an intersection with the cops behind
   { t0: 23, enter() { blockRoads(["v5", "h5"]); trailerCops(2); TR.look.set(roadC(5), 1, 40); }, update(lt, dt) {
       const s = -4 + 24 * lt; const [x, z, ph] = driftPath(s), da = driftAngle(s);
@@ -4988,6 +4991,8 @@ const SHOTS = [
       if (da > 0.12) { const fx = Math.sin(P.h), fz = Math.cos(P.h); for (const k of [-1, 1]) emitSmoke(P.x - fx * 1.5 + fz * k * 0.9, 0.35, P.z - fz * 1.5 - fx * k * 0.9, 0.42, 1.8, 0.3, 0.95); }
       TR.cops.forEach((c, i) => { const cs = s - 15 - i * 13, [cx, cz, cph] = driftPath(cs), cda = driftAngle(cs) * 0.8; scriptCar(c, cx + (i ? 2.2 : 0), cz, cph + cda, 0, 24); if (cda > 0.2 && Math.random() < 0.5) emitSmoke(c.x, 0.35, c.z, 0.3, 1.6, 0.6, 0.9); });
     }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, 1.1, P.z), 1 - Math.exp(-dt * 5)); setCam(79.2 + lt * 0.15, 1.5, 99, TR.look.x, TR.look.y, TR.look.z, 56); } },
+  // scale: the elevated Pickle Freeway at sunset, traffic underneath
+  { t0: 28.3, enter() { blockRoads([]); trailerCops(0); avatarInCar(); setCam(-80, 10.5, -691, -40, 9.2, -697, 46); updateWorld(true); }, update(lt) { const x = -70 + 33 * lt; scriptCar(P, x, -697.2, Math.PI / 2, groundH(x, -697.2, 12), 33); }, cam(lt) { setCam(P.x - 13 + lt * 2.2, 10.6 + lt * 0.6, P.z + 8.5 - lt * 0.8, P.x + 7, 9.4, P.z - 1, 46); } },
   // slow-motion stunt jump
   { t0: 31.5, enter() { blockRoads(["h2"]); trailerCops(0); TR.jump = { x: -42, y: 0, vy: 0, air: false, done: false }; TR.look.set(-20, 1, roadC(2)); }, update(lt, dt) {
       const J = TR.jump, r = RAMPS[0], v = 30; const slow = J.air ? 0.42 : 1; const ddt = dt * slow;
@@ -5019,7 +5024,8 @@ const SHOTS = [
       if (TR.spin < 0) { scriptCar(c, x - 12, z, Math.PI / 2, 0, 34); if (TR.ban && c.x > TR.ban.x - 1.2) { TR.spin = lt; TR.sx = c.x; dizzyCop(c, 3, 3); } }
       else { const u = lt - TR.spin, v = 34 * Math.exp(-u * 1.6); TR.sx += v * dt; scriptCar(c, TR.sx, z + Math.min(3, u * 2.4), Math.PI / 2 + u * 7.5, 0, v); c.vx = 34 * Math.exp(-u * 1.6); camShakeT = Math.max(camShakeT, u < 0.2 ? 0.2 : 0); if (Math.random() < 0.6) emitSmoke(c.x, 0.4, c.z, 0.35, 1.6, 0.6, 0.85); }
     }, focus() { return TR.cops[0]; }, cam(lt) { const z = roadC(6); setCam(-4 - lt * 1.2, 1.1, z + 9, -22, 0.9, z + 1.2, 48); } },
-  { t0: 51.2, night: true, enter() { trailerCops(1); TR.cops[0].dizzy = 0; TR.cops[0].slip = 0; WEP.cur = -1; updateWeaponMesh(); while (MINES.length) removeMine(0); }, update(lt) { const x = 30 + 30 * lt; scriptCar(P, x, roadC(6) + 2.25, Math.PI / 2, 0, 30); scriptCar(TR.cops[0], x - 22, roadC(6) + 2.25, Math.PI / 2, 0, 30); }, cam(lt) { setCam(P.x + 4.4 - lt * 0.2, 2.45, P.z - 1.2, P.x, 1.85, P.z - 0.42, 40); } },
+  // scale: thunderstorm over downtown from the freeway viaduct
+  { t0: 51.2, night: true, enter() { trailerCops(0); WEP.cur = -1; updateWeaponMesh(); while (MINES.length) removeMine(0); scriptCar(P, 0, -2000, 0, 0, 0); rain = true; rainMesh.visible = true; applyTOD(0); setCam(520, 14, 352, 100, 40, 0, 52); updateWorld(true); TR.bolts = 0; }, update(lt) { if ((lt > 0.25 && TR.bolts === 0) || (lt > 1.35 && TR.bolts === 1)) { TR.bolts++; lightning(60 + TR.bolts * 70, -160 - TR.bolts * 40); } }, cam(lt) { setCam(520 - lt * 6, 14 + lt * 1.5, 352, 100, 40, 0, 52); } },
   // confetti bazooka at a night block party
   { t0: 53.5, night: true, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(60, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.confetti; updateWeaponMesh(); TR.fired = false; trailerPeds([[42, 88.5], [44, 80.5], [41, 79.6], [45.5, 89], [38, 89.5], [47, 82]]); },
     update(lt) { scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); D.h = -Math.PI / 2; avatarPose("walk", lt, { speed: 0, k: 1 }); weaponPose();
@@ -5766,6 +5772,7 @@ window.addEventListener("pointerdown", () => {
    ===================================================================== */
 let last = performance.now(), titleT = 0;
 const noPosters = new URLSearchParams(location.search).has("noposters");
+if (noPosters) setTimeout(() => bootDone(), 1500);
 const fxv = new THREE.Vector3();
 let paused = false;
 function frame(now) {

@@ -194,7 +194,7 @@ export function roadQuery(W, x, z, maxD = 8) {
 const GC = 16;
 const gkey = (i, j) => ((i + 512) << 11) | (j + 512);
 export function addBox(W, x0, x1, y0, y1, z0, z1, s = SURF.CONCRETE, b = -1, extra) {
-  const bx = { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0, y1, z0: Math.min(z0, z1), z1: Math.max(z0, z1), s, b, id: W.boxes.length, st: 0 };
+  const bx = { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0, y1, z0: Math.min(z0, z1), z1: Math.max(z0, z1), s, b, id: W.boxes.length, st: 0, tall: y1 - y0 > 7.5 };
   if (extra) Object.assign(bx, extra);
   W.boxes.push(bx);
   for (let i = Math.floor(bx.x0 / GC); i <= Math.floor(bx.x1 / GC); i++) for (let j = Math.floor(bx.z0 / GC); j <= Math.floor(bx.z1 / GC); j++) {
@@ -212,10 +212,10 @@ export function boxesNear(W, x, z, rad, out = []) {
 }
 const _near = [];
 // highest walkable surface under (x,z) not above y+step
-export function groundAt(W, x, z, y, step = 0.55, rad = 0) {
+export function groundAt(W, x, z, y, step = 0.55, rad = 0, skipTall = false) {
   let g = terrainH(W, x, z);
   boxesNear(W, x, z, rad, _near);
-  for (const b of _near) if (!b.nowalk && b.y1 <= y + step && b.y1 > g) g = b.y1;
+  for (const b of _near) if (!b.nowalk && b.y1 <= y + step && b.y1 > g && !(skipTall && b.tall)) g = b.y1;
   return g;
 }
 // push a vertical cylinder (feet y, height h, radius rad) out of boxes; returns true if collided

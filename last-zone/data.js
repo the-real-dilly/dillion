@@ -58,12 +58,12 @@ export const WEAPON_WEIGHTS = [["warden", 14], ["marshal", 9], ["hornet", 13], [
 
 // gas circle schedule: wait (s), shrink (s), radius at end (m), damage per second outside
 export const GAS_STAGES = [
-  { wait: 75, shrink: 50, r: 620, dps: 1 },
-  { wait: 50, shrink: 40, r: 360, dps: 2 },
-  { wait: 40, shrink: 35, r: 200, dps: 4 },
-  { wait: 32, shrink: 30, r: 105, dps: 7 },
-  { wait: 25, shrink: 25, r: 45, dps: 11 },
-  { wait: 20, shrink: 30, r: 0, dps: 18 }
+  { wait: 90, shrink: 60, r: 620, dps: 1 },
+  { wait: 60, shrink: 45, r: 360, dps: 2 },
+  { wait: 45, shrink: 40, r: 200, dps: 4 },
+  { wait: 35, shrink: 35, r: 105, dps: 7 },
+  { wait: 30, shrink: 30, r: 45, dps: 11 },
+  { wait: 25, shrink: 30, r: 0, dps: 18 }
 ];
 export const GAS_START_R = 1150;
 
