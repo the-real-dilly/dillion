@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261119002410";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261119002555";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
-<meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Coming soon: watch the trailer." />
+<meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;600&display=swap" rel="stylesheet">
@@ -147,7 +147,7 @@
 <div id="fx">
   <div id="vig"></div>
   <div id="tcard"><div class="txt"></div></div>
-  <div id="tlogo"><div class="logo">Dilly<span class="l2">Gone Mad</span></div><div class="tagline">Los Pepinos · one driver · no brakes</div><div class="soonbig">COMING SOON</div><div class="tagline" id="tpress" style="opacity:0;letter-spacing:.2em;font-size:13px">press any key</div></div>
+  <div id="tlogo"><div class="logo">Dilly<span class="l2">Gone Mad</span></div><div class="tagline">Los Pepinos · one driver · no brakes</div><div class="soonbig">OUT NOW</div><div class="tagline" id="tpress" style="opacity:0;letter-spacing:.2em;font-size:13px">press any key</div></div>
   <div class="bar" id="barT"></div><div class="bar" id="barB"></div>
   <div id="skiphint">press any key to skip</div>
   <div id="flash"></div>
@@ -160,9 +160,9 @@
   <div class="panel">
     <p class="eyebrow">Dillion presents · Los Pepinos</p>
     <div class="logo">Dilly<span class="l2">Gone Mad</span></div>
-    <div class="badge">COMING SOON</div>
+    <div class="badge">OUT NOW</div>
     <p>Dilly just got the keys to a cherry-red convertible. Now the sunset city of <b>Los Pepinos</b> is one big playground: deliver crates, hit stunt ramps, hunt golden pickles and shake off the cops. Cartoon chaos only: nobody gets hurt, they just see stars.</p>
-    <div class="btns"><button class="btn soon" id="playBtn" disabled>Coming soon</button><button class="btn ghost" id="trailerBtn">▶ Watch trailer</button></div>
+    <div class="btns"><button class="btn" id="playBtn">Play</button><button class="btn ghost" id="trailerBtn">▶ Watch trailer</button></div>
     <div class="stats" id="stats" hidden></div>
     <p class="keys" id="titleKeys" hidden><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows drive · <kbd>Space</kbd> drift · <kbd>Shift</kbd> boost / run · <kbd>E</kbd> get out / in · <kbd>H</kbd> horn · <kbd>C</kbd> camera · <kbd>N</kbd> time of day · <kbd>Q</kbd> quality · <kbd>Esc</kbd> pause</p>
     <p id="msg"></p>
@@ -2818,8 +2818,8 @@ function startGame() {
 }
 function pauseGame() { if (mode !== "game") return; mode = "pause"; $("pause").classList.remove("hidden"); setTimeout(() => $("resumeBtn").focus({ preventScroll: true }), 30); }
 const DEV = location.hash === "#dev-play";
-if (DEV) { const b = $("playBtn"); b.disabled = false; b.textContent = "Play (dev)"; b.classList.remove("soon"); $("stats").hidden = false; $("titleKeys").hidden = false; }
-$("playBtn").addEventListener("click", () => { if (!DEV) return; location.hash = "#dev-play"; startGame(); });
+$("stats").hidden = false; $("titleKeys").hidden = false;
+$("playBtn").addEventListener("click", () => { location.hash = "#play"; startGame(); });
 $("trailerBtn").addEventListener("click", () => startTrailer());
 $("resumeBtn").addEventListener("click", () => { $("pause").classList.add("hidden"); mode = "game"; });
 $("quitBtn").addEventListener("click", () => { persist(); showTitle(); });
@@ -2977,8 +2977,8 @@ window.DGM = {
 updateEnv();
 showTitle();
 if (location.hash === "#trailer") startTrailer();
-else if (location.hash === "#dev-play") startGame();
-window.addEventListener("hashchange", () => { if (location.hash === "#trailer" && mode !== "trailer") startTrailer(); else if (location.hash === "#dev-play" && mode === "title") location.reload(); });
+else if (location.hash === "#play" || DEV) startGame();
+window.addEventListener("hashchange", () => { if (location.hash === "#trailer" && mode !== "trailer") startTrailer(); else if ((location.hash === "#play" || location.hash === "#dev-play") && mode === "title") startGame(); });
 requestAnimationFrame((t) => { last = t; frame(t); });
 })();
 </script>
