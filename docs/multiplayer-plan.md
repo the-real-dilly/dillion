@@ -2,6 +2,9 @@
 
 Status: **draft for discussion**. Nothing here is built yet.
 
+
+> **Update:** hosting decision made: the multiplayer server will be **self-hosted** (Node + Colyseus in Docker, behind a Cloudflare Tunnel or similar for `wss://`), not Cloudflare Workers. See `docs/battle-royale-plan.md` §5 for the setup and security plan. Both games will share one server codebase and one player profile.
+
 ## Goal
 
 Let several people drive around Los Pepinos together in the browser. They should see each other's cars and characters, mess around with the cartoon weapons, and do missions and races together. It should be easy to join a friend from a link, with no install.
