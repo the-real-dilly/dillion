@@ -4370,6 +4370,231 @@ buildWheel();
 window.__wepReady = true;
 
 /* =====================================================================
+   streamed chunks: terrain, roads and district content are built around
+   the player a chunk at a time (time-boxed per frame) and disposed when
+   far away; buildings stay while loaded, small props only near the player
+   ===================================================================== */
+const WMAT = {
+  terrain: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }),
+  prop: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.05 }),
+  concrete: new THREE.MeshStandardMaterial({ color: 0xb8b1a6, roughness: 0.88 }),
+  markW: new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+  markY: new THREE.MeshStandardMaterial({ color: 0xffc93a, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+  water: new THREE.MeshStandardMaterial({ color: 0x14506a, roughness: 0.08, metalness: 0.6, transparent: true, opacity: 0.92 }),
+  tunnel: new THREE.MeshStandardMaterial({ color: 0x8c8780, roughness: 0.9, side: THREE.DoubleSide }),
+  glow: new THREE.MeshBasicMaterial({ color: 0xfff1c8, toneMapped: false })
+};
+const WSTAT = { built: 0, disposed: 0, buildMs: 0, maxMs: 0, queue: 0 };
+const WCH = new Map();
+const chunkKey = (cx, cz) => cx * 1000 + cz;
+const TER_N = 24;
+const _tc = new THREE.Color();
+function terrainColor(x, z, h, slope) {
+  const b = biome(x, z), n = fbm(x / 23, z / 23);
+  if (h < -0.4) return _tc.setRGB(0.42, 0.38, 0.28);
+  if (z > SEA - 34 || (b === "bay" && h < 2)) return _tc.setRGB(0.86, 0.76, 0.55).multiplyScalar(0.9 + n * 0.15);
+  if (b === "desert") return slope > 0.5 ? _tc.setRGB(0.7, 0.42, 0.28) : _tc.setRGB(0.86, 0.68, 0.45).multiplyScalar(0.88 + n * 0.2);
+  if (b === "port") return _tc.setRGB(0.5, 0.5, 0.49).multiplyScalar(0.85 + n * 0.25);
+  if (slope > 0.55) return _tc.setRGB(0.52, 0.46, 0.38).multiplyScalar(0.9 + n * 0.2);
+  if (b === "hills") return _tc.setRGB(0.55, 0.56, 0.27).lerp(_tc.clone().setRGB(0.35, 0.47, 0.22), n).multiplyScalar(0.95);
+  return _tc.setRGB(0.33, 0.52, 0.22).multiplyScalar(0.8 + n * 0.35);
+}
+function buildTerrain(ch) {
+  const S = WORLD.CH, N1 = TER_N + 1, step = S / TER_N, x0 = ch.x0, z0 = ch.z0;
+  const H = new Float32Array(N1 * N1);
+  for (let j = 0; j < N1; j++) for (let i = 0; i < N1; i++) H[j * N1 + i] = terrainH(x0 + i * step, z0 + j * step);
+  const pos = [], col = [], nor = [];
+  const hAt = (i, j) => H[clamp(j, 0, TER_N) * N1 + clamp(i, 0, TER_N)];
+  const vtx = (i, j) => {
+    const x = x0 + i * step, z = z0 + j * step, h = hAt(i, j), dx = hAt(i + 1, j) - hAt(i - 1, j), dz = hAt(i, j + 1) - hAt(i, j - 1);
+    const nx = -dx / (2 * step), nz = -dz / (2 * step), l = Math.hypot(nx, 1, nz), slope = Math.hypot(nx, nz);
+    pos.push(x, h, z); nor.push(nx / l, 1 / l, nz / l); const c = terrainColor(x, z, h, slope); col.push(c.r, c.g, c.b);
+  };
+  const inC = (i, j) => { const x = x0 + i * step, z = z0 + j * step; return Math.abs(x) < CORE + 10 && z > -CORE - 10 && z < SEA + 8; };
+  for (let j = 0; j < TER_N; j++) for (let i = 0; i < TER_N; i++) {
+    if (inC(i, j) && inC(i + 1, j) && inC(i, j + 1) && inC(i + 1, j + 1)) continue;
+    if (z0 + j * step > SEA + 30) continue;
+    vtx(i, j); vtx(i, j + 1); vtx(i + 1, j); vtx(i + 1, j); vtx(i, j + 1); vtx(i + 1, j + 1);
+  }
+  if (!pos.length) return null;
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.computeBoundingSphere();
+  const m = new THREE.Mesh(g, WMAT.terrain); m.receiveShadow = true; return m;
+}
+function ribbon(acc, a, b, na, nb, wa, wb, ya, yb, v0, v1) {
+  const A0 = [a[0] - na[0] * wa, ya, a[1] - na[1] * wa], A1 = [a[0] + na[0] * wa, ya, a[1] + na[1] * wa], B0 = [b[0] - nb[0] * wb, yb, b[1] - nb[1] * wb], B1 = [b[0] + nb[0] * wb, yb, b[1] + nb[1] * wb];
+  acc.quad(A0, A1, B1, B0, [0, 1, 0], 0, v0, 1, v1);
+}
+function perp(e, i) { const p = e.pts, a = p[Math.max(0, i - 1)], b = p[Math.min(p.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; return [-dz / l, dx / l]; }
+function buildRoads(ch, parts, solids) {
+  const acc = new Acc(), mw = new Acc(), my = new Acc(), conc = new Acc(), glow = new Acc();
+  for (const e of REDGES) {
+    for (let i = 0; i < e.pts.length - 1; i++) {
+      const p = e.pts[i], q = e.pts[i + 1], mx = (p[0] + q[0]) / 2, mz = (p[1] + q[1]) / 2;
+      if (mx < ch.x0 || mx >= ch.x0 + WORLD.CH || mz < ch.z0 || mz >= ch.z0 + WORLD.CH) continue;
+      if (inCore(mx, mz) && Math.abs(mx) < EDGE - 1 && mz > -EDGE + 1) continue;
+      const na = perp(e, i), nb = perp(e, i + 1), hw = e.w / 2, ya = p[2] + 0.05, yb = q[2] + 0.05, v0 = e.cum[i] / 8, v1 = e.cum[i + 1] / 8;
+      ribbon(acc, p, q, na, nb, hw, hw, ya, yb, v0, v1);
+      // markings
+      if ((i & 1) === 0 && e.kind !== "culdesac") { const lw = 0.13; if (e.kind === "fwy") { ribbon(my, p, q, na, nb, lw, lw, ya + 0.03, yb + 0.03, 0, 1); for (const o of [-hw / 2, hw / 2]) { const pa = [p[0] + na[0] * o, p[1] + na[1] * o], qa = [q[0] + nb[0] * o, q[1] + nb[1] * o]; ribbon(mw, pa, [pa[0] + (qa[0] - pa[0]) * 0.5, pa[1] + (qa[1] - pa[1]) * 0.5], na, nb, lw, lw, ya + 0.03, (ya + yb) / 2 + 0.03, 0, 1); } } else ribbon(e.kind === "street" ? mw : my, p, [p[0] + (q[0] - p[0]) * 0.55, p[1] + (q[1] - p[1]) * 0.55], na, nb, lw, lw, ya + 0.03, lerp(ya, yb, 0.55) + 0.03, 0, 1); }
+      // edge lines
+      for (const s of [-1, 1]) { const o = s * (hw - 0.6); ribbon(mw, [p[0] + na[0] * o, p[1] + na[1] * o], [q[0] + nb[0] * o, q[1] + nb[1] * o], na, nb, 0.1, 0.1, ya + 0.025, yb + 0.025, 0, 1); }
+      // elevated deck: sides, underside, pillars, rails
+      if (p[2] > 0.6 || q[2] > 0.6) {
+        for (const s of [-1, 1]) {
+          const ax = p[0] + na[0] * s * hw, az = p[1] + na[1] * s * hw, bx = q[0] + nb[0] * s * hw, bz = q[1] + nb[1] * s * hw;
+          conc.quad([ax, ya - 1.3, az], [bx, yb - 1.3, bz], [bx, yb + 0.95, bz], [ax, ya + 0.95, az], [na[0] * s, 0, na[1] * s], 0, 0, 1, 1);
+        }
+        conc.quad([p[0] + na[0] * hw, ya - 1.3, p[1] + na[1] * hw], [p[0] - na[0] * hw, ya - 1.3, p[1] - na[1] * hw], [q[0] - nb[0] * hw, yb - 1.3, q[1] - nb[1] * hw], [q[0] + nb[0] * hw, yb - 1.3, q[1] + nb[1] * hw], [0, -1, 0], 0, 0, 1, 1);
+        if (i % 3 === 0 && p[2] > 2) { const gy = Math.min(terrainRaw(p[0], p[1]), 0); for (const s of e.kind === "bridge" ? [-0.6, 0.6] : [0]) conc.box(p[0] + na[0] * s * hw, p[1] + na[1] * s * hw, 2.2, 2.2, gy - 6, p[2] - 1.3 - gy + 6); }
+      }
+      // tunnel tube: walls, roof, light strip
+      if (e.kind === "tunnel") {
+        const L = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        for (const s of [-1, 1]) { const ax = p[0] + na[0] * s * (hw + 1), az = p[1] + na[1] * s * (hw + 1), bx = q[0] + nb[0] * s * (hw + 1), bz = q[1] + nb[1] * s * (hw + 1); conc.quad([ax, 0, az], [bx, 0, bz], [bx, 8, bz], [ax, 8, az], [-na[0] * s, 0, -na[1] * s], 0, 0, 1, 1); }
+        conc.quad([p[0] - na[0] * (hw + 1), 8, p[1] - na[1] * (hw + 1)], [p[0] + na[0] * (hw + 1), 8, p[1] + na[1] * (hw + 1)], [q[0] + nb[0] * (hw + 1), 8, q[1] + nb[1] * (hw + 1)], [q[0] - nb[0] * (hw + 1), 8, q[1] - nb[1] * (hw + 1)], [0, -1, 0], 0, 0, 1, 1);
+        if (i % 2 === 0) glow.box((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, 1.2, Math.min(L, 3), 7.8, 0.15);
+        if (i === 0 || i === e.pts.length - 2) { const pp = i === 0 ? p : q; conc.box(pp[0] - hw - 3, pp[1], 3, 2.5, 0, 12); conc.box(pp[0] + hw + 3, pp[1], 3, 2.5, 0, 12); conc.box(pp[0], pp[1], 2 * hw + 9, 2.5, 8, 4); }
+      }
+    }
+  }
+  const out = [];
+  if (acc.p.length) { const m = new THREE.Mesh(acc.geo(), MAT.asphalt); m.receiveShadow = true; out.push(m); }
+  if (mw.p.length) out.push(new THREE.Mesh(mw.geo(), WMAT.markW)); if (my.p.length) out.push(new THREE.Mesh(my.geo(), WMAT.markY));
+  if (conc.p.length) { const m = new THREE.Mesh(conc.geo(), WMAT.tunnel); m.castShadow = true; m.receiveShadow = true; out.push(m); }
+  if (glow.p.length) out.push(new THREE.Mesh(glow.geo(), WMAT.glow));
+  return out;
+}
+/* district content */
+const PALM_SRC = {};
+function treeParts(parts, x, y, z, s, r, kind) {
+  if (kind === "pine") { parts.push([G.cyl, MX(x, y + 1.6 * s, z, 0, 0, 0, 0.25 * s, 3.2 * s, 0.25 * s), 0x5a3b26]); parts.push([G.cone, MX(x, y + 5.2 * s, z, 0, r, 0, 2.2 * s, 5.5 * s, 2.2 * s), 0x2f5a2a]); return; }
+  if (kind === "cactus") { parts.push([G.cyl, MX(x, y + 1.8 * s, z, 0, 0, 0, 0.35 * s, 3.6 * s, 0.35 * s), 0x4f8a3a]); parts.push([G.cyl, MX(x + 0.6 * s, y + 2.2 * s, z, 0, 0, 0, 0.22 * s, 1.4 * s, 0.22 * s), 0x4f8a3a]); parts.push([G.cyl, MX(x - 0.6 * s, y + 1.6 * s, z, 0, 0, 0, 0.22 * s, 1.2 * s, 0.22 * s), 0x4f8a3a]); return; }
+  parts.push([G.cyl, MX(x, y + 1.6 * s, z, 0, 0, 0, 0.28 * s, 3.2 * s, 0.28 * s), 0x5a3b26]); parts.push([G.sph, MX(x, y + 4.2 * s, z, 0, r, 0, 2.4 * s, 2.1 * s, 2.4 * s), kind === "dry" ? 0x7a8a3a : 0x3f7a2e]);
+}
+const PASTEL = [0xf4d6c6, 0xcfe6e2, 0xf6e9b8, 0xe4d2f0, 0xd8eccd, 0xf3c9b0, 0xffffff, 0xc9dbf2];
+const CONT = [0xc0392b, 0x2e86c1, 0x27ae60, 0xf39c12, 0x8e44ad, 0xd35400, 0x16a085, 0x7f8c8d];
+function freeSpot(x, z, clear) { if (inCore(x, z)) return false; roadQuery(x, z); if (RQ.nd < clear || RQ.on) return false; const h = terrainRaw(x, z); return h > -0.3 && z < SEA - 36; }
+function buildDistrict(ch, parts, accs, solids, near) {
+  const r = mkRng(ch.cx * 7919 + ch.cz * 104729 + 99), S = WORLD.CH;
+  const solid = (x0, x1, z0, z1) => addOuterSolid(x0, x1, z0, z1, solids);
+  const bAt = (x, z) => biome(x, z);
+  for (let gx = 0; gx < S; gx += 34) for (let gz = 0; gz < S; gz += 34) {
+    const x = ch.x0 + gx + 17 + (r() - 0.5) * 10, z = ch.z0 + gz + 17 + (r() - 0.5) * 10, b = bAt(x, z), y = terrainH(x, z);
+    if (b === "suburb") {
+      if (!freeSpot(x, z, 13)) { if (freeSpot(x, z, 7) && r() < 0.5) treeParts(near, x, y, z, 0.8 + r() * 0.5, r() * 6); continue; }
+      const w = 10 + r() * 5, d = 9 + r() * 4, h = 3.6 + r() * 2.6, c = PASTEL[Math.floor(r() * PASTEL.length)], ry = Math.round(r() * 3) * Math.PI / 2;
+      parts.push([G.box, MX(x, y + h / 2, z, 0, ry, 0, w, h, d), c]);
+      parts.push([new THREE.CylinderGeometry(1, 1, 1, 3), MX(x, y + h + 1.4, z, Math.PI / 2, ry + Math.PI / 2, 0, (Math.max(w, d) * 0.6), Math.min(w, d) * 1.08, 2.8), [0x8a4a3a, 0x4a5a6a, 0x6a4a3a][Math.floor(r() * 3)]]);
+      parts.push([G.box, MX(x + (r() - 0.5) * 4, y + 1.1, z + d / 2 + 0.05, 0, ry, 0, 1.4, 2.2, 0.1), 0x6a4a3a]);
+      solid(x - Math.max(w, d) / 2, x + Math.max(w, d) / 2, z - Math.max(w, d) / 2, z + Math.max(w, d) / 2);
+      if (r() < 0.4) near.push([G.box, MX(x + 9, y + 0.05, z + 7, 0, 0, 0, 6, 0.15, 4), 0x3fb6e6]);
+      if (r() < 0.6) treeParts(near, x - 9, y, z + 8, 0.9 + r() * 0.4, r() * 6);
+      for (const s of [-1, 1]) near.push([G.box, MX(x + s * 11, y + 0.5, z + 2, 0, 0, 0, 0.12, 1, 16), 0xf2efe8]);
+    } else if (b === "city") {
+      if (!freeSpot(x, z, 18)) continue;
+      if (r() < 0.25) { treeParts(near, x, y, z, 1 + r() * 0.4, r() * 6); treeParts(near, x + 7, y, z + 5, 1, r() * 6); continue; }
+      const w = 16 + r() * 12, d = 16 + r() * 12, h = 8 + r() * (Math.abs(x) < 800 && z > -600 ? 34 : 14), st = [0, 1, 2, 5, 6, 7][Math.floor(r() * 6)];
+      accs.facade[st].sides(x, z, w, d, y, h, "facade", r() * 4); accs.roof.top(x, z, w, d, y + h);
+      solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2);
+    } else if (b === "hills") {
+      if (r() < 0.55) { if (freeSpot(x, z, 8)) treeParts(near, x, y, z, 1 + r() * 0.6, r() * 6, r() < 0.6 ? "pine" : "dry"); continue; }
+      if (!freeSpot(x, z, 14) || r() < 0.5) continue;
+      const w = 14 + r() * 8, d = 10 + r() * 6;
+      parts.push([G.box, MX(x, y + 2.2, z, 0, 0, 0, w, 4.4, d), 0xf4f1ea]); parts.push([G.box, MX(x + 2, y + 6, z, 0, 0, 0, w * 0.7, 3.4, d * 0.8), 0xf4f1ea]);
+      parts.push([G.box, MX(x, y + 2.4, z + d / 2 + 0.05, 0, 0, 0, w * 0.8, 1.6, 0.1), 0x2a4a6a]); parts.push([G.box, MX(x, y + 0.1, z + d / 2 + 4, 0, 0, 0, w * 0.6, 0.2, 4), 0x3fb6e6]);
+      solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2);
+    } else if (b === "desert") {
+      if (freeSpot(x, z, 9) && r() < 0.45) treeParts(near, x, y, z, 0.8 + r() * 0.6, r() * 6, "cactus");
+      if (r() < 0.06 && freeSpot(x, z, 40)) { const w = 30 + r() * 40, d = 30 + r() * 40, h = 18 + r() * 30; parts.push([G.box, MX(x, y + h / 2 - 2, z, 0, r(), 0, w, h, d), 0xb5764a]); parts.push([G.box, MX(x, y + h + 1, z, 0, r(), 0, w * 0.8, 4, d * 0.8), 0xc98a5a]); solid(x - w * 0.45, x + w * 0.45, z - d * 0.45, z + d * 0.45); }
+    } else if (b === "port") {
+      if (!freeSpot(x, z, 12)) continue;
+      if (r() < 0.25) { const w = 30 + r() * 10, d = 20 + r() * 8, h = 9 + r() * 5; accs.facade[7].sides(x, z, w, d, y, h, "facade", 0); accs.roof.top(x, z, w, d, y + h); solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2); continue; }
+      const rows = 2 + Math.floor(r() * 2), stack = 1 + Math.floor(r() * 3);
+      for (let k = 0; k < rows; k++) for (let l = 0; l < stack; l++) parts.push([G.box, MX(x, y + 1.3 + l * 2.6, z - 4 + k * 2.7, 0, 0, 0, 12, 2.55, 2.5), CONT[Math.floor(r() * CONT.length)]]);
+      solid(x - 6, x + 6, z - 5.5, z - 5.5 + rows * 2.7);
+    }
+  }
+  // landmarks
+  const has = (x, z) => x >= ch.x0 && x < ch.x0 + S && z >= ch.z0 && z < ch.z0 + S;
+  if (has(HSIGN.x, HSIGN.z)) {
+    const y = terrainRaw(HSIGN.x, HSIGN.z), word = "LOS PEPINOS";
+    for (let i = 0; i < word.length; i++) { if (word[i] === " ") continue; const x = HSIGN.x - 66 + i * 12.4; parts.push([G.box, MX(x, y + 9, HSIGN.z, -0.12, 0, 0, 9.5, 14, 1), 0xffffff]); for (const s of [-1, 1]) parts.push([G.box, MX(x + s * 3, y + 2, HSIGN.z - 1.5, 0, 0, 0, 0.5, 5, 0.5), 0x8a8a8a]); }
+    accs.letters = word;
+  }
+  for (const cr of CRANES) if (has(cr.x, cr.z)) {
+    const y = 0; for (const [ox, oz] of [[-6, -5], [6, -5], [-6, 5], [6, 5]]) parts.push([G.box, MX(cr.x + ox, y + 18, cr.z + oz, 0, 0, 0, 1.2, 36, 1.2), 0xe0a020]);
+    parts.push([G.box, MX(cr.x, y + 36, cr.z + 12, 0, 0, 0, 3, 2.4, 70), 0xe0a020]); parts.push([G.box, MX(cr.x, y + 31, cr.z, 0, 0, 0, 14, 4, 12), 0xc0392b]);
+    parts.push([G.box, MX(cr.x, y + 26, cr.z + 30, 0, 0, 0, 0.3, 18, 0.3), 0x333333]); parts.push([G.box, MX(cr.x, y + 17, cr.z + 30, 0, 0, 0, 12, 2.5, 2.5), CONT[cr.c]]);
+    for (const [ox, oz] of [[-6, -5], [6, -5], [-6, 5], [6, 5]]) solid(cr.x + ox - 1, cr.x + ox + 1, cr.z + oz - 1, cr.z + oz + 1);
+  }
+  if (has(GAS.x, GAS.z)) {
+    const { x, z } = GAS, y = terrainH(x, z);
+    parts.push([G.box, MX(x, y + 6, z, 0, 0, 0, 24, 0.8, 14), 0xf4f1ea]); parts.push([G.box, MX(x, y + 6.6, z, 0, 0, 0, 24.4, 0.6, 14.4), 0x2fa84f]);
+    for (const ox of [-8, 8]) { parts.push([G.box, MX(x + ox, y + 3, z, 0, 0, 0, 0.6, 6, 0.6), 0xdddddd]); for (const oz of [-3, 3]) parts.push([G.box, MX(x + ox * 0.5, y + 0.9, z + oz, 0, 0, 0, 1, 1.8, 0.6), 0xd93a3a]); }
+    parts.push([G.box, MX(x, y + 2.5, z - 18, 0, 0, 0, 20, 5, 10), 0xe8d7b7]); parts.push([G.box, MX(x, y + 5.6, z - 18, 0, 0, 0, 21, 1.2, 11), 0x2fa84f]);
+    parts.push([G.box, MX(x + 16, y + 12, z - 8, 0, 0, 0, 0.6, 24, 0.6), 0x888888]); parts.push([G.box, MX(x + 16, y + 22, z - 8, 0, 0, 0, 7, 5, 0.6), 0x2fa84f]);
+    solid(x - 10, x + 10, z - 23, z - 13);
+  }
+}
+const CRANES = []; for (let x = 820, k = 0; x < 1560; x += 125, k++) CRANES.push({ x, z: 316, c: k % CONT.length });
+const GAS = { x: 1350, z: -1060 };
+function buildChunk(ch) {
+  const t0 = performance.now(), grp = new THREE.Group(), nearG = new THREE.Group(), solids = [], parts = [], near = [];
+  const accs = { facade: STYLES.map(() => new Acc()), roof: new Acc() };
+  const ter = buildTerrain(ch); if (ter) grp.add(ter);
+  for (const m of buildRoads(ch, parts, solids)) grp.add(m);
+  buildDistrict(ch, parts, accs, solids, near);
+  accs.facade.forEach((a, i) => { if (a.p.length) { const m = new THREE.Mesh(a.geo(), facadeMats[i]); m.castShadow = true; m.receiveShadow = true; grp.add(m); } });
+  if (accs.roof.p.length) grp.add(new THREE.Mesh(accs.roof.geo(), MAT.roof));
+  if (parts.length) { const m = new THREE.Mesh(merge(parts), WMAT.prop); m.castShadow = true; m.receiveShadow = true; grp.add(m); }
+  if (near.length) { const m = new THREE.Mesh(merge(near), WMAT.prop); m.castShadow = true; nearG.add(m); }
+  grp.add(nearG);
+  grp.traverse((o) => { if (o.isMesh) { o.matrixAutoUpdate = false; o.updateMatrix(); } });
+  scene.add(grp);
+  Object.assign(ch, { grp, nearG, solids, state: "ready" });
+  const ms = performance.now() - t0; WSTAT.built++; WSTAT.buildMs = ms; WSTAT.maxMs = Math.max(WSTAT.maxMs, ms);
+}
+function disposeChunk(ch) {
+  if (ch.grp) { scene.remove(ch.grp); ch.grp.traverse((o) => { if (o.isMesh) o.geometry.dispose(); }); }
+  for (const s of ch.solids || []) removeOuterSolid(s);
+  WCH.delete(ch.key); WSTAT.disposed++;
+}
+const STREAM = { load: 760, unload: 980, near: 460 };
+function updateWorld(force) {
+  const fx = mode === "game" || mode === "busted" || mode === "pause" || mode === "photo" ? ME.x : camera.position.x, fz = mode === "game" || mode === "busted" || mode === "pause" || mode === "photo" ? ME.z : camera.position.z;
+  const S = WORLD.CH, want = [];
+  const cx0 = Math.floor((fx - STREAM.load - WORLD.x0) / S), cx1 = Math.floor((fx + STREAM.load - WORLD.x0) / S), cz0 = Math.floor((fz - STREAM.load - WORLD.z0) / S), cz1 = Math.floor((fz + STREAM.load - WORLD.z0) / S);
+  for (let cx = Math.max(0, cx0); cx <= Math.min(Math.ceil((WORLD.x1 - WORLD.x0) / S) - 1, cx1); cx++) for (let cz = Math.max(0, cz0); cz <= Math.min(Math.ceil((WORLD.z1 - WORLD.z0) / S) - 1, cz1); cz++) {
+    const x0 = WORLD.x0 + cx * S, z0 = WORLD.z0 + cz * S, d = Math.hypot(clamp(fx, x0, x0 + S) - fx, clamp(fz, z0, z0 + S) - fz);
+    if (d > STREAM.load) continue;
+    const key = chunkKey(cx, cz); if (!WCH.has(key)) want.push([d, cx, cz, x0, z0, key]);
+  }
+  want.sort((a, b) => a[0] - b[0]); WSTAT.queue = want.length;
+  // build: nearest first, at most ~6 ms of work per frame (one chunk), more when forced
+  let budget = force ? 1e9 : 6, used = 0;
+  for (const [d, cx, cz, x0, z0, key] of want) { if (used > budget || (used > 0 && !force)) break; const ch = { key, cx, cz, x0, z0 }; WCH.set(key, ch); const t = performance.now(); buildChunk(ch); used += performance.now() - t; }
+  for (const ch of WCH.values()) {
+    const d = Math.hypot(clamp(fx, ch.x0, ch.x0 + S) - fx, clamp(fz, ch.z0, ch.z0 + S) - fz);
+    if (d > STREAM.unload) { disposeChunk(ch); continue; }
+    if (ch.nearG) ch.nearG.visible = d < STREAM.near;
+  }
+}
+// static water of Brine Bay and a far mountain / skyline ring past the streamed area
+{
+  const g = new THREE.PlaneGeometry(INLET.w * 2 + 70, SEA - INLET.zTop + 60); g.rotateX(-Math.PI / 2); g.translate(INLET.x, -0.7, (SEA + INLET.zTop) / 2 + 20);
+  const m = new THREE.Mesh(g, WMAT.water); m.receiveShadow = true; scene.add(m);
+  const ring = [], rr = mkRng(4242);
+  for (let i = 0; i < 64; i++) {
+    const a = i / 64 * Math.PI * 2, R = 2350 + rr() * 300, x = Math.cos(a) * R, z = Math.sin(a) * R * 0.85 - 600;
+    if (z > SEA + 200) continue;
+    const h = z < -1200 ? 180 + rr() * 260 : 90 + rr() * 140;
+    ring.push([G.cone, MX(x, h / 2 - 5, z, 0, rr() * 6, 0, 260 + rr() * 200, h, 260 + rr() * 200), z < -1500 ? 0x5a6a8a : 0x6a7a90]);
+  }
+  const mm = new THREE.Mesh(merge(ring), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }));
+  mm.matrixAutoUpdate = false; scene.add(mm);
+}
+
+/* =====================================================================
    car visuals & glows
    ===================================================================== */
 const _lw = [0, 0, 0];
@@ -5338,7 +5563,7 @@ function tick(dt, doRender) {
   renderPeds(gameTime);
   P.mesh.visible = Math.abs(P.z) < 1000;
   updateWheels(mode === "pause" ? 0 : (mode === "busted" ? dt * 0.32 : dt));
-  updateTrafficLights(); updateFerris(gameTime); updateLOD();
+  updateTrafficLights(); updateFerris(gameTime); updateLOD(); updateWorld();
   ocean.t.value = gameTime; skyU.time.value = gameTime; storeMat.uniforms.night.value = TOD.lamp; storeMat.uniforms.sky.value.copy(TOD.mid).lerp(TOD.top, 0.4);
   if (!D.onFoot) { const sIn = mode === "game" ? (P.steerIn || 0) : clamp(P.yaw * 0.6, -1, 1); P.look = lerp(P.look || 0, sIn * 0.45, Math.min(1, dt * 5)); avatarPose("seat", gameTime, { look: P.look + (WEP.locked ? camState.orbit * 0.3 : 0), bob: clamp(Math.hypot(P.vx, P.vz) / 20, 0, 1), k: Math.min(1, dt * 8) }); }
   if (!D.onFoot) weaponPose();
@@ -5395,7 +5620,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
 window.DGM = {
   get mode() { return mode; }, get player() { return { x: P.x, z: P.z, h: P.h, speed: Math.hypot(P.vx, P.vz) }; }, get wanted() { return { stars: W.stars, heat: W.heat, cops: cops.length }; },
   get mission() { return mission && { stage: mission.stage, x: mission.x, z: mission.z, name: mission.name }; }, get cash() { return save.cash; }, get trailerT() { return TR.t; },
-  get scene() { return scene; }, crowdAt(list) { list.forEach(([x, z], k) => { const q = peds[k]; Object.assign(q, { state: "walk", pause: 99, x, z, y: groundH(x, z) }); }); }, carAim(o) { WEP.locked = true; camState.orbit = o; }, seekStep(t) { if (t < TR.t) TR.t = Math.max(0, t - 1.0); while (TR.t < t - 1e-6) tick(Math.min(1 / 30, t - TR.t), false); paused = true; tick(0.0001, true); }, get stores() { return storefronts.length; }, store(k) { const sf = storefronts[k], n = [[0, 1], [1, 0], [0, -1], [-1, 0]][sf.f], hw = (sf.f % 2 ? sf.w : sf.d) / 2; return { x: sf.cx + n[0] * hw, z: sf.cz + n[1] * hw, nx: n[0], nz: n[1] }; }, noHeat(on) { W.noHeat = !!on; }, get voice() { return { style: voiceStyle(), voices: VOX.voices.length, cur: VOX.cur && { who: VOX.cur.who, text: VOX.cur.text }, q: VOX.q.length, duck: RADIO.duck, mouth: +AVA.mouth.scale.y.toFixed(4), ss: !!SS }; }, say(w, t, o) { return say(w, t, o || {}); }, quip(k) { VOX.lastQuip._any = -99; VOX.lastQuip[k] = -99; quip(k, 0); }, bark(i, k) { VOX.lastBark = -99; pedBark(peds[i], k); }, copSay(k) { VOX.lastQuip["cop" + k] = -99; copSay(k, cops[0]); }, get radio() { const c = AU.ctx; return { station, name: STATIONS[station].name, np: radioNowPlaying(), voices: AU.voices, ctx: c ? c.state : "none", audible: RADIO.audible, chains: Object.keys(RADIO.chains).length, line: RADIO.line, wheel: RADIO.wheel }; },
+  get scene() { return scene; }, crowdAt(list) { list.forEach(([x, z], k) => { const q = peds[k]; Object.assign(q, { state: "walk", pause: 99, x, z, y: groundH(x, z) }); }); }, carAim(o) { WEP.locked = true; camState.orbit = o; }, seekStep(t) { if (t < TR.t) TR.t = Math.max(0, t - 1.0); while (TR.t < t - 1e-6) tick(Math.min(1 / 30, t - TR.t), false); paused = true; tick(0.0001, true); }, get stores() { return storefronts.length; }, store(k) { const sf = storefronts[k], n = [[0, 1], [1, 0], [0, -1], [-1, 0]][sf.f], hw = (sf.f % 2 ? sf.w : sf.d) / 2; return { x: sf.cx + n[0] * hw, z: sf.cz + n[1] * hw, nx: n[0], nz: n[1] }; }, noHeat(on) { W.noHeat = !!on; }, get world() { return Object.assign({ chunks: WCH.size, edges: REDGES.length, nodes: RNODES.length, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, district: district(ME.x, ME.z) }, WSTAT); }, worldLoad() { updateWorld(true); }, ground(x, z, y) { return groundH(x, z, y); }, get voice() { return { style: voiceStyle(), voices: VOX.voices.length, cur: VOX.cur && { who: VOX.cur.who, text: VOX.cur.text }, q: VOX.q.length, duck: RADIO.duck, mouth: +AVA.mouth.scale.y.toFixed(4), ss: !!SS }; }, say(w, t, o) { return say(w, t, o || {}); }, quip(k) { VOX.lastQuip._any = -99; VOX.lastQuip[k] = -99; quip(k, 0); }, bark(i, k) { VOX.lastBark = -99; pedBark(peds[i], k); }, copSay(k) { VOX.lastQuip["cop" + k] = -99; copSay(k, cops[0]); }, get radio() { const c = AU.ctx; return { station, name: STATIONS[station].name, np: radioNowPlaying(), voices: AU.voices, ctx: c ? c.state : "none", audible: RADIO.audible, chains: Object.keys(RADIO.chains).length, line: RADIO.line, wheel: RADIO.wheel }; },
   tune(i) { radioTune(i); }, radioWheel(on) { radioWheel(on); },
   async radioRender(si, secs = 8, startBar = 8) {
     const save0 = { ctx: AU.ctx, noise: AU.noise, music: AU.music, bus: RADIO.bus, lp: RADIO.lp, level: RADIO.level, verb: RADIO.verb, wob: RADIO.wob, wobG: RADIO.wobG, chains: RADIO.chains, voices: AU.voices };
