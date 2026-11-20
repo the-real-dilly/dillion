@@ -64,8 +64,8 @@ export const STYLES = {
   target: { top: 0xd8d4c8, legs: 0xc8c2b4, boots: 0x6a6460, skin: 0xd8d4c8, glove: 0xb8b2a4, helmet: 0xc0503a, vest: 0xc0503a, pack: 0x8a8478, joint: 0x8a8478, noPack: true }
 };
 
-const BONES = ["DEF-head", "DEF-spine.001", "DEF-spine.002", "DEF-spine.003", "DEF-hips", "DEF-hand.R", "DEF-hand.L"];
-const UPPER = new Set(["DEF-spine.001", "DEF-spine.002", "DEF-spine.003", "DEF-neck", "DEF-head"]);
+const BONES = ["DEF-head", "DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-hips", "DEF-handR", "DEF-handL"];
+const UPPER = new Set(["DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-neck", "DEF-head"]);
 const isUpper = (n) => UPPER.has(n) || /shoulder|upper_arm|forearm|hand|thumb|f_index|f_middle|f_ring|f_pinky/.test(n);
 const clipCache = {};
 function partClip(name, part) {
@@ -138,9 +138,9 @@ export class Avatar {
       gear(new THREE.BoxGeometry(0.1, 0.035, 0.03), 0x1a1a1a, "DEF-head", 0, 1.71, 0.155, 0, 0, 0, 0.3); // NVG mount
     }
     if (st.headset) { for (const sx of [-1, 1]) gear(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 10).rotateZ(Math.PI / 2), 0x2a2a28, "DEF-head", sx * 0.14, 1.62, 0.0); }
-    gear(new THREE.BoxGeometry(0.4, 0.4, 0.29), st.vest, "DEF-spine.003", 0, 1.27, 0.015);
-    for (const px of [-0.12, 0, 0.12]) gear(new THREE.BoxGeometry(0.1, 0.13, 0.06), st.pack, "DEF-spine.003", px, 1.16, 0.18);
-    if (!st.noPack) gear(new THREE.BoxGeometry(0.3, 0.38, 0.15), st.pack, "DEF-spine.003", 0, 1.26, -0.22);
+    gear(new THREE.BoxGeometry(0.4, 0.4, 0.29), st.vest, "DEF-spine003", 0, 1.27, 0.015);
+    for (const px of [-0.12, 0, 0.12]) gear(new THREE.BoxGeometry(0.1, 0.13, 0.06), st.pack, "DEF-spine003", px, 1.16, 0.18);
+    if (!st.noPack) gear(new THREE.BoxGeometry(0.3, 0.38, 0.15), st.pack, "DEF-spine003", 0, 1.26, -0.22);
     // animation
     const mixer = this.mixer = new THREE.AnimationMixer(model);
     this.act = { lower: {}, upper: {} };
@@ -238,20 +238,20 @@ export class Avatar {
     }
     this.legYaw += (legT - this.legYaw) * Math.min(1, dt * 8);
     const B = this.bones;
-    if (near && B["DEF-hips"] && B["DEF-spine.001"]) {
-      if (Math.abs(this.legYaw) > 0.01) { rotBoneWorld(B["DEF-hips"], _up, this.legYaw); rotBoneWorld(B["DEF-spine.001"], _up, -this.legYaw); }
+    if (near && B["DEF-hips"] && B["DEF-spine001"]) {
+      if (Math.abs(this.legYaw) > 0.01) { rotBoneWorld(B["DEF-hips"], _up, this.legYaw); rotBoneWorld(B["DEF-spine001"], _up, -this.legYaw); }
       // aim pitch bends the upper spine
       if (ground && w) {
         const rx = Math.cos(yaw), rz = -Math.sin(yaw); _v.set(rx, 0, rz);
         const pitch = clamp(p.pitch + (p.recP || 0), -1.1, 1.1);
-        rotBoneWorld(B["DEF-spine.002"], _v, pitch * 0.45); rotBoneWorld(B["DEF-spine.003"], _v, pitch * 0.4);
+        rotBoneWorld(B["DEF-spine002"], _v, pitch * 0.45); rotBoneWorld(B["DEF-spine003"], _v, pitch * 0.4);
         // two-handed long guns: square the shoulders a little to the aim
-        if (WEAPONS[w.id].cls !== "Sidearm" && WEAPONS[w.id].cls !== "Revolver" && upper !== "Pistol_Reload") rotBoneWorld(B["DEF-spine.003"], _up, -0.18);
+        if (WEAPONS[w.id].cls !== "Sidearm" && WEAPONS[w.id].cls !== "Revolver" && upper !== "Pistol_Reload") rotBoneWorld(B["DEF-spine003"], _up, -0.18);
       }
     }
     // gun at the right hand, pointing along the aim when aiming
     if (this.gun && ground) {
-      const hand = B["DEF-hand.R"]; hand.getWorldPosition(_v);
+      const hand = B["DEF-handR"]; hand.getWorldPosition(_v);
       const aiming = upper === "Pistol_Aim_Neutral" || p.adsT > 0.2;
       const gy = yaw + (p.recY || 0), gp = aiming ? p.pitch + (p.recP || 0) : (p.sprint ? -0.9 : -0.55);
       const yawOff = aiming ? 0 : (p.sprint ? 0.9 : 0.35);
