@@ -39,13 +39,13 @@ export async function loadAssets(onProgress) {
 export function makeGun(wid, scale = 1) {
   const G = A.guns[wid], W = WEAPONS[wid];
   const holder = new THREE.Group(), inner = G.obj.clone();
-  inner.rotation.y = -Math.PI / 2;
+  inner.rotation.y = Math.PI / 2; // the pack's barrels point down -X
   const s = W.scale * scale; inner.scale.setScalar(s);
-  // grip about 22% along from the back for long guns, near the back for pistols
-  const gripX = G.box.min.x + G.len * (W.cls === "Sidearm" || W.cls === "Revolver" ? 0.22 : 0.3);
-  inner.position.set(0, -0.05 * scale, -gripX * s);
+  // grip ~22% in from the back for handguns, ~32% for long guns
+  const gripX = G.box.max.x - G.len * (W.cls === "Sidearm" || W.cls === "Revolver" ? 0.22 : W.cls === "Assault rifle" && W.model.startsWith("Bullpup") ? 0.45 : 0.32);
+  inner.position.set(0, -0.05 * scale, gripX * s);
   holder.add(inner);
-  holder.userData.muzzle = (G.box.max.x - gripX) * s; holder.userData.wid = wid;
+  holder.userData.muzzle = (gripX - G.box.min.x) * s; holder.userData.wid = wid;
   return holder;
 }
 
