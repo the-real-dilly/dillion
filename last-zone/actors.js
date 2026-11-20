@@ -307,7 +307,7 @@ export function makePlaneMesh() {
     const prop = new THREE.Group(); for (let k = 0; k < 4; k++) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.25, 2.2, 0.08), dark); bl.position.y = 1.1; const pv = new THREE.Group(); pv.rotation.z = k * Math.PI / 2; pv.add(bl); prop.add(pv); }
     prop.position.set(x, 1.6, 6.1); g.add(prop); g.props.push(prop);
   }
-  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
   return g;
 }
 

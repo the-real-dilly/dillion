@@ -134,10 +134,14 @@ function makeSky() {
   });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(3600, 32, 16), mat); sky.frustumCulled = false; sky.renderOrder = -10;
   R.scene.add(sky); R.sky = sky;
+  R.envScene = new THREE.Scene(); R.envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), mat));
+  R.envGround = new THREE.Mesh(new THREE.CircleGeometry(48, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a30 })); R.envGround.position.y = -3; R.envScene.add(R.envGround);
+  R.pmrem = new THREE.PMREMGenerator(R.renderer);
 }
+function updateEnv() { try { const rt = R.pmrem.fromScene(R.envScene, 0.03); if (R.envRT) R.envRT.dispose(); R.envRT = rt; R.scene.environment = rt.texture; } catch (e) { /* ignore */ } }
 export const PRESETS = {
-  golden: { sunEl: 13, sunAz: 235, sunCol: [1.0, 0.74, 0.5], sunI: 2.7, hemiSky: 0x9fb2c8, hemiGround: 0x51483a, hemiI: 0.6, top: 0x3f6589, mid: 0xd4b08a, bot: 0x5f6466, fog: 0xa49c8e, fogD: 0.0006, cloud: 0.45, cloudCol: 0xf0d2b4, cloudDark: 0x6c6670, exp: 1.0, water: 0x2a4a56 },
-  overcast: { sunEl: 38, sunAz: 200, sunCol: [0.86, 0.88, 0.9], sunI: 1.25, hemiSky: 0xb7c0c6, hemiGround: 0x4c4a44, hemiI: 1.0, top: 0x6b7680, mid: 0xa7adaf, bot: 0x6a6f70, fog: 0x9da3a5, fogD: 0.00095, cloud: 1.0, cloudCol: 0xc4c8ca, cloudDark: 0x6d7378, exp: 1.08, water: 0x34474d }
+  golden: { sunEl: 17, sunAz: 215, sunCol: [1.0, 0.74, 0.5], sunI: 2.7, hemiSky: 0x9fb2c8, hemiGround: 0x5a5040, hemiI: 0.5, top: 0x3f6589, mid: 0xd4b08a, bot: 0x5f6466, fog: 0xa49c8e, fogD: 0.0006, cloud: 0.45, cloudCol: 0xf0d2b4, cloudDark: 0x6c6670, exp: 1.0, water: 0x2a4a56 },
+  overcast: { sunEl: 38, sunAz: 200, sunCol: [0.86, 0.88, 0.9], sunI: 1.25, hemiSky: 0xb7c0c6, hemiGround: 0x4c4a44, hemiI: 0.7, top: 0x6b7680, mid: 0xa7adaf, bot: 0x6a6f70, fog: 0x9da3a5, fogD: 0.00095, cloud: 1.0, cloudCol: 0xc4c8ca, cloudDark: 0x6d7378, exp: 1.08, water: 0x34474d }
 };
 export function applyPreset(name) {
   const P = PRESETS[name] || PRESETS.golden; R.preset = name;
@@ -148,8 +152,9 @@ export function applyPreset(name) {
   R.sun.color.setRGB(...P.sunCol); R.sun.intensity = P.sunI; R.hemi.color.set(P.hemiSky); R.hemi.groundColor.set(P.hemiGround); R.hemi.intensity = P.hemiI;
   R.scene.fog.color.set(P.fog); R.fogBase = P.fogD; R.scene.fog.density = P.fogD * (R.quality === "high" ? 1 : 1.25);
   R.grade.uniforms.exposure.value = P.exp;
-  if (R.waterU) { R.waterU.deep.value.set(P.water); R.waterU.sunDir.value.copy(R.sunDir); R.waterU.sunCol.value.setRGB(...P.sunCol); R.waterU.skyCol.value.set(P.mid); R.waterU.fogCol.value.set(P.fog); }
+  if (R.waterU) { R.waterU.deep.value.set(P.water); R.waterU.sunDir.value.copy(R.sunDir); R.waterU.sunCol.value.setRGB(...P.sunCol); R.waterU.skyCol.value.set(P.mid).lerp(new THREE.Color(P.top), 0.55); R.waterU.fogCol.value.set(P.fog); }
   R.vmLight.color.setRGB(...P.sunCol);
+  R.envGround.material.color.set(P.hemiGround); updateEnv();
 }
 export function updateSun(x, z) {
   const s = R.sun, d = R.sunDir; s.position.set(x + d.x * 400, d.y * 400, z + d.z * 400); s.target.position.set(x, 0, z);

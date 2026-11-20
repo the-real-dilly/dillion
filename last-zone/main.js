@@ -528,7 +528,7 @@ function surfaceUnder(p) { return surfaceAt(W, p.x, p.z) === SURF.CONCRETE ? SUR
 // main loop
 function loop(now) {
   requestAnimationFrame(loop);
-  let dt = Math.min(0.1, (now - G.lastFrame) / 1000); G.lastFrame = now;
+  const rdt = Math.min(1, (now - G.lastFrame) / 1000); let dt = Math.min(0.1, rdt); G.lastFrame = now;
   const t = now / 1000;
   G.pingCd -= dt;
   if (G.mode === "lobby") {
@@ -566,7 +566,7 @@ function loop(now) {
     $("gastint").style.opacity = inGas ? 1 : 0;
     G.hurt = Math.max(0, G.hurt - dt * 0.9); R.grade.uniforms.hurt.value = G.hurt * 0.8 + (me.st !== "dead" && me.hp < 30 ? 0.25 + Math.sin(t * 5) * 0.08 : 0);
     const sc = G.camMode === "fp" || true ? (me.adsT > 0.7 && Sim.curWeapon(me) && WEAPONS[Sim.curWeapon(me).id].scope && me.st === "ground") : false;
-    HUD.updateHUD(dt, G.M, me.st === "dead" ? null : me, R.camera, { yaw: G.camYaw || G.yaw, scoped: sc, fp: G.camMode === "fp" });
+    HUD.updateHUD(rdt, G.M, me.st === "dead" ? null : me, R.camera, { yaw: G.camYaw || G.yaw, scoped: sc, fp: G.camMode === "fp" });
     HUD.drawMinimap(G.M, me.st === "dead" ? null : me, G.yaw);
     if (G.mapOpen) HUD.drawMap(G.M, me, G.yaw);
     // audio state
@@ -595,6 +595,7 @@ function trackFps(dt) {
 
 // ---------------------------------------------------------------------------------------------
 // test / debug API
+window.LZ_R = R;
 window.LZ = {
   state() {
     const M = G.M, me = G.me;
@@ -619,6 +620,7 @@ window.LZ = {
   spawnBots(n = 2, dist = 25) { const M = G.M, me = G.me; const out = []; for (let i = 0; i < n; i++) { const a = i / n * 6.28, x = me.x + Math.cos(a) * dist, z = me.z + Math.sin(a) * dist; const p = Sim.addPlayer(M, CALLSIGNS[(i + 5) % CALLSIGNS.length], { bot: true, st: "ground", x, z, y: groundAt(W, x, z, 999) }); p.onGround = true; p.inv.w[0] = { id: "falcon", r: 1, mag: 30 }; p.inv.ammo.heavy = 120; p.ai = { poi: POIS[0], tx: x, tz: z, jumpS: 0, mode: "rotate", think: 0, goal: null, enemy: null, seenT: -99, react: 0, aimY: 0, aimP: 0, errY: 0, errP: 0, trackT: 0, burst: 0, burstCd: 0, strafe: 1, strafeT: 0, crouchT: 0, stuckT: 0, lastX: x, lastZ: z, detT: 0, detA: 0, wanderT: 0, coverT: 0, grenT: 99, rng: mulberry32(i * 7 + 3), stuckN: 0, diff: { aimErr: 2.6, react: 0.55, spot: 95, burst: 5, track: 0.8, heal: 0.45, acc: 0.8 }, heardT: -99, semi: false, lookY: 0 }; G.av.set(p.id, new Avatar(STYLES.rivals[i % STYLES.rivals.length])); out.push(p.name); } return out; },
   cam(mode) { G.camMode = mode; },
   quality(q) { setQuality(q); },
+  toCenter() { const P = G.M.plane; const s = -(P.ax * P.dx + P.az * P.dz) - P.s; if (s > 0) simSteps(s / P.speed, true); return P.s; },
   preset(p) { applyPreset(p); },
   pause(on) { setPause(on); },
   map(on) { G.mapOpen = on; show("mapov", on); },
