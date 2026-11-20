@@ -5,7 +5,7 @@ Runs automatically in the Pages workflow with the commit SHA."""
 import re, sys, json, time, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
 v = sys.argv[1] if len(sys.argv) > 1 else time.strftime("%Y%m%d%H%M%S", time.gmtime())
-files = ["index.html", "app.js", "games.js", "dilly-gone-mad.html", "dilly-goes-wild.html"]
+files = ["index.html", "app.js", "games.js", "dilly-gone-mad.html", "dilly-goes-wild.html", "last-zone-preview.html"]
 for name in files:
     p = root / name
     if not p.exists():

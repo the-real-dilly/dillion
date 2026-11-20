@@ -241,3 +241,6 @@ form.guess input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #ff7a4533}
 .promo.mad .btn.big{background:linear-gradient(100deg,#ff3d8b,#ff8a3d 55%,#ffc24a);color:#fff;border-radius:999px;border:0;box-shadow:0 8px 22px #ff3d8b55}
 .promo.mad .btn.ghost{border-radius:999px}
 .small-note{font-size:18px;margin:10px 0 0}
+
+.promo.lz{border-color:#ff7a45;background:#0d100be6}
+.promo.lz h2{color:#e9e6d6;text-shadow:3px 3px 0 #000}

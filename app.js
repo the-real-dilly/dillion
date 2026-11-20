@@ -86,6 +86,16 @@ views.home = () => {
       <p class="sub small-note">Free in your browser. Desktop + keyboard; press Q to switch graphics quality.</p>
     </div>
   </section>
+  <section class="card promo lz">
+    <a class="promo-shot" href="last-zone-preview.html?v=20261120024213"><img src="img/last-zone/01_title.jpg?v=20261120024213" width="1280" height="720" loading="lazy" alt="DILLION: LAST ZONE title screen: an island battle royale with Dilly in contractor kit."></a>
+    <div class="promo-copy">
+      <p class="eyebrow">Sneak peek <span class="tag">IN DEVELOPMENT</span></p>
+      <h2>Dillion: Last Zone</h2>
+      <p>A battle royale in the Dilly Gone Mad universe. Drop from a plane, loot up, outlast 24 rival contractors and the shrinking gas. Early screenshots from the first build.</p>
+      <div class="row"><a class="btn big" href="last-zone-preview.html?v=20261120024213">See the sneak peek</a></div>
+      <p class="sub small-note">Not playable yet. Low-poly early build.</p>
+    </div>
+  </section>
   <a class="card pack link" href="#/games"><div><h3>✚ More games</h3><p>Dilly Gone Mad · Dilly Goes Wild · Crossword · Orbit Scramble · Rover Rescue · Memory · Higher or Lower</p></div><b class="t-dillion">play</b></a>
   <footer class="foot">one in a dillion.</footer>`;
 };
