@@ -37,22 +37,23 @@ let W;
 async function boot() {
   const bar = $("bootBar"), tip = $("bootTip");
   try { createRenderer($("c")); } catch (e) { fatal("WebGL is not available in this browser, so Zone Nine can't load."); return; }
+  const T0 = performance.now(), lg = (m) => console.log("[LZ] " + m + " " + Math.round(performance.now() - T0) + "ms");
   tip.textContent = "Surveying the island…"; await frame();
   W = buildWorld(); bar.style.width = "15%"; await frame();
   tip.textContent = "Building Los Pepinos…"; await frame();
-  buildIsland(W); bar.style.width = "35%"; await frame();
+  lg("world"); buildIsland(W); lg("island"); bar.style.width = "35%"; await frame();
   initFX(); HUD.initHUD(W);
   applyPreset(pickPreset()); setQuality(S.quality);
   tip.textContent = "Loading contractors and hardware…";
   try { await loadAssets((k) => { bar.style.width = (35 + k * 60) + "%"; }); } catch (e) { console.error(e); fatal("Could not load the character and weapon models (assets/). " + (e.message || e)); return; }
-  bar.style.width = "100%";
+  bar.style.width = "100%"; lg("assets");
   G.plane = makePlaneMesh(); R.scene.add(G.plane); G.plane.visible = false;
   G.demoPlane = makePlaneMesh(); R.scene.add(G.demoPlane);
   // parked transport at the airfield
   const pp = makePlaneMesh(); const sp = W.special.parkedPlane; pp.position.set(sp.x, terrainH(W, sp.x, sp.z) + 3.4, sp.z); pp.rotation.y = sp.rot; R.scene.add(pp);
   makePreview();
   bindUI(); bindInput();
-  $("boot").classList.add("hidden");
+  $("boot").classList.add("hidden"); lg("ready");
   toTitle();
   requestAnimationFrame(loop);
   if (params.get("play") != null) startLobby();
@@ -398,7 +399,7 @@ function updateCamera(dt) {
   let fov = S.fov;
   if (G.mode === "title" || G.mode === "lobby" || !M) {
     const t = performance.now() / 1000 * 0.03;
-    cam.position.set(Math.cos(t) * 980 + 60, 330, Math.sin(t) * 980 + 60); cam.lookAt(80, 10, 40);
+    cam.position.set(Math.cos(t) * 620 + 60, 210, Math.sin(t) * 620 + 60); cam.lookAt(60, 20, 40);
     G.camYaw = Math.atan2(-(80 - cam.position.x), -(40 - cam.position.z));
     cam.fov = 50; cam.updateProjectionMatrix(); return;
   }
@@ -560,7 +561,7 @@ function loop(now) {
     syncView(dt); updateViewmodel(dt);
     const me = G.me, g = G.M.gas;
     const inGas = !!(me.inGas && me.st !== "plane" && me.st !== "dead");
-    const camInGas = g && Math.hypot(R.camera.position.x - g.cx, R.camera.position.z - g.cz) > g.r;
+    const camInGas = g && R.camera.position.y < 250 && Math.hypot(R.camera.position.x - g.cx, R.camera.position.z - g.cz) > g.r && (me.st === "dead" || inGas);
     R.grade.uniforms.gas.value += ((camInGas ? 1 : 0) - R.grade.uniforms.gas.value) * Math.min(1, dt * 3);
     $("gastint").style.opacity = inGas ? 1 : 0;
     G.hurt = Math.max(0, G.hurt - dt * 0.9); R.grade.uniforms.hurt.value = G.hurt * 0.8 + (me.st !== "dead" && me.hp < 30 ? 0.25 + Math.sin(t * 5) * 0.08 : 0);

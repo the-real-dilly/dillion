@@ -136,8 +136,8 @@ function makeSky() {
   R.scene.add(sky); R.sky = sky;
 }
 export const PRESETS = {
-  golden: { sunEl: 13, sunAz: 235, sunCol: [1.0, 0.74, 0.5], sunI: 2.7, hemiSky: 0x9fb2c8, hemiGround: 0x51483a, hemiI: 0.6, top: 0x3f6589, mid: 0xd4b08a, bot: 0x5f6466, fog: 0xa49c8e, fogD: 0.00105, cloud: 0.45, cloudCol: 0xf0d2b4, cloudDark: 0x6c6670, exp: 1.0, water: 0x2a4a56 },
-  overcast: { sunEl: 38, sunAz: 200, sunCol: [0.86, 0.88, 0.9], sunI: 1.25, hemiSky: 0xb7c0c6, hemiGround: 0x4c4a44, hemiI: 1.0, top: 0x6b7680, mid: 0xa7adaf, bot: 0x6a6f70, fog: 0x9da3a5, fogD: 0.0016, cloud: 1.0, cloudCol: 0xc4c8ca, cloudDark: 0x6d7378, exp: 1.08, water: 0x34474d }
+  golden: { sunEl: 13, sunAz: 235, sunCol: [1.0, 0.74, 0.5], sunI: 2.7, hemiSky: 0x9fb2c8, hemiGround: 0x51483a, hemiI: 0.6, top: 0x3f6589, mid: 0xd4b08a, bot: 0x5f6466, fog: 0xa49c8e, fogD: 0.0006, cloud: 0.45, cloudCol: 0xf0d2b4, cloudDark: 0x6c6670, exp: 1.0, water: 0x2a4a56 },
+  overcast: { sunEl: 38, sunAz: 200, sunCol: [0.86, 0.88, 0.9], sunI: 1.25, hemiSky: 0xb7c0c6, hemiGround: 0x4c4a44, hemiI: 1.0, top: 0x6b7680, mid: 0xa7adaf, bot: 0x6a6f70, fog: 0x9da3a5, fogD: 0.00095, cloud: 1.0, cloudCol: 0xc4c8ca, cloudDark: 0x6d7378, exp: 1.08, water: 0x34474d }
 };
 export function applyPreset(name) {
   const P = PRESETS[name] || PRESETS.golden; R.preset = name;
@@ -439,11 +439,11 @@ function buildNature(W) {
   const pine = mergeBufferGeometries([
     colorize(new THREE.CylinderGeometry(0.16, 0.28, 3.2, 6).translate(0, 1.6, 0), 0x4a3828),
     colorize(new THREE.ConeGeometry(2.3, 4.2, 8).translate(0, 4.0, 0), 0x2f3d24), colorize(new THREE.ConeGeometry(1.8, 3.6, 8).translate(0, 5.8, 0), 0x34442a), colorize(new THREE.ConeGeometry(1.2, 3.0, 8).translate(0, 7.4, 0), 0x3a4a2e)
-  ].map((g) => g.toNonIndexed()));
+  ].map((g) => (g.index ? g.toNonIndexed() : g)));
   const broad = mergeBufferGeometries([
     colorize(new THREE.CylinderGeometry(0.18, 0.3, 3.4, 6).translate(0, 1.7, 0), 0x4e3d2c),
     colorize(new THREE.IcosahedronGeometry(2.2, 0).translate(0, 4.4, 0), 0x4b5a2e), colorize(new THREE.IcosahedronGeometry(1.7, 0).translate(1.1, 5.2, 0.4), 0x55663a), colorize(new THREE.IcosahedronGeometry(1.6, 0).translate(-0.9, 5.0, -0.6), 0x465428)
-  ].map((g) => g.toNonIndexed()));
+  ].map((g) => (g.index ? g.toNonIndexed() : g)));
   const mat = std({ vertexColors: true, roughness: 0.95, flatShading: true });
   const lists = [W.trees.filter((t) => t.kind === 0), W.trees.filter((t) => t.kind === 1)];
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler(), cc = new THREE.Color();
