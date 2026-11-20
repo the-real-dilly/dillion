@@ -2127,16 +2127,16 @@ function dillyPrims(q, hiRes) {
   const ell = (bone, c, r, mat, k = 0.02, rot = [0, 0, 0], extra) => add(Object.assign({ bone, t: "ell", c, r, rot, mat, k }, extra));
   /* head (head space: joint at the chin line, face toward +z) */
   ell("head", [0, 0.142, -0.012], [0.083, 0.104, 0.1], "skin", 0.02, [0, 0, 0], { grid: "head" });               // cranium
-  ell("head", [0, 0.096, 0.024], [0.071, 0.07, 0.074], "skin", 0.03, [0, 0, 0], { grid: "head" });               // face mass
-  ell("head", [0, 0.047, 0.042], [0.052, 0.045, 0.055], "skin", 0.026, [0.25, 0, 0], { grid: "head", jaw: 1 }); // jaw
-  ell("head", [0, 0.028, 0.072], [0.023, 0.021, 0.02], "skin", 0.018, [0, 0, 0], { grid: "head", jaw: 1 });      // chin
+  ell("head", [0, 0.098, 0.026], [0.064, 0.068, 0.072], "skin", 0.03, [0, 0, 0], { grid: "head" });               // face mass
+  ell("head", [0, 0.047, 0.044], [0.047, 0.043, 0.053], "skin", 0.024, [0.25, 0, 0], { grid: "head", jaw: 1 }); // jaw
+  ell("head", [0, 0.027, 0.077], [0.022, 0.02, 0.019], "skin", 0.016, [0, 0, 0], { grid: "head", jaw: 1 });      // chin
   for (const s of [-1, 1]) {
-    ell("head", [s * 0.046, 0.106, 0.064], [0.024, 0.017, 0.02], "skin", 0.02, [0, 0, 0], { grid: "head" });     // cheekbones
-    ell("head", [s * 0.046, 0.058, 0.03], [0.022, 0.03, 0.03], "skin", 0.024, [0, 0, 0], { grid: "head", jaw: 1 }); // jaw angle
+    ell("head", [s * 0.045, 0.108, 0.066], [0.019, 0.013, 0.016], "skin", 0.016, [0, 0, 0], { grid: "head" });     // cheekbones
+    ell("head", [s * 0.044, 0.06, 0.03], [0.02, 0.028, 0.028], "skin", 0.022, [0, 0, 0], { grid: "head", jaw: 1 }); // jaw angle
     ell("head", [s * 0.083, 0.124, -0.008], [0.009, 0.03, 0.02], "ear", 0.006, [0, s * 0.35, 0], { grid: "head" }); // ears
     add({ bone: "head", t: "ell", c: [s * 0.088, 0.122, -0.003], r: [0.006, 0.017, 0.011], rot: [0, s * 0.35, 0], mat: "ear", k: 0.004, op: "sub", grid: "head" });
     add({ bone: "head", t: "ell", c: [s * 0.032, 0.135, 0.081], r: [0.019, 0.015, 0.016], rot: [0, 0, 0], mat: "skin", k: 0.008, op: "sub", grid: "head" }); // eye sockets
-    add({ bone: "head", t: "ell", c: [s * 0.0075, 0.09, 0.101], r: [0.0042, 0.003, 0.006], rot: [0.5, 0, 0], mat: "skin", k: 0.002, op: "sub", grid: "head" }); // nostrils
+    add({ bone: "head", t: "ell", c: [s * 0.0068, 0.0875, 0.1], r: [0.0028, 0.002, 0.0045], rot: [0.9, 0, 0], mat: "skin", k: 0.002, op: "sub", grid: "head" }); // nostrils
     ell("head", [s * 0.0115, 0.093, 0.096], [0.0085, 0.0075, 0.009], "nose", 0.006, [0, 0, 0], { grid: "head" }); // alae
   }
   cap("head", [-0.045, 0.157, 0.083], [0.045, 0.157, 0.083], 0.0105, 0.0105, "skin", 0.016, { grid: "head" });    // brow ridge
@@ -2148,7 +2148,7 @@ function dillyPrims(q, hiRes) {
   cap("head", [0, -0.085, -0.012], [0, 0.06, -0.008], 0.046, 0.044, "skin", 0.02, { grid: "head", neck: 1 });   // neck
   ell("head", [0, 0.02, 0.0], [0.03, 0.03, 0.03], "skin", 0.03, [0, 0, 0], { grid: "head", neck: 1 });        // throat
   /* torso: fleece */
-  ell("hips", [0, 0.0, -0.005], [0.148, 0.1, 0.105], "pants", 0.04, [0, 0, 0], { grid: "body" });                 // pelvis
+  ell("hips", [0, 0.0, -0.005], [0.156, 0.102, 0.108], "pants", 0.04, [0, 0, 0], { grid: "body" });                 // pelvis
   for (const s of [-1, 1]) ell("hips", [s * 0.068, -0.05, -0.05], [0.082, 0.092, 0.075], "pants", 0.04, [0, 0, 0], { grid: "body" }); // seat
   ell("torso", [0, 0.07, 0.0], [0.146, 0.1, 0.1], "fleece", 0.05, [0, 0, 0], { grid: "body" });                   // hem/waist
   ell("torso", [0, 0.2, 0.004], [0.15, 0.14, 0.104], "fleece", 0.06, [0, 0, 0], { grid: "body" });                // belly
@@ -2166,7 +2166,7 @@ function dillyPrims(q, hiRes) {
   }
   /* legs: trousers, gaiters, boots */
   for (const [s, lg, kn] of [[-1, "legL", "kneeL"], [1, "legR", "kneeR"]]) {
-    cap(lg, [0, 0.02, 0], [0, -0.44, 0], 0.088, 0.062, "pants", 0.04, { grid: "body" });
+    cap(lg, [0, 0.02, 0], [0, -0.44, 0], 0.094, 0.064, "pants", 0.04, { grid: "body" });
     ell(lg, [0, -0.14, 0.022], [0.072, 0.15, 0.07], "pants", 0.04, [0, 0, 0], { grid: "body" });               // quads
     cap(kn, [0, 0.02, 0.004], [0, -0.22, -0.004], 0.062, 0.056, "pants", 0.03, { grid: "body" });
     ell(kn, [0, -0.1, -0.022], [0.052, 0.1, 0.05], "pants", 0.03, [0, 0, 0], { grid: "body" });                 // calf
@@ -2240,7 +2240,7 @@ const HMAT = {
   teeth: new THREE.MeshPhysicalMaterial({ color: "#f3efe4", roughness: 0.3, clearcoat: 0.6 }),
   tongue: new THREE.MeshPhysicalMaterial({ color: "#b75f63", roughness: 0.45, clearcoat: 0.5 }),
   mouth: new THREE.MeshStandardMaterial({ color: "#3a1414", roughness: 0.9, side: THREE.BackSide }),
-  hair: new THREE.MeshPhysicalMaterial({ map: HTEX.hairT, alphaTest: 0.38, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.6, sheenColor: new THREE.Color("#8a5a3a"), sheenRoughness: 0.4 })
+  hair: new THREE.MeshPhysicalMaterial({ map: HTEX.hairT, alphaTest: 0.38, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.35, sheenColor: new THREE.Color("#5a3a26"), sheenRoughness: 0.45, color: "#9a8478" })
 };
 const MATORDER = ["skin", "hairCap", "fleece", "pants", "gaiter", "boot", "sole"];
 const _sk = new THREE.Color();
@@ -2256,12 +2256,18 @@ function headDetailColor(px, py, pz, c) {
   const blush = Math.max(g(0.045, 0.09, 0.07, 0.022), g(-0.045, 0.09, 0.07, 0.022)) * 0.55 + g(0, 0.097, 0.108, 0.012) * 0.5 + Math.max(g(0.085, 0.125, -0.005, 0.02), g(-0.085, 0.125, -0.005, 0.02)) * 0.35;
   c.r = lerp(c.r, 0.9, blush * 0.35); c.g = lerp(c.g, 0.55, blush * 0.4); c.b = lerp(c.b, 0.5, blush * 0.4);
   const under = Math.max(g(0.033, 0.118, 0.088, 0.012), g(-0.033, 0.118, 0.088, 0.012)); c.multiplyScalar(1 - under * 0.12);
-  const brow = Math.max(g(0.026, 0.157, 0.094, 0.009) + g(0.048, 0.156, 0.088, 0.009), g(-0.026, 0.157, 0.094, 0.009) + g(-0.048, 0.156, 0.088, 0.009));
-  if (brow > 0.25) c.lerp(_c2.set("#3b2416"), clamp((brow - 0.25) * 1.6, 0, 0.92));
+  const brow = Math.max(g(0.024, 0.158, 0.095, 0.0075) + g(0.045, 0.157, 0.089, 0.0075), g(-0.024, 0.158, 0.095, 0.0075) + g(-0.045, 0.157, 0.089, 0.0075));
+  if (brow > 0.45) c.lerp(_c2.set("#3b2416"), clamp((brow - 0.45) * 1.8, 0, 0.85));
   const stub = g(0, 0.04, 0.07, 0.04) * 0.08; c.multiplyScalar(1 - stub);
+  if (pz > 0.083) { const ax = Math.abs(px), up = py > 0.0615, lipW = (up ? 0.02 : 0.018) * (1 - Math.pow(clamp((up ? py - 0.0615 : 0.0615 - py) / (up ? 0.0105 : 0.0115), 0, 1), 2) * 0.35), lipH = up ? 0.0098 - ax * 0.12 : 0.011 - ax * 0.15; const inLip = sstep(lipW + 0.002, lipW - 0.002, ax) * sstep(lipH + 0.0015, lipH - 0.0015, Math.abs(py - 0.0615)); c.lerp(_c2.set("#c27c6e"), inLip * 0.85); }
+  const hl = hairAmt(px, py, pz); if (hl > 0) c.lerp(_c2.set("#2e1c11"), hl);
   return c;
 }
 const _c2 = new THREE.Color();
+function hairAmt(x, y, z) {
+  if (Math.abs(x) > 0.074 && y < 0.165 && z > -0.045) return sstep(0.128, 0.14, y) * sstep(0.03, 0.01, z);
+  const front = lerp(0.062, 0.17, sstep(-0.08, 0.06, z)); return sstep(front - 0.004, front + 0.006, y) * (z > 0.07 ? sstep(0.172, 0.18, y) : 1);
+}
 function inHairline(x, y, z) {
   // hair over the crown, back and sides; a forehead line with a fringe, ears and nape stay clear
   if (Math.abs(x) > 0.075 && y < 0.16 && z > -0.04) return y > 0.135 && z < 0.02;
@@ -2323,9 +2329,9 @@ function buildHumanMesh(quality) {
     ws.forEach(([n, w], k) => { sIdx[v * 4 + k] = BI[n]; sW[v * 4 + k] = w / tot; });
     // material + colour
     let m = lab === "fleece" ? "fleece" : lab === "pants" ? "pants" : lab === "gaiter" ? "gaiter" : lab === "boot" ? "boot" : lab === "sole" ? "sole" : "skin";
-    if (m === "skin" && q && q.grid === "head") { hv.set(x, y, z).applyMatrix4(headInv); if (inHairline(hv.x, hv.y, hv.z) && lab !== "ear") m = "hairCap"; }
+
     mat[v] = MATORDER.indexOf(m);
-    const c = skinTone(x, y, z, lab).clone(); if (q && q.grid === "head") { hv.set(x, y, z).applyMatrix4(headInv); headDetailColor(hv.x, hv.y, hv.z, c); }
+    const c = skinTone(x, y, z, lab === "lip" ? "skin" : lab).clone(); if (q && q.grid === "head") { hv.set(x, y, z).applyMatrix4(headInv); headDetailColor(hv.x, hv.y, hv.z, c); }
     col[v * 3] = c.r; col[v * 3 + 1] = c.g; col[v * 3 + 2] = c.b;
     // box-projected uvs (fabric weave, pores)
     const nx = Math.abs(NOR[v * 3]), ny = Math.abs(NOR[v * 3 + 1]), sc = m === "skin" || m === "hairCap" ? 24 : 7;
@@ -2368,16 +2374,16 @@ function buildHairCards(n) {
     const fringe = i < n * 0.16, th = fringe ? Math.PI / 2 + (r() - 0.5) * 1.3 : r() * Math.PI * 2, ph = fringe ? 0.55 + r() * 0.25 : r() * 1.55;
     const [p0, d0] = surf(th, ph, 0.004); if (!fringe && !inHairline(p0.x, p0.y - 0.004, p0.z)) continue;
     let dir = new THREE.Vector3(-0.5, 0, -1); if (fringe) dir.set(-0.85, -0.35, 0.35); dir.add(new THREE.Vector3(r() - 0.5, (r() - 0.5) * 0.4, r() - 0.5).multiplyScalar(0.7)); dir.sub(d0.clone().multiplyScalar(dir.dot(d0))).normalize();
-    const len = fringe ? 0.05 + r() * 0.03 : 0.045 + r() * 0.04, w = 0.016 + r() * 0.012, segs = 4, side = new THREE.Vector3().crossVectors(d0, dir).normalize();
+    const len = fringe ? 0.055 + r() * 0.03 : 0.05 + r() * 0.04, w = 0.012 + r() * 0.01, segs = 5, side = new THREE.Vector3().crossVectors(d0, dir).normalize();
     const b = pos.length / 3; let p = p0.clone(), nrm = d0.clone();
     for (let k = 0; k <= segs; k++) {
-      const t = k / segs, lift = 0.003 + (fringe ? 0.0 : Math.sin(t * Math.PI) * 0.005) + t * 0.002, ww = w * (1 - t * 0.55);
+      const t = k / segs, lift = 0.0035 + Math.sin(t * Math.PI) * 0.004 + t * 0.0015, ww = w * (1 - t * 0.55);
       const q = p.clone().add(nrm.clone().multiplyScalar(lift));
       for (const sgn of [-1, 1]) { const v = q.clone().add(side.clone().multiplyScalar(sgn * ww / 2)); pos.push(v.x, v.y, v.z); nor.push(nrm.x, nrm.y, nrm.z); uvs.push(sgn < 0 ? 0 : 1, 1 - t); }
       // walk along the scalp: step then project back onto the ellipsoid
       p.add(dir.clone().multiplyScalar(len / segs)); const rel = p.clone().sub(C); const dd = new THREE.Vector3(rel.x / R.x, rel.y / R.y, rel.z / R.z).normalize();
-      if (!fringe || k < 2) { p.set(dd.x * R.x, dd.y * R.y, dd.z * R.z).add(C); nrm.copy(dd); }
-      dir.sub(nrm.clone().multiplyScalar(dir.dot(nrm))).normalize(); if (fringe) dir.y -= 0.12;
+      p.set(dd.x * R.x, dd.y * R.y, dd.z * R.z).add(C); nrm.copy(dd);
+      if (fringe) dir.y -= 0.18; dir.sub(nrm.clone().multiplyScalar(dir.dot(nrm))).normalize();
     }
     for (let k = 0; k < segs; k++) { const a = b + k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   }
@@ -2393,7 +2399,7 @@ function buildFaceParts(head, jawBone) {
     const lid = new THREE.Mesh(new THREE.SphereGeometry(R * 1.07, 24, 8, 0, Math.PI * 2, 0, 1.12), HMAT.lid); lidG.add(lid);
     const lash = new THREE.Mesh(new THREE.TorusGeometry(R * 1.07 * Math.sin(1.12), 0.0007, 4, 20, Math.PI), HMAT.lash); lash.rotation.x = Math.PI / 2; lash.position.y = R * 1.07 * Math.cos(1.12); lash.rotation.z = 0; lidG.add(lash);
     F.lids.push(lidG);
-    const low = new THREE.Mesh(new THREE.SphereGeometry(R * 1.05, 24, 6, 0, Math.PI * 2, Math.PI - 0.78, 0.78), HMAT.lid); low.position.copy(c); head.add(low); F.lower.push(low);
+    const low = new THREE.Mesh(new THREE.SphereGeometry(R * 1.05, 24, 6, 0, Math.PI * 2, Math.PI - 1.0, 1.0), HMAT.lid); low.position.copy(c); head.add(low); F.lower.push(low);
   }
   // mouth interior, teeth and tongue
   const cav = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), HMAT.mouth); cav.scale.set(0.022, 0.014, 0.02); cav.position.set(0, 0.06, 0.078); head.add(cav);
@@ -2417,7 +2423,7 @@ function buildAvatar() {
   const inv = BONE_DEF.map(([n]) => built.M[n].clone().invert());
   const skel = new THREE.Skeleton(bones, inv); mesh.bind(skel, new THREE.Matrix4());
   mesh.morphTargetInfluences = [0, 0, 0, 0, 0];
-  const hair = new THREE.Mesh(buildHairCards(Q.level === "low" ? 120 : 340), HMAT.hair); hair.castShadow = false; BB.head.add(hair);
+  const hair = new THREE.Mesh(buildHairCards(Q.level === "low" ? 160 : 520), HMAT.hair); hair.castShadow = false; BB.head.add(hair);
   const face = buildFaceParts(BB.head, BB.jaw);
   // rigid clothing details: zip with teeth + pull, sleeve pocket with zip, gaiter straps, collar zip
   const zip = []; for (let k = 0; k < 34; k++) zip.push([G.box, MX(0, 0.42 + k * 0.0075, 0.118 + (k > 22 ? (k - 22) * -0.0028 : 0), 0.08, 0, 0, 0.007, 0.0035, 0.004), 0x5a5550]);
@@ -2443,7 +2449,7 @@ function updateFace(dt, t) {
   if (mode === "title" || mode === "photo") { A.head.updateWorldMatrix(true, false); const v = camera.position.clone(); A.head.worldToLocal(v); lx = clamp(Math.atan2(v.x, v.z), -0.5, 0.5); ly = clamp(Math.atan2(v.y - 0.135, Math.hypot(v.x, v.z)), -0.3, 0.3); }
   FACE.eyeX += (lx - FACE.eyeX) * Math.min(1, dt * 18); FACE.eyeY += (ly - FACE.eyeY) * Math.min(1, dt * 18);
   for (const e of A.face.eyes) e.rotation.set(-FACE.eyeY, FACE.eyeX, 0);
-  for (const l of A.face.lids) l.rotation.x = 0.12 - FACE.eyeY * 0.5 + bl * 1.25;
+  for (const l of A.face.lids) l.rotation.x = 0.3 - FACE.eyeY * 0.5 + bl * 1.05;
   // visemes: vowels in the line being spoken drive jaw + lip shapes
   let jaw = 0, oo = 0, ee = 0;
   const cur = window.__voxReady && VOX.cur && VOX.cur.who === "Dilly" ? VOX.cur : null;

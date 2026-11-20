@@ -484,7 +484,7 @@ function updateViewmodel(dt) {
   G.kick = Math.max(0, G.kick - dt * 8);
   const bob = Math.sin(t * (me.sprint ? 11 : 7)) * 0.012 * mv * (1 - ads), bobx = Math.cos(t * (me.sprint ? 5.5 : 3.5)) * 0.01 * mv * (1 - ads);
   const reload = me.act && me.act.k === "reload" ? Math.sin(me.act.t / me.act.dur * Math.PI) : 0, heal = me.act && me.act.k !== "reload" ? 1 : 0;
-  G.vm.position.set(lerp(0.17, 0, ads) + bobx, lerp(-0.17, -0.105, ads) + bob - reload * 0.12 - heal * 0.25 - (me.sprint ? 0.04 : 0), lerp(-0.38, -0.28, ads) + G.kick * 0.05);
+  G.vm.position.set(lerp(0.2, 0, ads) + bobx, lerp(-0.24, -0.135, ads) + bob - reload * 0.12 - heal * 0.25 - (me.sprint ? 0.04 : 0), lerp(-0.42, -0.34, ads) + G.kick * 0.05);
   G.vm.rotation.set(G.kick * 0.12 + reload * 0.5 + (me.sprint ? -0.3 : 0), Math.PI + (me.sprint ? 0.5 : 0), reload * 0.4);
   R.vmCam.fov = 55 / lerp(1, Math.min(1.4, WEAPONS[w.id].zoom), ads); R.vmCam.updateProjectionMatrix();
   G.vm.visible = !(WEAPONS[w.id].scope && ads > 0.6);

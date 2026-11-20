@@ -139,7 +139,7 @@ function makeSky() {
   R.envGround = new THREE.Mesh(new THREE.CircleGeometry(48, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a30 })); R.envGround.position.y = -3; R.envScene.add(R.envGround);
   R.pmrem = new THREE.PMREMGenerator(R.renderer);
 }
-function updateEnv() { try { const rt = R.pmrem.fromScene(R.envScene, 0.03); if (R.envRT) R.envRT.dispose(); R.envRT = rt; R.scene.environment = rt.texture; } catch (e) { /* ignore */ } }
+function updateEnv() { try { const rt = R.pmrem.fromScene(R.envScene, 0.03); if (R.envRT) R.envRT.dispose(); R.envRT = rt; R.scene.environment = rt.texture; if (R.vmScene) R.vmScene.environment = rt.texture; } catch (e) { /* ignore */ } }
 export const PRESETS = {
   golden: { sunEl: 17, sunAz: 300, sunCol: [1.0, 0.74, 0.5], sunI: 2.7, hemiSky: 0x9fb2c8, hemiGround: 0x5a5040, hemiI: 0.5, top: 0x3f6589, mid: 0xd4b08a, bot: 0x5f6466, fog: 0xa49c8e, fogD: 0.0006, cloud: 0.45, cloudCol: 0xf0d2b4, cloudDark: 0x6c6670, exp: 1.0, water: 0x2a4a56 },
   overcast: { sunEl: 38, sunAz: 60, sunCol: [0.86, 0.88, 0.9], sunI: 1.25, hemiSky: 0xb7c0c6, hemiGround: 0x4c4a44, hemiI: 0.7, top: 0x6b7680, mid: 0xa7adaf, bot: 0x6a6f70, fog: 0x9da3a5, fogD: 0.00095, cloud: 1.0, cloudCol: 0xc4c8ca, cloudDark: 0x6d7378, exp: 1.08, water: 0x34474d }
