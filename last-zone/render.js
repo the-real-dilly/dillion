@@ -20,9 +20,10 @@ export function createRenderer(canvas) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const HDR = renderer.capabilities.isWebGL2 || renderer.extensions.has("EXT_color_buffer_half_float") ? THREE.HalfFloatType : THREE.UnsignedByteType;
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(70, 1, 0.15, 4200);
+  const camera = new THREE.PerspectiveCamera(70, 1, 0.2, 4200);
   scene.fog = new THREE.FogExp2(0x9aa0a0, 0.0012);
-  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: HDR }));
+  // stencilBuffer forces a 24-bit depth renderbuffer (16-bit z-fights across a 2 km island)
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: HDR, stencilBuffer: true }));
   const renderPass = new RenderPass(scene, camera);
   const vmScene = new THREE.Scene(), vmCam = new THREE.PerspectiveCamera(55, 1, 0.02, 10);
   const vmPass = new RenderPass(vmScene, vmCam); vmPass.clear = false; vmPass.clearDepth = true; vmPass.enabled = false;

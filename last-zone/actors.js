@@ -52,7 +52,7 @@ export function makeGun(wid, scale = 1) {
 // ---------------------------------------------------------------------------------------------
 // character styles (Dilly + rival contractors)
 export const STYLES = {
-  dilly: { top: 0xcdbb98, legs: 0x6e7072, boots: 0x2c2a26, skin: 0xb88c6a, glove: 0x34312c, helmet: 0x7c7a5c, vest: 0x8b7d58, pack: 0x5a5440, joint: 0x3a3833, headset: true },
+  dilly: { top: 0xb3a07c, legs: 0x55585a, boots: 0x2c2a26, skin: 0xb88c6a, glove: 0x34312c, helmet: 0x7c7a5c, vest: 0x8b7d58, pack: 0x5a5440, joint: 0x3a3833, headset: true },
   rivals: [
     { top: 0x55603e, legs: 0x4a5236, boots: 0x22201c, skin: 0x8f6a52, glove: 0x2a2a26, helmet: 0x4d5636, vest: 0x5f6a45, pack: 0x3e4430 },
     { top: 0x2c2f33, legs: 0x26282b, boots: 0x161616, skin: 0xa77d61, glove: 0x1b1b1b, helmet: 0x1f2124, vest: 0x34383c, pack: 0x2b2d30 },

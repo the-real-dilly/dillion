@@ -69,8 +69,8 @@ const PV = {};
 function makePreview() {
   PV.scene = new THREE.Scene();
   PV.cam = new THREE.PerspectiveCamera(30, 0.6, 0.1, 50);
-  PV.scene.add(new THREE.HemisphereLight(0xd8dce0, 0x3a3428, 0.9));
-  const key = new THREE.DirectionalLight(0xffe2c0, 2.2); key.position.set(2, 3, 3); PV.scene.add(key);
+  PV.scene.add(new THREE.HemisphereLight(0xd8dce0, 0x3a3428, 0.6));
+  const key = new THREE.DirectionalLight(0xffe2c0, 1.5); key.position.set(2, 3, 3); PV.scene.add(key);
   const rim = new THREE.DirectionalLight(0xff9a60, 1.4); rim.position.set(-3, 2, -2); PV.scene.add(rim);
   PV.av = new Avatar(STYLES.dilly, { scene: PV.scene });
   PV.p = fakePlayer(); PV.p.inv.w[0] = { id: "falcon", r: 4, mag: 30 };
@@ -94,7 +94,7 @@ function renderPreview(dt, t) {
 // screens
 function show(id, on) { $(id).classList.toggle("hidden", !on); }
 function toTitle() {
-  clearMatch(); G.mode = "title"; show("title", true); show("hud", false); show("results", false); show("lobby", false); show("pause", false);
+  clearMatch(); G.mode = "title"; applyPreset(S.time === "overcast" ? "overcast" : "golden"); show("title", true); show("hud", false); show("results", false); show("lobby", false); show("pause", false);
   AUD.radioStop(); AUD.musicStop(); document.exitPointerLock && document.exitPointerLock();
 }
 function clearMatch() {

@@ -64,7 +64,7 @@ export function buildWorld() {
   const circ = (x, z, rad, h, blend) => { circs.push([x, z, rad, h == null ? hRaw(x, z) : h, blend]); };
   rect(290, 590, 290, 560, 4, 50);              // Los Pepinos
   rect(-590, -450, -230, 470, 6, 60);            // airfield runway + apron
-  rect(-450, -380, 60, 200, 6, 40);              // airfield hangar row
+  rect(-460, -380, -150, 210, 6, 45);             // airfield hangar row, tower, offices
   rect(500, 700, -360, -140, 3, 40);             // port
   circ(-330, -430, 190, 9, 120);                 // farm
   circ(-40, 40, 78, null, 40);                   // compound hilltop
