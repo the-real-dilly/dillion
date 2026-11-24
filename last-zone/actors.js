@@ -64,7 +64,7 @@ export const STYLES = {
   target: { top: 0xd8d4c8, legs: 0xc8c2b4, boots: 0x6a6460, skin: 0xd8d4c8, glove: 0xb8b2a4, helmet: 0xc0503a, vest: 0xc0503a, pack: 0x8a8478, joint: 0x8a8478, noPack: true }
 };
 
-const BONES = ["DEF-head", "DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-hips", "DEF-handR", "DEF-handL"];
+const BONES = ["DEF-head", "DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-hips", "DEF-handR", "DEF-handL", "DEF-upper_armR", "DEF-forearmR", "DEF-upper_armL", "DEF-forearmL", "DEF-f_middle01R", "DEF-f_middle01L"];
 const UPPER = new Set(["DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-neck", "DEF-head"]);
 const isUpper = (n) => UPPER.has(n) || /shoulder|upper_arm|forearm|hand|thumb|f_index|f_middle|f_ring|f_pinky/.test(n);
 const clipCache = {};
@@ -87,13 +87,42 @@ function rotBoneWorld(bone, axis, ang) {
   bone.quaternion.premultiply(inv.multiply(_q).multiply(_q2));
 }
 
+// left-hand reach along the gun (metres forward of the grip) per class
+export const FORE = { Sidearm: 0, Revolver: 0, SMG: 0.2, "Assault rifle": 0.3, Shotgun: 0.36, Sniper: 0.42 };
+const _f = new THREE.Vector3(), _af = new THREE.Vector3(), _r = new THREE.Vector3(), _u = new THREE.Vector3(), _c = new THREE.Vector3(), _gf = new THREE.Vector3(), _gu = new THREE.Vector3(), _gr = new THREE.Vector3();
+const _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3(), _dir = new THREE.Vector3(), _pole = new THREE.Vector3();
+const _A = new THREE.Vector3(), _E = new THREE.Vector3(), _H = new THREE.Vector3(), _n = new THREE.Vector3(), _pp = new THREE.Vector3(), _tg = new THREE.Vector3(), _cur = new THREE.Vector3(), _want = new THREE.Vector3();
+const _B = new THREE.Vector3(), _qd = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _pqi = new THREE.Quaternion();
+// rotate `bone` (world-space swing) so the vector bone->childPos points along `dir`
+function aimBone(bone, childPos, dir) {
+  bone.getWorldPosition(_B); _cur.subVectors(childPos, _B); if (_cur.lengthSq() < 1e-10) return; _cur.normalize();
+  _qd.setFromUnitVectors(_cur, dir);
+  bone.parent.getWorldQuaternion(_pq); _pqi.copy(_pq).invert();
+  bone.quaternion.premultiply(_pqi.multiply(_qd).multiply(_pq));
+  bone.updateMatrixWorld(true);
+}
+// analytic two-bone IK (shoulder-elbow-wrist) with a pole direction, then orient the hand
+function solveArm(upper, fore, hand, finger, target, pole, handDir) {
+  upper.getWorldPosition(_A); fore.getWorldPosition(_E); hand.getWorldPosition(_H);
+  const l1 = _A.distanceTo(_E), l2 = _E.distanceTo(_H);
+  _n.subVectors(target, _A); let d = _n.length(); if (d < 1e-4) return; _n.divideScalar(d);
+  d = clamp(d, Math.abs(l1 - l2) + 0.01, (l1 + l2) * 0.999);
+  const ca = clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1), sa = Math.sqrt(1 - ca * ca);
+  _pp.copy(pole).addScaledVector(_n, -pole.dot(_n)); if (_pp.lengthSq() < 1e-8) _pp.set(0, -1, 0); _pp.normalize();
+  _want.copy(_n).multiplyScalar(l1 * ca).addScaledVector(_pp, l1 * sa).add(_A); // elbow
+  _tg.copy(_want).sub(_A).normalize(); aimBone(upper, _E, _tg);
+  fore.getWorldPosition(_E); hand.getWorldPosition(_H);
+  _tg.copy(_n).multiplyScalar(d).add(_A).sub(_E).normalize(); aimBone(fore, _H, _tg);
+  if (finger && handDir) { finger.getWorldPosition(_tg); aimBone(hand, _tg, handDir); }
+}
+
 export class Avatar {
   constructor(style, opts = {}) {
     const st = this.style = style;
     const root = this.root = new THREE.Group(); root.rotation.order = "YXZ";
     const model = this.model = skClone(A.gltf.scene);
     model.rotation.y = Math.PI; root.add(model);
-    const uni = { cTop: { value: new THREE.Color(st.top) }, cLegs: { value: new THREE.Color(st.legs) }, cBoots: { value: new THREE.Color(st.boots) }, cSkin: { value: new THREE.Color(st.skin) }, cGlove: { value: new THREE.Color(st.glove) }, uFlash: { value: 0 } };
+    const uni = { cTop: { value: new THREE.Color(st.top) }, cLegs: { value: new THREE.Color(st.legs) }, cBoots: { value: new THREE.Color(st.boots) }, cSkin: { value: new THREE.Color(st.skin) }, cGlove: { value: new THREE.Color(st.glove) }, uFlash: { value: 0 }, uHide: { value: 0 } };
     this.uni = uni;
     model.traverse((o) => {
       if (o.isSkinnedMesh || o.isMesh) {
@@ -103,9 +132,10 @@ export class Avatar {
         if (!isJoint) m.onBeforeCompile = (sh) => {
           Object.assign(sh.uniforms, uni);
           sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vBP;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvBP = position;");
-          sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vBP; uniform vec3 cTop, cLegs, cBoots, cSkin, cGlove; uniform float uFlash;")
+          sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vBP; uniform vec3 cTop, cLegs, cBoots, cSkin, cGlove; uniform float uFlash, uHide;")
             .replace("#include <color_fragment>", `#include <color_fragment>
               float ax = abs(vBP.x); vec3 zc = cTop;
+              if (uHide > 0.5 && vBP.y > 1.47 && ax < 0.2) discard;
               if (vBP.y < 0.99) zc = cLegs;
               if (vBP.y > 0.93 && vBP.y < 1.0 && ax < 0.24) zc = cBoots * 1.4;
               if (vBP.y < 0.15) zc = cBoots;
@@ -129,9 +159,9 @@ export class Avatar {
       const boneM = new THREE.Matrix4().copy(model.matrixWorld).invert().multiply(b.matrixWorld);
       const local = boneM.invert().multiply(world);
       local.decompose(mesh.position, mesh.quaternion, mesh.scale);
-      b.add(mesh); return mesh;
+      b.add(mesh); if (bone === "DEF-head") this.headGear.push(mesh); return mesh;
     };
-    const hc = st.helmet;
+    const hc = st.helmet; this.headGear = [];
     if (st.cap) gear(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.75, 1.1), hc, "DEF-head", 0, 1.72, 0.0);
     else {
       gear(new THREE.SphereGeometry(0.15, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.56).scale(1.02, 0.92, 1.1), hc, "DEF-head", 0, 1.69, -0.005, 0, 0, 0, 0.7);
@@ -249,23 +279,86 @@ export class Avatar {
         if (WEAPONS[w.id].cls !== "Sidearm" && WEAPONS[w.id].cls !== "Revolver" && upper !== "Pistol_Reload") rotBoneWorld(B["DEF-spine003"], _up, -0.18);
       }
     }
-    // gun at the right hand, pointing along the aim when aiming
-    if (this.gun && ground) {
-      const hand = B["DEF-handR"]; hand.getWorldPosition(_v);
-      const aiming = upper === "Pistol_Aim_Neutral" || p.adsT > 0.2;
-      const gy = yaw + (p.recY || 0), gp = aiming ? p.pitch + (p.recP || 0) : (p.sprint ? -0.8 : -0.4);
-      const yawOff = aiming ? 0 : (p.sprint ? 0.6 : 0.12);
-      this.gunHolder.position.copy(_v);
-      const cp = Math.cos(gp); _v2.set(_v.x - Math.sin(gy + yawOff) * cp, _v.y + Math.sin(gp), _v.z - Math.cos(gy + yawOff) * cp);
-      this.gunHolder.lookAt(_v2);
-    }
+    // weapon hold: the gun is posed from the chest by stance, then both arms reach it with two-bone IK
+    if (this.gun && ground) this.holdGun(p, w, upper, yaw, t, dt, near);
     if (this.flash > 0) { this.flash = Math.max(0, this.flash - dt * 4); this.uni.uFlash.value = this.flash * 0.6; }
   }
+  holdGun(p, w, upper, yaw, t, dt, near) {
+    const W = WEAPONS[w.id], B = this.bones, cls = W.cls, hand = cls === "Sidearm" || cls === "Revolver";
+    const ads = p.adsT || 0, act = p.act ? p.act.k : null, recent = t - p.lastShotT < 1.6;
+    // stance -> pose (offsets in the aim frame: right, up, forward; pitch/yaw offsets)
+    let T;
+    if (p.sprint && !act) T = hand ? [0.2, -0.22, 0.12, -1.25, 0.1, 0] : [0.04, 0.0, 0.26, -0.55, 0.95, 1];
+    else if (act === "plate" || act === "bandage" || act === "medkit") T = hand ? [0.2, -0.22, 0.12, -1.25, 0.1, 0] : [0.1, -0.08, 0.2, -0.9, 0.7, 0];
+    else if (act === "reload") T = hand ? [0.08, 0.02, 0.32, -0.45, 0.25, 1] : [0.1, -0.02, 0.3, -0.55, 0.45, 1];
+    else if (ads > 0.5) T = hand ? [0.03, 0.22, 0.5, 0, 0, 1] : [0.06, 0.2, 0.26, 0, 0, 1];
+    else if (upper === "Pistol_Aim_Neutral" || recent) T = hand ? [0.07, 0.14, 0.45, 0, 0, 1] : [0.15, 0.1, 0.3, 0, 0, 1];
+    else T = hand ? [0.1, -0.08, 0.36, -0.75, 0.15, 1] : [0.12, -0.03, 0.3, -0.55, 0.4, 1];
+    const G = this.gp || (this.gp = T.slice()); const k = Math.min(1, dt * 12);
+    for (let i = 0; i < 6; i++) G[i] += (T[i] - G[i]) * k;
+    const aimP = clamp(p.pitch + (p.recP || 0), -1.2, 1.2), aimY = yaw + (p.recY || 0);
+    const py = aimP + G[3], yy = aimY + G[4], cp = Math.cos(py);
+    _f.set(-Math.sin(yy) * cp, Math.sin(py), -Math.cos(yy) * cp);
+    // frame from the aim direction (not the offset pose) so the gun swings about the shoulder
+    const cpa = Math.cos(aimP); _af.set(-Math.sin(aimY) * cpa, Math.sin(aimP), -Math.cos(aimY) * cpa);
+    _r.set(Math.cos(aimY), 0, -Math.sin(aimY)); _u.crossVectors(_r, _af).normalize();
+    B["DEF-spine003"].getWorldPosition(_c);
+    this.gunHolder.position.copy(_c).addScaledVector(_r, G[0]).addScaledVector(_u, G[1]).addScaledVector(_af, G[2]);
+    _v2.copy(this.gunHolder.position).add(_f); this.gunHolder.lookAt(_v2);
+    this.gunHolder.updateMatrixWorld(true);
+    if (!near || upper === "Punch_Jab" || !B["DEF-upper_armR"]) return;
+    // IK targets in gun space: right wrist behind/below the grip, left on the fore-end (or support grip for handguns)
+    const gm = this.gunHolder.matrixWorld;
+    _gf.set(0, 0, 1).transformDirection(gm); _gu.set(0, 1, 0).transformDirection(gm); _gr.set(-1, 0, 0).transformDirection(gm);
+    const fore = FORE[cls] != null ? FORE[cls] : 0.3;
+    _t1.set(0, -0.06, -0.07).applyMatrix4(gm);
+    _dir.copy(_gf).multiplyScalar(0.55).addScaledVector(_gu, -0.8).normalize();
+    _pole.copy(_u).multiplyScalar(-1).addScaledVector(_r, 0.7).addScaledVector(_af, -0.3);
+    solveArm(B["DEF-upper_armR"], B["DEF-forearmR"], B["DEF-handR"], B["DEF-f_middle01R"], _t1, _pole, _dir);
+    if (G[5] > 0.5 && act !== "plate" && act !== "bandage" && act !== "medkit") {
+      if (act === "reload") { const ph = Math.sin(p.act.t / p.act.dur * Math.PI); _t2.set(0.0, -0.12 - ph * 0.12, hand ? -0.02 : 0.06).applyMatrix4(gm); }
+      else if (hand) _t2.set(0.035, -0.08, -0.05).applyMatrix4(gm);
+      else _t2.set(0.0, -0.06, fore).applyMatrix4(gm);
+      _dir.copy(_gf).multiplyScalar(hand ? 0.4 : 0.6).addScaledVector(_gr, hand ? 0.5 : 0.55).addScaledVector(_gu, hand ? -0.6 : -0.2).normalize();
+      _pole.copy(_u).multiplyScalar(-1).addScaledVector(_r, -0.6).addScaledVector(_af, -0.2);
+      solveArm(B["DEF-upper_armL"], B["DEF-forearmL"], B["DEF-handL"], B["DEF-f_middle01L"], _t2, _pole, _dir);
+    }
+  }
+  hideHead(on) { if (this._hh === on) return; this._hh = on; this.uni.uHide.value = on ? 1 : 0; for (const m of this.headGear) m.visible = !on; }
   muzzleWorld(out) {
     if (!this.gun) return this.root.getWorldPosition(out).setY(this.root.position.y + 1.4);
     out.set(0, 0, this.gun.userData.muzzle).applyMatrix4(this.gunHolder.matrixWorld); return out;
   }
   dispose() { this.scn.remove(this.root); this.scn.remove(this.gunHolder); this.mixer.stopAllAction(); }
+}
+
+// ---------------------------------------------------------------------------------------------
+// first-person arms: sleeves + gloved hands that reach the viewmodel's grip and fore-end
+export function makeVMArms(style) {
+  const sleeve = new THREE.MeshStandardMaterial({ color: style.top, roughness: 0.9 }), glove = new THREE.MeshStandardMaterial({ color: style.glove, roughness: 0.7 }), cuff = new THREE.MeshStandardMaterial({ color: style.vest, roughness: 0.85 });
+  const arm = () => {
+    const g = new THREE.Group();
+    const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 1, 10).translate(0, 0.5, 0), sleeve);
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.04, 10).translate(0, 0.02, 0), cuff);
+    const hand = new THREE.Group();
+    hand.add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.085, 0.04).translate(0, 0.045, 0), glove));
+    const fing = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.05, 0.034).translate(0, 0.02, 0), glove); fing.position.set(0, 0.085, 0.012); fing.rotation.x = 0.9; hand.add(fing);
+    const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.05, 0.022).translate(0, 0.025, 0), glove); thumb.position.set(0.035, 0.03, 0.01); thumb.rotation.z = -0.6; hand.add(thumb);
+    g.add(fore, c, hand); g.userData = { fore, cuff: c, hand }; return g;
+  };
+  const grp = new THREE.Group(); grp.userData.r = arm(); grp.userData.l = arm(); grp.add(grp.userData.r, grp.userData.l);
+  grp.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return grp;
+}
+const _y = new THREE.Vector3(0, 1, 0), _qa = new THREE.Quaternion();
+// place one arm: elbow -> wrist sleeve, hand oriented along handDir
+export function poseVMArm(arm, elbow, wrist, handDir, side) {
+  const { fore, cuff, hand } = arm.userData;
+  _cur.subVectors(wrist, elbow); const L = _cur.length(); _cur.normalize();
+  _qa.setFromUnitVectors(_y, _cur);
+  fore.position.copy(elbow); fore.quaternion.copy(_qa); fore.scale.set(1, L, 1);
+  cuff.position.copy(wrist).addScaledVector(_cur, -0.045); cuff.quaternion.copy(_qa);
+  hand.position.copy(wrist); hand.quaternion.setFromUnitVectors(_y, handDir); hand.scale.x = side;
 }
 
 // ---------------------------------------------------------------------------------------------

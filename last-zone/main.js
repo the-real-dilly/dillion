@@ -4,7 +4,7 @@ import { buildWorld, terrainH, groundAt, raycast, POIS, SURF, surfaceAt, HALF, p
 import * as Sim from "./sim.js";
 import { initBots, updateBots } from "./bots.js";
 import { R, createRenderer, buildIsland, applyPreset, updateSun, updateWorld, renderFrame, setQuality } from "./render.js";
-import { A, loadAssets, Avatar, STYLES, makePlaneMesh, makeItemMesh, makeCrateMesh, makeGun, makeGrenadeMesh } from "./actors.js";
+import { A, loadAssets, Avatar, STYLES, makePlaneMesh, makeItemMesh, makeCrateMesh, makeGun, makeGrenadeMesh, makeVMArms, poseVMArm, FORE } from "./actors.js";
 import { FX, initFX, updateFX, impact, bodyHit, tracer, muzzle, shell, explosion, smokeCloud, landingDust, splash } from "./fx.js";
 import * as AUD from "./audio.js";
 import * as HUD from "./hud.js";
@@ -447,7 +447,7 @@ function updateCamera(dt) {
     if (G.camMode === "fp" && target === me) {
       cam.position.set(me.x + fx * 0.15, ey, me.z + fz * 0.15);
     } else {
-      const back = lerp(2.7, 2.25, ads), right = lerp(0.8, 0.85, ads), up = lerp(0.25, 0.24, ads);
+      const back = lerp(2.7, 0.95, ads), right = lerp(0.8, 0.72, ads), up = lerp(0.25, 0.12, ads);
       const px = target.x, py = ey, pz = target.z;
       const test = (sr) => { const tx = px - fx * back + rx * right * sr, ty = py + up - fy * back * 0.9, tz = pz - fz * back + rz * right * sr; const dx = tx - px, dy = ty - py, dz = tz - pz, d = Math.hypot(dx, dy, dz); const h = raycast(W, px, py, pz, dx / d, dy / d, dz / d, d + 0.25); return { dx, dy, dz, k: h ? Math.max(0.12, (h.t - 0.3) / d) : 1 }; };
       let c = test(G.shoulder || 1);
@@ -485,11 +485,35 @@ function updateViewmodel(dt) {
   G.kick = Math.max(0, G.kick - dt * 8);
   const bob = Math.sin(t * (me.sprint ? 11 : 7)) * 0.012 * mv * (1 - ads), bobx = Math.cos(t * (me.sprint ? 5.5 : 3.5)) * 0.01 * mv * (1 - ads);
   const reload = me.act && me.act.k === "reload" ? Math.sin(me.act.t / me.act.dur * Math.PI) : 0, heal = me.act && me.act.k !== "reload" ? 1 : 0;
-  G.vm.position.set(lerp(0.2, 0, ads) + bobx, lerp(-0.24, -0.135, ads) + bob - reload * 0.12 - heal * 0.25 - (me.sprint ? 0.04 : 0), lerp(-0.42, -0.34, ads) + G.kick * 0.05);
+  const hg = WEAPONS[w.id].cls === "Sidearm" || WEAPONS[w.id].cls === "Revolver";
+  G.vm.position.set(lerp(hg ? 0.1 : 0.14, 0, ads) + bobx, lerp(hg ? -0.1 : -0.125, hg ? -0.085 : -0.118, ads) + bob - reload * 0.1 - heal * 0.25 - (me.sprint ? 0.04 : 0), lerp(hg ? -0.36 : -0.43, hg ? -0.42 : -0.34, ads) + G.kick * 0.05);
   G.vm.rotation.set(G.kick * 0.12 + reload * 0.5 + (me.sprint ? -0.3 : 0), Math.PI + (me.sprint ? 0.5 : 0), reload * 0.4);
-  R.vmCam.fov = 55 / lerp(1, Math.min(1.4, WEAPONS[w.id].zoom), ads); R.vmCam.updateProjectionMatrix();
+  R.vmCam.fov = 62 / lerp(1, Math.min(1.4, WEAPONS[w.id].zoom), ads); R.vmCam.updateProjectionMatrix();
   G.vm.visible = !(WEAPONS[w.id].scope && ads > 0.6);
+  // arms
+  if (!G.vmArms) { G.vmArms = makeVMArms(STYLES.dilly); R.vmScene.add(G.vmArms); }
+  G.vmArms.visible = G.vm.visible;
+  if (!G.vm.visible) return;
+  G.vm.updateMatrixWorld(true);
+  const cls = WEAPONS[w.id].cls, hand = cls === "Sidearm" || cls === "Revolver", fore = FORE[cls] || 0.3;
+  const m = G.vm.matrixWorld;
+  _gfv.set(0, 0, 1).transformDirection(m); _guv.set(0, 1, 0).transformDirection(m); _grv.set(-1, 0, 0).transformDirection(m);
+  _wr.set(0, -0.035, -0.075).applyMatrix4(m);
+  _er.set((hand ? 0.26 : 0.3) + bobx - ads * 0.1, -0.33 + bob, -0.02);
+  _hd.copy(_gfv).multiplyScalar(0.85).addScaledVector(_guv, -0.45).normalize();
+  poseVMArm(G.vmArms.userData.r, _er, _wr, _hd, 1);
+  const healing = me.act && me.act.k !== "reload";
+  G.vmArms.userData.l.visible = !healing && !me.sprint;
+  if (G.vmArms.userData.l.visible) {
+    if (me.act && me.act.k === "reload") _wl.set(0, -0.14 - reload * 0.1, 0.04).applyMatrix4(m);
+    else if (hand) _wl.set(0.035, -0.08, -0.05).applyMatrix4(m);
+    else _wl.set(0, -0.045, fore).applyMatrix4(m);
+    _el.set((hand ? -0.16 : -0.22) + bobx, -0.36 + bob, hand ? -0.1 : -0.18 - fore * 0.3);
+    _hd.copy(_gfv).multiplyScalar(hand ? 0.4 : 0.6).addScaledVector(_grv, hand ? 0.5 : 0.55).addScaledVector(_guv, hand ? -0.6 : -0.2).normalize();
+    poseVMArm(G.vmArms.userData.l, _el, _wl, _hd, -1);
+  }
 }
+const _gfv = new THREE.Vector3(), _guv = new THREE.Vector3(), _grv = new THREE.Vector3(), _wr = new THREE.Vector3(), _wl = new THREE.Vector3(), _er = new THREE.Vector3(), _el = new THREE.Vector3(), _hd = new THREE.Vector3();
 function vmMuzzle(out) { const m = G.vm.userData.muzzle; out.set(0, 0, m).applyMatrix4(G.vm.matrixWorld); // view space -> world
   out.applyMatrix4(R.camera.matrixWorld); return out; }
 
@@ -507,6 +531,7 @@ function syncView(dt) {
     const hide = (p === me && G.camMode === "fp" && me.st === "ground") || d > 520;
     if (hide) { av.root.visible = false; av.gunHolder.visible = false; continue; }
     const near = d < 90;
+    if (p === me) av.hideHead(G.camMode === "tp" && me.adsT > 0.45 && me.st === "ground" && !G.freeCam && !G.watch);
     if (near || (G.frame + p.id) % 3 === 0) av.update(p, near ? dt : dt * 3, t, near);
     // footsteps
     if (p.st === "ground" && p.onGround && !p.swim && d < 40) {
