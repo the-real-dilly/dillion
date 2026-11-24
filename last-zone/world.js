@@ -63,6 +63,7 @@ export function buildWorld() {
   const rect = (x0, x1, z0, z1, h, blend) => { rects.push([x0, x1, z0, z1, h, blend]); };
   const circ = (x, z, rad, h, blend) => { circs.push([x, z, rad, h == null ? hRaw(x, z) : h, blend]); };
   rect(290, 590, 290, 560, 4, 50);              // Los Pepinos
+  rect(260, 620, 575, 655, 1.2, 40);             // Los Pepinos beach below the boulevard
   rect(-590, -450, -230, 470, 6, 60);            // airfield runway + apron
   rect(-460, -380, -150, 210, 6, 45);             // airfield hangar row, tower, offices
   rect(500, 700, -360, -140, 3, 40);             // port

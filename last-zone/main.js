@@ -611,7 +611,7 @@ window.LZ = {
   advance(sec, fast = true) { if (!G.M) return; simSteps(sec, fast); return this.state(); },
   step(n = 1) { if (!G.M) return; for (let i = 0; i < n; i++) { humanInput(DT); updateBots(G.M, DT); Sim.step(G.M, DT); } handleEvents(false); return this.state(); },
   jump() { if (G.me) G.me.inp.jump = true; },
-  teleport(x, z, y) { const me = G.me; if (!me) return; me.x = x; me.z = z; me.y = y != null ? y : groundAt(W, x, z, 999); me.st = "ground"; me.onGround = true; me.vx = me.vy = me.vz = 0; },
+  teleport(x, z, y) { const me = G.me; if (!me) return; me.x = x; me.z = z; me.y = y != null ? y : groundAt(W, x, z, terrainH(W, x, z) + 1.2); me.st = "ground"; me.onGround = true; me.vx = me.vy = me.vz = 0; },
   look(yaw, pitch) { G.yaw = yaw; G.pitch = pitch; },
   input(o) { G.testInput = o; },
   give(wid, r = 2) { const me = G.me; const s = me.inv.w[0] ? (me.inv.w[1] ? me.inv.slot % 2 : 1) : 0; me.inv.w[s] = { id: wid, r, mag: WEAPONS[wid].mag }; me.inv.slot = s; me.inv.ammo[WEAPONS[wid].ammo] = AMMO[WEAPONS[wid].ammo].max; return s; },

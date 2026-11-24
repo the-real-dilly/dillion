@@ -73,7 +73,8 @@ export function initFX() {
   });
   FX.gasWall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 700, 96, 1, true).translate(0, 330, 0), gm); FX.gasWall.renderOrder = 3; FX.gasWall.frustumCulled = false; R.scene.add(FX.gasWall);
   // next circle (thin white band)
-  FX.nextRing = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 300, 96, 1, true).translate(0, 150, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
+  const fade = document.createElement("canvas"); fade.width = 4; fade.height = 64; { const x = fade.getContext("2d"), g = x.createLinearGradient(0, 64, 0, 0); g.addColorStop(0, "#fff"); g.addColorStop(0.15, "#888"); g.addColorStop(1, "#000"); x.fillStyle = g; x.fillRect(0, 0, 4, 64); }
+  FX.nextRing = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 160, 96, 1, true).translate(0, 75, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, alphaMap: new THREE.CanvasTexture(fade), side: THREE.DoubleSide, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
   FX.nextRing.frustumCulled = false; R.scene.add(FX.nextRing);
   FX.grenades = new Map();
 }
