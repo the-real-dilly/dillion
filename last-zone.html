@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<script>window.DILLION_V="20261119115642";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DILLION: LAST ZONE</title>
+<meta name="description" content="DILLION: LAST ZONE — early access. An offline battle royale against bots on an island off Los Pepinos. Drop from the plane, loot, fight and outlast the gas. Free in your browser." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="importmap">{ "imports": {
+  "three": "./vendor/three.module.js",
+  "lz/main.js": "./last-zone/main.js?v=20261119115642",
+  "./last-zone/sim.js": "./last-zone/sim.js?v=20261119115642",
+  "./last-zone/world.js": "./last-zone/world.js?v=20261119115642",
+  "./last-zone/bots.js": "./last-zone/bots.js?v=20261119115642",
+  "./last-zone/render.js": "./last-zone/render.js?v=20261119115642",
+  "./last-zone/actors.js": "./last-zone/actors.js?v=20261119115642",
+  "./last-zone/fx.js": "./last-zone/fx.js?v=20261119115642",
+  "./last-zone/audio.js": "./last-zone/audio.js?v=20261119115642",
+  "./last-zone/hud.js": "./last-zone/hud.js?v=20261119115642",
+  "./last-zone/data.js": "./last-zone/data.js?v=20261119115642",
+  "./last-zone/util.js": "./last-zone/util.js?v=20261119115642"
+} }</script>
+<style>
+  :root { color-scheme: dark;
+    --olive: #4b5236; --olive2: #2b301f; --ink: #0d0f0a; --rust: #ff7a45; --gold: #ffd166; --bone: #e8e2d2; --dim: #a9a58f; --red: #e5484d; --cyan: #7fd0ff;
+    --glass: rgba(14, 16, 10, .72); --line: rgba(232, 226, 210, .16); --hud: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0d0f0a; overflow: hidden; font-family: var(--hud); color: var(--bone); user-select: none; -webkit-user-select: none; }
+  canvas#c { display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; }
+  .hidden { display: none !important; }
+  kbd { font-family: var(--hud); font-weight: 700; background: #1c1f15; border: 1px solid #4b5236; border-bottom-width: 2px; border-radius: 3px; padding: 0 5px; font-size: .9em; color: var(--bone); }
+  button { font-family: var(--hud); cursor: pointer; }
+  .btn { display: block; width: 100%; text-align: left; background: linear-gradient(90deg, rgba(43,48,31,.92), rgba(43,48,31,.55)); color: var(--bone); border: 0; border-left: 4px solid transparent; padding: 10px 16px; font-size: 22px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 6px 0; transition: background .12s, border-color .12s, transform .12s; }
+  .btn:hover, .btn:focus-visible { background: linear-gradient(90deg, rgba(255,122,69,.28), rgba(43,48,31,.6)); border-left-color: var(--rust); transform: translateX(4px); outline: none; }
+  .btn.primary { background: linear-gradient(90deg, #ff7a45, #c65a2e); color: #140a04; }
+  .btn.primary:hover { background: linear-gradient(90deg, #ff9466, #d8693a); }
+  .btn small { display: block; font-size: 13px; font-weight: 500; letter-spacing: .04em; opacity: .75; text-transform: none; }
+  a { color: var(--gold); }
+  /* ------- boot ------- */
+  #boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 40%, #232818, #0b0c08 70%); z-index: 50; }
+  .logo { font-family: Anton, Impact, sans-serif; text-transform: uppercase; letter-spacing: .04em; line-height: .9; }
+  .logo .a { font-size: 30px; color: var(--rust); letter-spacing: .3em; }
+  .logo .b { font-size: 76px; color: var(--bone); text-shadow: 0 4px 0 #000, 0 0 30px rgba(255,122,69,.25); }
+  .logo .b em { font-style: normal; color: var(--gold); }
+  #boot .bar { width: 280px; height: 6px; background: #1d2014; margin-top: 22px; border: 1px solid #3a4029; } #boot .bar i { display: block; height: 100%; width: 0; background: var(--rust); transition: width .2s; }
+  #boot .tip { margin-top: 12px; color: var(--dim); font-size: 16px; letter-spacing: .1em; text-transform: uppercase; }
+  /* ------- title ------- */
+  #title { position: fixed; inset: 0; z-index: 20; display: grid; grid-template-columns: minmax(300px, 420px) 1fr; pointer-events: none; }
+  #title .side { pointer-events: auto; background: linear-gradient(90deg, rgba(10,11,7,.92) 60%, rgba(10,11,7,0)); padding: 34px 40px 24px 34px; display: flex; flex-direction: column; overflow-y: auto; }
+  #title .eyebrow { font-size: 14px; letter-spacing: .32em; color: var(--rust); text-transform: uppercase; font-weight: 700; }
+  #title .logo .b { font-size: 64px; }
+  #title .tag { display: inline-block; background: var(--gold); color: #1a1408; font-weight: 700; padding: 1px 8px; font-size: 13px; letter-spacing: .12em; margin: 8px 0 14px; }
+  #title .blurb { font-size: 17px; line-height: 1.35; color: #cfcab8; margin: 0 0 14px; max-width: 34ch; }
+  #title nav { margin-top: 6px; }
+  #title .foot { margin-top: auto; font-size: 13px; color: var(--dim); letter-spacing: .05em; padding-top: 16px; }
+  #operator { align-self: end; justify-self: end; margin: 0 4vw 6vh 0; pointer-events: none; text-align: right; }
+  #operator .card { display: inline-block; background: var(--glass); border-top: 3px solid var(--rust); padding: 10px 16px; min-width: 240px; }
+  #operator .k { font-size: 12px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+  #operator .n { font-family: Anton, Impact, sans-serif; font-size: 34px; letter-spacing: .05em; }
+  #operator .d { font-size: 14px; color: #c9c3b0; }
+  /* ------- panels ------- */
+  .modal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(5,6,4,.66); }
+  .panel { background: linear-gradient(180deg, #1a1d12, #11130c); border: 1px solid var(--line); border-top: 4px solid var(--rust); width: min(640px, 94vw); max-height: 90vh; overflow-y: auto; padding: 22px 26px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  .panel h2 { font-family: Anton, Impact, sans-serif; font-weight: 400; font-size: 36px; margin: 0 0 12px; letter-spacing: .04em; text-transform: uppercase; }
+  .panel h3 { margin: 16px 0 6px; color: var(--gold); letter-spacing: .14em; text-transform: uppercase; font-size: 15px; }
+  .row { display: flex; align-items: center; gap: 12px; margin: 8px 0; font-size: 18px; }
+  .row label { flex: 0 0 170px; color: #d6d0bd; }
+  .row input[type=range] { flex: 1; accent-color: var(--rust); }
+  .row select { flex: 1; background: #22261a; color: var(--bone); border: 1px solid #3c432b; font: inherit; padding: 4px; }
+  .row output { width: 46px; text-align: right; color: var(--gold); }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 17px; }
+  .panel .btns { display: flex; gap: 10px; margin-top: 16px; } .panel .btns .btn { text-align: center; }
+  /* ------- lobby ------- */
+  #lobby .panel { width: min(720px, 94vw); }
+  #lobby .cd { font-family: Anton, Impact, sans-serif; font-size: 64px; color: var(--gold); line-height: 1; }
+  #lobby .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px 10px; margin: 12px 0; font-size: 17px; min-height: 120px; }
+  #lobby .list span { color: #cfc9b6; animation: pop .3s ease-out; } #lobby .list span b { color: var(--rust); font-weight: 600; margin-right: 4px; }
+  #lobby .radio { font-size: 15px; color: var(--dim); letter-spacing: .08em; } #lobby .radio b { color: var(--gold); }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } }
+  /* ------- HUD ------- */
+  #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+  #compass { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: min(520px, 60vw); height: 34px; overflow: hidden; background: linear-gradient(90deg, transparent, rgba(10,11,7,.55) 15%, rgba(10,11,7,.55) 85%, transparent); }
+  #compass .strip { position: absolute; top: 0; left: 0; height: 100%; white-space: nowrap; }
+  #compass .strip span { position: absolute; top: 6px; transform: translateX(-50%); font-size: 15px; font-weight: 600; color: #cfc9b6; }
+  #compass .strip span.c { color: var(--gold); font-size: 18px; top: 4px; }
+  #compass .strip i { position: absolute; top: 24px; width: 1px; height: 8px; background: rgba(232,226,210,.5); }
+  #compass .strip b.mk { position: absolute; top: 22px; width: 8px; height: 8px; transform: translate(-50%, 0) rotate(45deg); }
+  #compass::after { content: ""; position: absolute; left: 50%; top: 0; border: 6px solid transparent; border-top-color: var(--rust); transform: translateX(-50%); }
+  #compass .deg { position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%); font-size: 12px; color: var(--rust); }
+  #mini { position: absolute; top: 12px; right: 12px; width: 190px; height: 190px; border: 2px solid rgba(232,226,210,.25); background: #0d0f0a; }
+  #mini canvas { width: 100%; height: 100%; display: block; }
+  #topright { position: absolute; top: 208px; right: 12px; width: 190px; text-align: right; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; background: var(--glass); padding: 3px 9px; font-size: 18px; font-weight: 700; margin-left: 4px; letter-spacing: .04em; }
+  .pill .ic { color: var(--rust); font-size: 13px; letter-spacing: .1em; }
+  #gasbox { margin-top: 6px; background: var(--glass); padding: 5px 9px; text-align: left; border-left: 3px solid var(--rust); }
+  #gasbox .k { font-size: 12px; letter-spacing: .22em; color: var(--dim); text-transform: uppercase; } #gasbox .v { font-size: 22px; font-weight: 700; color: var(--bone); }
+  #gasbox .bar { height: 3px; background: #2a2e20; margin-top: 3px; } #gasbox .bar i { display: block; height: 100%; background: var(--rust); width: 0; }
+  #feed { position: absolute; top: 12px; left: 12px; width: 340px; font-size: 16px; }
+  #feed div { background: var(--glass); padding: 3px 9px; margin-bottom: 3px; animation: pop .25s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #feed .me { color: var(--gold); } #feed .w { color: var(--dim); font-size: 13px; margin: 0 6px; letter-spacing: .05em; } #feed .hs { color: var(--rust); font-size: 12px; }
+  #vitals { position: absolute; left: 16px; bottom: 16px; width: 300px; }
+  #vitals .plates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 4px; } #vitals .plates i { height: 9px; background: #1d2a33; border: 1px solid rgba(127,208,255,.25); position: relative; } #vitals .plates i b { position: absolute; inset: 0; width: 0; background: linear-gradient(90deg, #6fc0f0, #b9e6ff); }
+  #vitals .hp { height: 16px; background: #2a1f1b; border: 1px solid rgba(232,226,210,.25); position: relative; } #vitals .hp b { position: absolute; inset: 0; background: linear-gradient(90deg, #d9d2bd, #f4efe1); transition: width .15s; } #vitals .hp em { position: absolute; inset: 0; background: #b8402c; transition: width .6s .25s; }
+  #vitals .hp span { position: absolute; right: 6px; top: -3px; font-size: 16px; font-weight: 700; color: #111; mix-blend-mode: multiply; }
+  #vitals .inv { display: flex; gap: 10px; margin-top: 6px; font-size: 15px; color: #cfc9b6; flex-wrap: wrap; } #vitals .inv span b { color: var(--bone); font-size: 18px; } #vitals .inv kbd { font-size: 11px; }
+  #weapon { position: absolute; right: 16px; bottom: 16px; text-align: right; min-width: 260px; }
+  #weapon .name { font-size: 22px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  #weapon .rar { font-size: 12px; letter-spacing: .25em; text-transform: uppercase; }
+  #weapon .ammo { font-family: Anton, Impact, sans-serif; font-size: 48px; line-height: 1; } #weapon .ammo small { font-size: 22px; color: var(--dim); font-family: var(--hud); font-weight: 600; margin-left: 4px; }
+  #weapon .ammo.low { color: var(--rust); }
+  #weapon .slots { display: flex; gap: 4px; justify-content: flex-end; margin-top: 4px; }
+  #weapon .slots div { background: var(--glass); padding: 2px 8px; font-size: 14px; border-bottom: 3px solid transparent; color: #a9a58f; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #weapon .slots div.on { color: var(--bone); border-bottom-color: var(--rust); }
+  #cross { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+  #cross i { position: absolute; background: rgba(240,236,224,.92); box-shadow: 0 0 2px #000; }
+  #cross .t, #cross .b { width: 2px; height: 9px; left: -1px; } #cross .l, #cross .r { height: 2px; width: 9px; top: -1px; }
+  #cross .d { width: 2px; height: 2px; left: -1px; top: -1px; }
+  #hitm { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; transform: translate(-50%, -50%); opacity: 0; }
+  #hitm i { position: absolute; width: 2px; height: 9px; background: #fff; left: 14px; top: 0; transform-origin: 1px 15px; box-shadow: 0 0 2px #000; }
+  #hitm.kill i { background: var(--red); } #hitm.head i { background: var(--gold); }
+  #dmgdir { position: absolute; left: 50%; top: 50%; }
+  #dmgdir div { position: absolute; width: 120px; height: 120px; left: -60px; top: -60px; border-radius: 50%; border: 4px solid transparent; border-top-color: rgba(229,72,77,.85); transition: opacity .6s; }
+  #prompt { position: absolute; left: 50%; top: calc(50% + 70px); transform: translateX(-50%); background: var(--glass); padding: 5px 12px; font-size: 18px; white-space: nowrap; border-left: 3px solid var(--gold); }
+  #prompt .r { font-size: 13px; letter-spacing: .15em; text-transform: uppercase; }
+  #actbar { position: absolute; left: 50%; top: calc(50% + 40px); transform: translateX(-50%); width: 160px; text-align: center; font-size: 14px; letter-spacing: .15em; text-transform: uppercase; }
+  #actbar .b { height: 4px; background: rgba(0,0,0,.5); margin-top: 3px; } #actbar .b i { display: block; height: 100%; background: var(--gold); width: 0; }
+  #banner { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); text-align: center; pointer-events: none; transition: opacity .4s; }
+  #banner .big { font-family: Anton, Impact, sans-serif; font-size: 42px; letter-spacing: .05em; text-shadow: 0 3px 0 #000; } #banner .small { font-size: 18px; color: var(--gold); letter-spacing: .12em; text-transform: uppercase; }
+  #sub { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); max-width: 70vw; text-align: center; background: rgba(8,9,6,.66); padding: 5px 14px; font-size: 18px; transition: opacity .3s; }
+  #sub b { color: var(--rust); }
+  #air { position: absolute; left: 50%; bottom: 31%; transform: translateX(-50%); text-align: center; font-size: 18px; }
+  #air .alt { font-family: Anton, Impact, sans-serif; font-size: 40px; } #air .hint { background: var(--glass); padding: 4px 12px; margin-top: 4px; display: inline-block; }
+  #scope { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, transparent 0, transparent 33vh, #000 33.3vh); }
+  #scope::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(0,0,0,.85); } #scope::after { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(0,0,0,.85); }
+  #nums { position: absolute; inset: 0; overflow: hidden; } #nums span { position: absolute; font-weight: 700; font-size: 18px; color: #fff; text-shadow: 0 1px 2px #000; transform: translate(-50%, -50%); } #nums span.a { color: var(--cyan); } #nums span.h { color: var(--gold); font-size: 22px; }
+  #spec { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); background: var(--glass); padding: 8px 16px; font-size: 18px; text-align: center; border-top: 3px solid var(--rust); }
+  #inventory { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, 92vw); }
+  #inventory .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } #inventory .cell { background: rgba(20,22,14,.85); border-left: 3px solid #555; padding: 8px 10px; font-size: 16px; } #inventory .cell b { display: block; font-size: 20px; }
+  #pingLayer { position: absolute; inset: 0; } #pingLayer span { position: absolute; transform: translate(-50%, -100%); color: var(--gold); font-weight: 700; font-size: 14px; text-shadow: 0 1px 2px #000; }
+  #pingLayer span::after { content: "▼"; display: block; text-align: center; color: var(--gold); }
+  #mapov { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(6,7,4,.82); }
+  #mapov canvas { width: min(88vh, 92vw); height: min(88vh, 92vw); border: 2px solid rgba(232,226,210,.25); }
+  #mapov .lg { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 15px; color: var(--dim); }
+  #gastint { position: fixed; inset: 0; z-index: 9; pointer-events: none; background: radial-gradient(circle, rgba(200,90,30,.08), rgba(150,60,20,.45)); opacity: 0; transition: opacity .5s; }
+  #results .panel { width: min(560px, 94vw); text-align: center; }
+  #results .place { font-family: Anton, Impact, sans-serif; font-size: 96px; line-height: 1; color: var(--gold); }
+  #results .place small { font-size: 36px; color: var(--dim); }
+  #results .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; } #results .stats div { background: #1c2014; padding: 8px; } #results .stats b { display: block; font-size: 28px; } #results .stats span { font-size: 12px; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
+  #toast { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 45; background: var(--glass); border-left: 3px solid var(--gold); padding: 6px 14px; font-size: 16px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #fatal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; text-align: center; background: #0d0f0a; padding: 20px; font-size: 20px; }
+  @media (max-width: 760px) { #title { grid-template-columns: 1fr; } #operator { display: none; } #title .logo .b { font-size: 48px; } #mini { width: 130px; height: 130px; } #topright { top: 146px; width: 140px; } #feed { width: 220px; font-size: 13px; } #weapon .ammo { font-size: 36px; } #vitals { width: 220px; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="gastint"></div>
+
+<div id="boot"><div class="logo"><div class="a">DILLION</div><div class="b">LAST <em>ZONE</em></div></div><div class="bar"><i id="bootBar"></i></div><div class="tip" id="bootTip">Loading contractors…</div></div>
+
+<div id="title" class="hidden">
+  <div class="side">
+    <div class="eyebrow">Zone Nine · Contractor tournament</div>
+    <div class="logo"><div class="b">DILLION:<br>LAST <em>ZONE</em></div></div>
+    <div><span class="tag">EARLY ACCESS</span></div>
+    <p class="blurb">An offline battle royale off the coast of Los Pepinos. Drop from the transport, loot, fight 24 rival contractors and stay ahead of the gas. Last one standing gets paid.</p>
+    <nav>
+      <button class="btn primary" id="bPlay">Play<small>Solo vs 24 bots · offline</small></button>
+      <button class="btn" id="bRange">Practice range<small>All eight guns, targets out to 220 m</small></button>
+      <button class="btn" id="bSettings">Settings</button>
+      <button class="btn" id="bHelp">How to play</button>
+      <a class="btn" href="index.html?v=20261119115642" id="bBack">Back to Dillion</a>
+    </nav>
+    <div class="foot">Desktop, keyboard + mouse. <kbd>Q</kbd> quality · <kbd>K</kbd> mute. Low-poly CC0 models by Quaternius. A Dilly Gone Mad spin-off.</div>
+  </div>
+  <div id="operator"><div class="card"><div class="k">Operator</div><div class="n">DILLY</div><div class="d">Contractor kit · oatmeal fleece, grey trousers</div></div></div>
+</div>
+
+<div id="lobby" class="modal hidden"><div class="panel">
+  <h2>Staging · Brinewater ramp</h2>
+  <div class="row" style="justify-content:space-between"><div><div style="font-size:13px;letter-spacing:.3em;color:var(--dim)">TRANSPORT DEPARTS IN</div><div class="cd" id="lobbyCd">0:20</div></div><div style="text-align:right"><div style="font-size:13px;letter-spacing:.3em;color:var(--dim)">CONTRACTORS</div><div class="cd" id="lobbyN">1/25</div></div></div>
+  <div class="list" id="lobbyList"></div>
+  <div class="radio">📻 <b>BRINE FM 98.6</b> · <span id="radioNow">"Low Tide Shuffle" — the Pickled Pelicans</span></div>
+  <div class="btns"><button class="btn primary" id="bDeploy">Deploy now</button><button class="btn" id="bLobbyBack">Back</button></div>
+</div></div>
+
+<div id="settings" class="modal hidden"><div class="panel">
+  <h2>Settings</h2>
+  <h3>Controls</h3>
+  <div class="row"><label for="sSens">Mouse sensitivity</label><input type="range" id="sSens" min="0.2" max="3" step="0.05"><output id="oSens"></output></div>
+  <div class="row"><label for="sAds">ADS sensitivity</label><input type="range" id="sAds" min="0.2" max="1.5" step="0.05"><output id="oAds"></output></div>
+  <div class="row"><label for="sFov">Field of view</label><input type="range" id="sFov" min="60" max="100" step="1"><output id="oFov"></output></div>
+  <div class="row"><label for="sInv">Invert Y</label><select id="sInv"><option value="0">Off</option><option value="1">On</option></select></div>
+  <h3>Audio</h3>
+  <div class="row"><label for="sMaster">Master</label><input type="range" id="sMaster" min="0" max="1" step="0.05"><output id="oMaster"></output></div>
+  <div class="row"><label for="sSfx">Effects</label><input type="range" id="sSfx" min="0" max="1" step="0.05"><output id="oSfx"></output></div>
+  <div class="row"><label for="sMusic">Music &amp; radio</label><input type="range" id="sMusic" min="0" max="1" step="0.05"><output id="oMusic"></output></div>
+  <h3>Game</h3>
+  <div class="row"><label for="sDiff">Bot difficulty</label><select id="sDiff"><option value="easy">Recruit (easy)</option><option value="normal">Contractor (normal)</option><option value="hard">Veteran (hard)</option></select></div>
+  <div class="row"><label for="sQual">Graphics quality</label><select id="sQual"><option value="high">High</option><option value="low">Low</option></select></div>
+  <div class="row"><label for="sTime">Time of day</label><select id="sTime"><option value="random">Random</option><option value="golden">Golden hour</option><option value="overcast">Overcast</option></select></div>
+  <div class="row"><label for="sBlood">Blood puffs</label><select id="sBlood"><option value="0">Off</option><option value="1">On (light)</option></select></div>
+  <div class="row"><label for="sSubs">Subtitles &amp; radio chatter</label><select id="sSubs"><option value="1">On</option><option value="0">Off</option></select></div>
+  <div class="btns"><button class="btn primary" id="bSetClose">Done</button></div>
+</div></div>
+
+<div id="help" class="modal hidden"><div class="panel">
+  <h2>How to play</h2>
+  <p style="font-size:17px;line-height:1.4;color:#d6d0bd;margin-top:0">Ride the transport over Zone Nine and <b>jump</b> when you like (you're pushed out at the end of the route). Steer your free-fall, pop the chute, land near loot. Pick up guns, ammo, armour plates and medical kit. The safe zone shrinks in six stages; the gas outside hurts more each stage. Be the last contractor standing.</p>
+  <div class="keys">
+    <kbd>WASD</kbd><span>Move · in the air: steer (W dives faster, S brakes)</span>
+    <kbd>Mouse</kbd><span>Look (click the game to lock the pointer) · arrow keys also look</span>
+    <kbd>LMB</kbd><span>Fire · <kbd>RMB</kbd> aim down sights</span>
+    <kbd>Space</kbd><span>Jump · jump from the plane · open / cut the parachute</span>
+    <kbd>Shift</kbd><span>Sprint · in free-fall: full dive</span>
+    <kbd>C</kbd><span>Crouch (toggle)</span>
+    <kbd>R</kbd><span>Reload</span>
+    <kbd>E</kbd><span>Pick up · open crates</span>
+    <kbd>1</kbd><kbd style="justify-self:start">2 · 3</kbd><span></span><span>Primary · secondary · knife (mouse wheel cycles)</span>
+    <kbd>F</kbd><span>Melee</span>
+    <kbd>X</kbd><span>Armour plate (hold to keep plating) · <kbd>4</kbd> plate · <kbd>5</kbd> bandage · <kbd>6</kbd> med kit</span>
+    <kbd>G</kbd><span>Frag grenade · <kbd>H</kbd> smoke grenade</span>
+    <kbd>V</kbd><span>Third / first person</span>
+    <kbd>M</kbd><span>Map · <kbd>B</kbd> or middle click: ping</span>
+    <kbd>Tab</kbd><span>Inventory</span>
+    <kbd>Q</kbd><span>Graphics quality · <kbd>K</kbd> mute · <kbd>Esc</kbd> pause</span>
+    <kbd>Enter</kbd><span>Keyboard fire (no-mouse fallback) · <kbd>/</kbd> aim</span>
+  </div>
+  <p style="font-size:15px;color:var(--dim)">Armour: up to three plates of 50 each soak damage before your 100 health. Gas ignores armour. Loot rarity: <span style="color:#b9bdb4">common</span>, <span style="color:#62d26f">uncommon</span>, <span style="color:#4aa3ff">rare</span>, <span style="color:#b65cff">epic</span>, <span style="color:#ffb52e">legendary</span>.</p>
+  <div class="btns"><button class="btn primary" id="bHelpClose">Got it</button></div>
+</div></div>
+
+<div id="pause" class="modal hidden"><div class="panel" style="width:min(380px,94vw)">
+  <h2>Paused</h2>
+  <button class="btn primary" id="bResume">Resume</button>
+  <button class="btn" id="bPSettings">Settings</button>
+  <button class="btn" id="bPHelp">How to play</button>
+  <button class="btn" id="bQuit">Leave match</button>
+</div></div>
+
+<div id="results" class="modal hidden"><div class="panel">
+  <div style="font-size:14px;letter-spacing:.3em;color:var(--rust)" id="resKicker">MATCH COMPLETE</div>
+  <div class="place" id="resPlace">#1<small>/25</small></div>
+  <div style="font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase" id="resLine">Last one standing</div>
+  <div class="stats"><div><b id="resKills">0</b><span>Eliminations</span></div><div><b id="resDmg">0</b><span>Damage</span></div><div><b id="resTime">0:00</b><span>Survived</span></div><div><b id="resPickle">0</b><span>Golden pickles</span></div></div>
+  <div style="font-size:15px;color:var(--dim)" id="resNote"></div>
+  <div class="btns"><button class="btn primary" id="bReplay">Play again</button><button class="btn" id="bSpectate">Keep watching</button><button class="btn" id="bToTitle">Title</button></div>
+</div></div>
+
+<div id="hud" class="hidden">
+  <div id="compass"><div class="strip" id="compassStrip"></div><div class="deg" id="compassDeg">0</div></div>
+  <div id="mini"><canvas id="miniC" width="256" height="256"></canvas></div>
+  <div id="topright"><span class="pill"><span class="ic">ALIVE</span><b id="hAlive">25</b></span><span class="pill"><span class="ic">KILLS</span><b id="hKills">0</b></span>
+    <div id="gasbox"><div class="k" id="gasK">Zone closing</div><div class="v" id="gasV">1:30</div><div class="bar"><i id="gasBar"></i></div></div></div>
+  <div id="feed"></div>
+  <div id="vitals"><div class="plates"><i><b></b></i><i><b></b></i><i><b></b></i></div><div class="hp"><em></em><b></b><span id="hpN">100</span></div>
+    <div class="inv"><span><kbd>X</kbd> Plates <b id="iPlate">0</b></span><span><kbd>5</kbd> Bandage <b id="iBand">0</b></span><span><kbd>6</kbd> Med <b id="iMed">0</b></span><span><kbd>G</kbd> Frag <b id="iFrag">0</b></span><span><kbd>H</kbd> Smoke <b id="iSmoke">0</b></span></div></div>
+  <div id="weapon"><div class="rar" id="wRar"></div><div class="name" id="wName">Unarmed</div><div class="ammo" id="wAmmo">–</div><div class="slots" id="wSlots"></div></div>
+  <div id="cross"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div>
+  <div id="hitm"><i style="transform:rotate(45deg)"></i><i style="transform:rotate(135deg)"></i><i style="transform:rotate(225deg)"></i><i style="transform:rotate(315deg)"></i></div>
+  <div id="dmgdir"></div>
+  <div id="nums"></div>
+  <div id="pingLayer"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="actbar" class="hidden"><span id="actName"></span><div class="b"><i id="actFill"></i></div></div>
+  <div id="banner" style="opacity:0"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+  <div id="air" class="hidden"><div class="alt" id="airAlt"></div><div class="hint" id="airHint"></div></div>
+  <div id="sub" style="opacity:0"></div>
+  <div id="scope" class="hidden"></div>
+  <div id="spec" class="hidden"></div>
+  <div id="inventory" class="hidden"><div class="panel" style="width:100%"><h2>Loadout</h2><div class="grid" id="invGrid"></div><p style="color:var(--dim);font-size:14px;margin-bottom:0">Ammo, plates and medical kit are picked up by walking over them. Press <kbd>E</kbd> for weapons and crates.</p></div></div>
+</div>
+<div id="mapov" class="hidden"><canvas id="mapC" width="900" height="900"></canvas><div class="lg"><b style="color:#fff">White</b> safe zone · <b style="color:#ff7a45">orange</b> gas edge · dashed line: plane route · <kbd>B</kbd> / middle click: ping · <kbd>M</kbd> close</div></div>
+<div id="toast"></div>
+<div id="fatal" class="hidden"></div>
+
+<script type="module">
+import("lz/main.js").catch((e) => { const f = document.getElementById("fatal"); f.classList.remove("hidden"); f.textContent = "DILLION: LAST ZONE could not start: " + (e && e.message ? e.message : e); console.error(e); });
+</script>
+</body>
+</html>
