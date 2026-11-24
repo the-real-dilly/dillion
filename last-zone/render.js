@@ -286,6 +286,7 @@ export function buildIsland(W) {
   buildProps(W);
   buildNature(W);
   buildSpecials(W);
+  buildDetails(W);
 }
 
 const SCOL = {
@@ -293,6 +294,13 @@ const SCOL = {
 };
 function buildTerrain(W) {
   const CH = 50, nC = (N - 1) / CH, mat = std({ map: TX.ground, vertexColors: true, roughness: 0.95 });
+  mat.onBeforeCompile = (sh) => { // break up tiling: macro brightness variation + world-space detail at a second scale
+    sh.fragmentShader = sh.fragmentShader.replace("#include <map_fragment>", `#ifdef USE_MAP
+      vec4 t1 = texture2D(map, vUv); vec4 t2 = texture2D(map, vUv * 0.071 + 0.31); vec4 t3 = texture2D(map, vUv * 3.7);
+      vec4 sampledDiffuseColor = vec4(t1.rgb * (0.55 + t2.rgb * 0.6) * (0.8 + t3.rgb * 0.25), 1.0);
+      diffuseColor *= sampledDiffuseColor;
+    #endif`);
+  };
   const col = new THREE.Color(), tmp = new THREE.Color();
   const r = mulberry32(77);
   const vcol = new Float32Array(N * N * 3);
@@ -488,13 +496,25 @@ function buildProps(W) {
     const { x, y, z } = p, rot = p.rot || 0, sw = Math.abs(Math.sin(rot)) > 0.5;
     const bx = (dx0, dx1, y0, y1, dz0, dz1, col, k = "wood") => { if (sw) A(k).box(x + dz0, x + dz1, y + y0, y + y1, z + dx0, z + dx1, col, 1); else A(k).box(x + dx0, x + dx1, y + y0, y + y1, z + dz0, z + dz1, col, 1); };
     switch (p.kind) {
-      case "table": bx(-0.9, 0.9, 0.72, 0.8, -0.5, 0.5, c(0x7a5a3a)); for (const [a, b] of [[-0.8, -0.4], [0.8, -0.4], [-0.8, 0.4], [0.8, 0.4]]) bx(a - 0.04, a + 0.04, 0, 0.72, b - 0.04, b + 0.04, c(0x5a3f28)); break;
+      case "table": bx(-0.9, 0.9, 0.72, 0.8, -0.5, 0.5, c(0x7a5a3a)); for (const [a, b] of [[-0.8, -0.4], [0.8, -0.4], [-0.8, 0.4], [0.8, 0.4]]) bx(a - 0.04, a + 0.04, 0, 0.72, b - 0.04, b + 0.04, c(0x5a3f28));
+        for (const [a, b] of [[-0.45, -0.75], [0.45, 0.75]]) { const cx = a, cz = b; bx(cx - 0.21, cx + 0.21, 0.42, 0.47, cz - 0.21, cz + 0.21, c(0x6a4a30)); bx(cx - 0.21, cx + 0.21, 0.47, 0.92, cz + (b > 0 ? 0.17 : -0.21), cz + (b > 0 ? 0.21 : -0.17), c(0x6a4a30)); for (const [e, f] of [[-0.17, -0.17], [0.17, -0.17], [-0.17, 0.17], [0.17, 0.17]]) bx(cx + e - 0.02, cx + e + 0.02, 0, 0.42, cz + f - 0.02, cz + f + 0.02, c(0x4a3220)); }
+        break;
       case "shelf": bx(-0.5, 0.5, 0, 1.9, -0.45, 0.45, c(0x6b5a46)); for (let k = 0; k < 4; k++) bx(-0.48, 0.48, 0.3 + k * 0.45, 0.42 + k * 0.45, -0.5, 0.5, c(k % 2 ? 0x8a7a4a : 0x4a5a6a), "plain"); break;
       case "bed": bx(-1, 1, 0, 0.45, -0.5, 0.5, c(0x5b5f4a), "plain"); bx(-1, -0.6, 0.45, 0.6, -0.45, 0.45, c(0xd8d2c0), "plain"); break;
       case "sofa": bx(-1, 1, 0, 0.45, -0.45, 0.45, c(0x4a5560), "plain"); bx(-1, 1, 0.45, 0.9, 0.3, 0.45, c(0x4a5560), "plain"); break;
       case "crates": bx(-0.5, 0.5, 0, 1, -0.5, 0.5, c(0x8a7048)); bx(-0.35, 0.35, 1, 1.5, -0.35, 0.35, c(0x7a6040)); break;
-      case "counter": bx(-1.4, 1.4, 0, 1.0, -0.4, 0.4, c(0x8a8478), "plain"); break;
+      case "counter": bx(-1.0, 1.0, 0, 0.9, -0.38, 0.38, c(0xc8c0ae), "plain"); bx(-1.03, 1.03, 0.9, 0.95, -0.41, 0.41, c(0x4a4a4a), "plain"); bx(0.2, 0.7, 0.93, 0.96, -0.25, 0.2, c(0x9aa0a4), "plain"); for (let k = 0; k < 3; k++) bx(-0.95 + k * 0.66, -0.35 + k * 0.66, 0.15, 0.8, 0.38, 0.39, c(0xb0a894), "plain"); break;
       case "desk": bx(-1.4, 1.4, 0, 1.1, -0.5, 0.5, c(0x3a3f44), "plain"); break;
+      case "chair": bx(-0.22, 0.22, 0.42, 0.47, -0.22, 0.22, c(0x6a4a30)); bx(-0.22, 0.22, 0.47, 0.95, 0.18, 0.22, c(0x6a4a30)); for (const [a, b] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) bx(a - 0.025, a + 0.025, 0, 0.42, b - 0.025, b + 0.025, c(0x4a3220)); break;
+      case "fridge": bx(-0.38, 0.38, 0, 1.8, -0.35, 0.35, c(0xd9d9d2), "plain"); bx(-0.36, 0.36, 1.15, 1.17, 0.35, 0.37, c(0x8a8a84), "plain"); bx(0.28, 0.31, 1.25, 1.6, 0.35, 0.4, c(0x9a9a94), "plain"); break;
+      case "tv": bx(-0.6, 0.6, 0, 0.5, -0.22, 0.22, c(0x3a2c22)); bx(-0.5, 0.5, 0.55, 1.15, -0.03, 0.03, c(0x121212), "plain"); bx(-0.06, 0.06, 0.5, 0.56, -0.06, 0.06, c(0x222222), "plain"); break;
+      case "lamp": bx(-0.15, 0.15, 0, 0.04, -0.15, 0.15, c(0x2a2a2a), "plain"); bx(-0.02, 0.02, 0.04, 1.45, -0.02, 0.02, c(0x2a2a2a), "plain"); bx(-0.18, 0.18, 1.45, 1.7, -0.18, 0.18, c(0xe6dcc0), "plain"); break;
+      case "bookcase": bx(-0.45, 0.45, 0, 1.85, -0.18, 0.18, c(0x5a4030)); for (let k = 0; k < 4; k++) for (let b = 0; b < 6; b++) { const v = [0x7a2e22, 0x2e4a6a, 0x6a6a2e, 0xc8b88a, 0x3a5a3a, 0x8a5a2a][(b + k) % 6]; bx(-0.42 + b * 0.14, -0.31 + b * 0.14, 0.12 + k * 0.45, 0.42 + k * 0.45 - (b % 3) * 0.04, -0.15, 0.17, c(v), "plain"); } break;
+      case "rug": bx(-1.1, 1.1, 0.0, 0.015, -0.75, 0.75, c([0x7a3a2a, 0x3a4a6a, 0x6a5a3a][Math.floor(Math.abs(x * 7 + z)) % 3]), "plain"); break;
+      case "barrels": for (const [a, b, h] of [[-0.35, -0.3, 0], [0.35, -0.25, 0], [0, 0.35, 0]]) { const col = [0x3a5a3a, 0x8a3a2a, 0x2e4a6a][Math.floor(Math.abs(x + z + a * 9)) % 3]; barrelAt(A("barrel"), x + a * Math.cos(rot) - b * Math.sin(rot), y, z + a * Math.sin(rot) + b * Math.cos(rot), c(col)); } break;
+      case "pallet": for (let k = 0; k < 5; k++) bx(-0.6, 0.6, 0.1, 0.14, -0.6 + k * 0.28, -0.5 + k * 0.28, c(0xa88a62)); for (const a of [-0.55, 0, 0.55]) bx(a - 0.05, a + 0.05, 0, 0.1, -0.6, 0.6, c(0x8a6e4a)); break;
+      case "dumpster": bx(-0.9, 0.9, 0.15, 1.25, -0.6, 0.6, c(0x2f5a3a), "plain"); bx(-0.95, 0.95, 1.25, 1.33, -0.65, 0.6, c(0x1e3a26), "plain"); for (const a of [-0.75, 0.75]) bx(a - 0.06, a + 0.06, 0, 0.15, -0.5, 0.5, c(0x222222), "plain"); break;
+      case "bench": bx(-0.9, 0.9, 0.42, 0.47, -0.22, 0.22, c(0x8a6a4a)); bx(-0.9, 0.9, 0.6, 0.85, 0.2, 0.25, c(0x8a6a4a)); for (const a of [-0.8, 0.8]) bx(a - 0.04, a + 0.04, 0, 0.42, -0.2, 0.2, c(0x2a2a2a), "plain"); break;
       case "hay": { const a = A("hay"); a.box(x - 0.8, x + 0.8, y, y + 1.4, z - 0.8, z + 0.8, c(0xc8b26a), 1); break; }
       case "sandbags": bx(-2, 2, 0, 1.1, -0.5, 0.5, c(0x8a7d5c), "plain"); break;
       case "tank": { const g = new THREE.CylinderGeometry(3, 3, 6, 16).translate(x, y + 3, z); addMesh(g, std({ color: 0xc8c8c0, roughness: 0.5, metalness: 0.4 })); break; }
@@ -502,8 +522,18 @@ function buildProps(W) {
       case "truck": { const tr = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 5.5), std({ color: 0xc89a2a })); body.position.y = 1.6; const cab = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 1.8), std({ color: 0xd6a830 })); cab.position.set(0, 2.9, 1.8); const bed = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.4, 3.4), std({ color: 0x6a6258 })); bed.position.set(0, 3.0, -0.9); tr.add(body, cab, bed); for (const [a, b] of [[-1.2, 1.7], [1.2, 1.7], [-1.2, -1.7], [1.2, -1.7]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.5, 12).rotateZ(Math.PI / 2), std({ color: 0x1e1e1e })); w.position.set(a, 0.7, b); tr.add(w); } tr.position.set(x, y, z); tr.rotation.y = rot; tr.traverse((o) => { o.castShadow = o.receiveShadow = true; }); R.scene.add(tr); break; }
     }
   }
-  const mats = { wood: std({ map: TX.wood, vertexColors: true }), plain: std({ vertexColors: true, roughness: 0.85 }), hay: std({ vertexColors: true, map: TX.field[0], roughness: 1 }) };
-  for (const k in accs) { bakeGroundAO(W, accs[k], 0.55, 0.9); addMesh(accs[k].geo(), mats[k], true, true); }
+  const mats = { wood: std({ map: TX.wood, vertexColors: true }), plain: std({ vertexColors: true, roughness: 0.85 }), hay: std({ vertexColors: true, map: TX.field[0], roughness: 1 }), barrel: std({ vertexColors: true, map: TX.metal, roughness: 0.55, metalness: 0.3 }) };
+  for (const k in accs) { bakeGroundAO(W, accs[k], 0.55, 0.9); const g = accs[k].geo(); addMesh(g, mats[k], true, true); }
+}
+
+// faceted barrel (14 sides) into an accumulator
+function barrelAt(acc, x, y, z, col) {
+  const n = 14, rr = 0.29, h = 0.9;
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2, c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1), nm = [(c0 + c1) / 2, 0, (s0 + s1) / 2];
+    acc.quad([x + c0 * rr, y, z + s0 * rr], [x + c0 * rr, y + h, z + s0 * rr], [x + c1 * rr, y + h, z + s1 * rr], [x + c1 * rr, y, z + s1 * rr], nm, col, [i / n * 2, 0], [i / n * 2, 1], [(i + 1) / n * 2, 1], [(i + 1) / n * 2, 0]);
+    acc.tri([x, y + h, z], [x + c0 * rr, y + h, z + s0 * rr], [x + c1 * rr, y + h, z + s1 * rr], [0, 1, 0], col, [0.5, 0.5], [0.5 + c0 * 0.3, 0.5 + s0 * 0.3], [0.5 + c1 * 0.3, 0.5 + s1 * 0.3]);
+  }
 }
 
 function buildNature(W) {
@@ -513,9 +543,10 @@ function buildNature(W) {
     colorize(new THREE.CylinderGeometry(0.16, 0.28, 3.2, 6).translate(0, 1.6, 0), 0x4a3828),
     colorize(new THREE.ConeGeometry(2.3, 4.2, 8).translate(0, 4.0, 0), 0x2f3d24), colorize(new THREE.ConeGeometry(1.8, 3.6, 8).translate(0, 5.8, 0), 0x34442a), colorize(new THREE.ConeGeometry(1.2, 3.0, 8).translate(0, 7.4, 0), 0x3a4a2e)
   ].map((g) => (g.index ? g.toNonIndexed() : g)));
+  const lump = (r, x, y, z, col) => { const g = new THREE.IcosahedronGeometry(r, 1); const p = g.attributes.position; const rr = mulberry32(Math.floor(x * 100 + y * 10 + z)); for (let i = 0; i < p.count; i++) { const k = 0.85 + rr() * 0.3; p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.85, p.getZ(i) * k); } return colorize(g.translate(x, y, z), col); };
   const broad = mergeBufferGeometries([
-    colorize(new THREE.CylinderGeometry(0.18, 0.3, 3.4, 6).translate(0, 1.7, 0), 0x4e3d2c),
-    colorize(new THREE.IcosahedronGeometry(2.2, 0).translate(0, 4.4, 0), 0x4b5a2e), colorize(new THREE.IcosahedronGeometry(1.7, 0).translate(1.1, 5.2, 0.4), 0x55663a), colorize(new THREE.IcosahedronGeometry(1.6, 0).translate(-0.9, 5.0, -0.6), 0x465428)
+    colorize(new THREE.CylinderGeometry(0.16, 0.3, 3.6, 7).translate(0, 1.8, 0), 0x4e3d2c), colorize(new THREE.CylinderGeometry(0.06, 0.1, 1.6, 5).rotateZ(0.7).translate(0.6, 3.4, 0), 0x4e3d2c),
+    lump(1.9, 0, 4.6, 0, 0x4b5a2e), lump(1.5, 1.2, 5.3, 0.5, 0x55663a), lump(1.4, -1.0, 5.0, -0.7, 0x465428), lump(1.2, 0.2, 6.0, -0.2, 0x5a6a3a), lump(1.1, -0.4, 4.2, 1.1, 0x42502a)
   ].map((g) => (g.index ? g.toNonIndexed() : g)));
   const mat = std({ vertexColors: true, roughness: 0.95, flatShading: true });
   const lists = [W.trees.filter((t) => t.kind === 0), W.trees.filter((t) => t.kind === 1)];
@@ -641,8 +672,106 @@ function buildSpecials(W) {
   if (S.range) { const b = new THREE.Mesh(new THREE.BoxGeometry(60, 6, 4), std({ color: 0x6a5f4a })); b.position.set(S.range.x, terrainH(W, S.range.x, S.range.z - 235) + 3, S.range.z - 235); scene.add(b); }
 }
 
+// ---------------------------------------------------------------------------------------------
+// detail pass: window frames + glass, door frames, fences, utility poles + wires, road decals, grass
+function buildDetails(W) {
+  const frame = new Acc(), glass = new Acc(), white = lin(0xd8d2c4), dark = lin(0x3a3632), glassC = lin(0xffffff);
+  for (const b of W.buildings) {
+    if (!b.enter) continue;
+    const sides = { n: [b.x0, b.z0, 1, 0, 0, -1], s: [b.x0, b.z1, 1, 0, 0, 1], w: [b.x0, b.z0, 0, 1, -1, 0], e: [b.x1, b.z0, 0, 1, 1, 0] };
+    const fc = b.style === "metal" || b.style === "bunker" ? dark : b.style === "glass" ? dark : white;
+    for (const k of ["n", "s", "e", "w"]) {
+      const ops = b[k + "Ops"]; if (!ops) continue; const [sx, sz, dx, dz, nx, nz] = sides[k];
+      for (const o of ops) {
+        if (o.w > 6) continue; // hangar/warehouse doors stay open frames
+        const u0 = o.u - o.w / 2, u1 = o.u + o.w / 2, y0 = b.y + o.y0, y1 = b.y + Math.min(o.y1, b.h - 0.05), t = 0.07, out = 0.16;
+        const P = (u, off) => [sx + dx * u + nx * off, sz + dz * u + nz * off];
+        const fb = (ua, ub, ya, yb) => { const [ax, az] = P(ua, -out), [bx2, bz2] = P(ub, out); frame.box(Math.min(ax, bx2), Math.max(ax, bx2), ya, yb, Math.min(az, bz2), Math.max(az, bz2), fc, 1); };
+        fb(u0 - t, u0, y0, y1 + t); fb(u1, u1 + t, y0, y1 + t); fb(u0 - t, u1 + t, y1, y1 + t);
+        if (o.win) { fb(u0 - t, u1 + t, y0 - t, y0); fb(o.u - 0.025, o.u + 0.025, y0, y1); // sill + mullion
+          const [ax, az] = P(u0, 0), [bx2, bz2] = P(u1, 0); if (dx) glass.quad([ax, y0, az], [bx2, y0, bz2], [bx2, y1, bz2], [ax, y1, az], [nx, 0, nz], glassC, [0, 0], [1, 0], [1, 1], [0, 1]); else glass.quad([ax, y0, az], [bx2, y0, bz2], [bx2, y1, bz2], [ax, y1, az], [nx, 0, nz], glassC, [0, 0], [1, 0], [1, 1], [0, 1]); }
+      }
+    }
+  }
+  if (!frame.empty) addMesh(frame.geo(), std({ vertexColors: true, roughness: 0.7 }), true, true);
+  if (!glass.empty) { const m = new THREE.MeshStandardMaterial({ color: 0x5f7684, roughness: 0.08, metalness: 0.6, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.4 }); const mesh = addMesh(glass.geo(), m, false, false); mesh.renderOrder = 1; }
+  // fences
+  const fz = new Acc(), wood = lin(0x9a8a70), wire = lin(0x6a6a62);
+  for (const f of W.fences) {
+    const edges = [["n", f.x0, f.z0, f.x1, f.z0], ["s", f.x0, f.z1, f.x1, f.z1], ["w", f.x0, f.z0, f.x0, f.z1], ["e", f.x1, f.z0, f.x1, f.z1]];
+    for (const [k, ax, az, bx2, bz2] of edges) {
+      const L = Math.hypot(bx2 - ax, bz2 - az), n = Math.ceil(L / 2.2), col = f.kind === "picket" ? wood : wire;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, x = lerp(ax, bx2, t), z = lerp(az, bz2, t);
+        if (k === f.gap && Math.hypot(x - f.gx, z - f.gz) < 2.4) continue;
+        const y = terrainH(W, x, z); fz.box(x - 0.05, x + 0.05, y - 0.2, y + (f.kind === "picket" ? 1.05 : 1.25), z - 0.05, z + 0.05, col, 1);
+        if (i < n) { const x2 = lerp(ax, bx2, (i + 1) / n), z2 = lerp(az, bz2, (i + 1) / n); if (k === f.gap && Math.hypot((x + x2) / 2 - f.gx, (z + z2) / 2 - f.gz) < 2.4) continue; const y2 = terrainH(W, x2, z2);
+          for (const hh of f.kind === "picket" ? [0.35, 0.8] : [0.5, 0.85, 1.15]) { const th = f.kind === "picket" ? 0.04 : 0.012; fz.quad([x, y + hh - th, z], [x2, y2 + hh - th, z2], [x2, y2 + hh + th, z2], [x, y + hh + th, z], [0, 0, 1], col, [0, 0], [1, 0], [1, 1], [0, 1]); }
+          if (f.kind === "picket") for (let q = 1; q < 6; q++) { const px = lerp(x, x2, q / 6), pz = lerp(z, z2, q / 6), py = lerp(y, y2, q / 6); fz.box(px - 0.035, px + 0.035, py, py + 0.95, pz - 0.015, pz + 0.015, col, 1); } }
+      }
+    }
+  }
+  if (!fz.empty) addMesh(fz.geo(), std({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }), true, true);
+  // utility poles + sagging wires
+  const pa = new Acc(), pc = lin(0x5a4a3a), wires = [];
+  for (const line of W.poles) {
+    line.forEach(([x, y, z], i) => { pa.box(x - 0.12, x + 0.12, y - 0.3, y + 9, z - 0.12, z + 0.12, pc, 1); pa.box(x - 0.9, x + 0.9, y + 8.4, y + 8.55, z - 0.07, z + 0.07, pc, 1);
+      if (i > 0) { const [x0, y0, z0] = line[i - 1]; for (const off of [-0.7, 0, 0.7]) for (let k = 0; k < 8; k++) { const t0 = k / 8, t1 = (k + 1) / 8, sag = (t) => -Math.sin(t * Math.PI) * 0.9; wires.push(lerp(x0, x, t0) + off, lerp(y0, y, t0) + 8.6 + sag(t0), lerp(z0, z, t0), lerp(x0, x, t1) + off, lerp(y0, y, t1) + 8.6 + sag(t1), lerp(z0, z, t1)); } } });
+  }
+  if (!pa.empty) addMesh(pa.geo(), std({ vertexColors: true, map: TX.wood, roughness: 0.9 }), true, true);
+  if (wires.length) { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(wires, 3)); R.scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x1c1c1c }))); }
+  // road decals (cracks, patches, oil)
+  const dtex = canvasTex(256, 256, (x, w, h) => { x.clearRect(0, 0, w, h); const r = mulberry32(31);
+    // 0: crack
+    x.strokeStyle = "rgba(20,20,20,0.8)"; x.lineWidth = 2; x.beginPath(); let px = 10, py = 64; x.moveTo(px, py); for (let i = 0; i < 14; i++) { px += 8; py += (r() - 0.5) * 18; x.lineTo(px, py); } x.stroke();
+    // 1: patch
+    x.fillStyle = "rgba(30,30,32,0.55)"; x.fillRect(140, 20, 100, 90);
+    // 2: oil
+    const g = x.createRadialGradient(64, 192, 4, 64, 192, 56); g.addColorStop(0, "rgba(10,10,12,0.7)"); g.addColorStop(1, "rgba(10,10,12,0)"); x.fillStyle = g; x.fillRect(0, 128, 128, 128);
+    // 3: dirt
+    for (let i = 0; i < 300; i++) { x.fillStyle = `rgba(90,75,55,${r() * 0.3})`; x.beginPath(); x.arc(192 + (r() - 0.5) * 100, 192 + (r() - 0.5) * 100, 2 + r() * 6, 0, 7); x.fill(); } }, true, false);
+  const da = new Acc(), dc = lin(0xffffff);
+  for (const d of W.decals) {
+    const y = Math.max(terrainH(W, d.x, d.z), 0) + 0.1 + (W.lpStreets && d.x > 285 && d.x < 595 && d.z > 285 && d.z < 565 ? 0 : 0), ca = Math.cos(d.rot) * d.s, sa = Math.sin(d.rot) * d.s, u0 = (d.t % 2) * 0.5, v0 = d.t < 2 ? 0.5 : 0;
+    da.quad([d.x - ca - sa, y, d.z - sa + ca], [d.x + ca - sa, y, d.z + sa + ca], [d.x + ca + sa, y, d.z + sa - ca], [d.x - ca + sa, y, d.z - sa - ca], [0, 1, 0], dc, [u0, v0], [u0 + 0.5, v0], [u0 + 0.5, v0 + 0.5], [u0, v0 + 0.5]);
+  }
+  if (!da.empty) { const m = std({ map: dtex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, vertexColors: true }); const mesh = addMesh(da.geo(), m, false, true); mesh.renderOrder = 1; }
+  makeGrass(W);
+}
+// grass tufts and wildflowers in a ring that follows the camera (cheap density near the player)
+function makeGrass(W) {
+  const blade = new THREE.BufferGeometry(); const P = [], C = [];
+  const r = mulberry32(5);
+  for (let k = 0; k < 7; k++) { const a = r() * Math.PI, h = 0.16 + r() * 0.18, w = 0.05, ox = (r() - 0.5) * 0.25, oz = (r() - 0.5) * 0.25, lx = Math.cos(a) * w, lz = Math.sin(a) * w, tx = (r() - 0.5) * 0.15;
+    P.push(ox - lx, 0, oz - lz, ox + lx, 0, oz + lz, ox + tx, h, oz); C.push(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.85, 0.85, 0.85); }
+  blade.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); blade.setAttribute("color", new THREE.Float32BufferAttribute(C, 3)); blade.computeVertexNormals();
+  const n = 12000; const mat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 1 });
+  const im = new THREE.InstancedMesh(blade, mat, n); im.frustumCulled = false; im.receiveShadow = true; R.scene.add(im);
+  const c0 = new THREE.Color(0x4a5a2a); for (let i = 0; i < n; i++) im.setColorAt(i, c0); im.count = 0;
+  R.grass = { im, n, cx: 1e9, cz: 1e9, W };
+}
+export function updateGrass(cam) {
+  const G = R.grass; if (!G) return; const cx = Math.round(cam.position.x / 12) * 12, cz = Math.round(cam.position.z / 12) * 12;
+  if (Math.abs(cx - G.cx) < 12 && Math.abs(cz - G.cz) < 12) return; G.cx = cx; G.cz = cz;
+  const W = G.W, m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler(), col = new THREE.Color();
+  let k = 0; const rad = R.quality === "high" ? 55 : 35;
+  for (let i = 0; i < G.n * 3 && k < G.n; i++) {
+    // stable pseudo-random positions per world cell so tufts don't swim as the ring moves
+    const hx = Math.sin(i * 12.9898 + cx * 0.0137) * 43758.5453, hz = Math.sin(i * 78.233 + cz * 0.0191) * 24634.6345;
+    const x = cx + (hx - Math.floor(hx) - 0.5) * rad * 2, z = cz + (hz - Math.floor(hz) - 0.5) * rad * 2;
+    const sf = surfaceAt(W, x, z); if (sf !== SURF.GRASS && sf !== SURF.FARM) continue;
+    const y = terrainH(W, x, z); if (y < 1 || groundAt(W, x, z, y + 6) > y + 0.05) continue;
+    const rr = (hx * 7.3) % 1;
+    e.set(0, rr * 6.28, 0); q.setFromEuler(e); const sc = 0.7 + Math.abs(rr) * 0.9; s.set(sc, sc * (0.8 + Math.abs((hz * 3.1) % 1) * 0.7), sc); p.set(x, y - 0.03, z); m4.compose(p, q, s); G.im.setMatrixAt(k, m4);
+    const fl = Math.abs((hz * 5.7) % 1); if (fl > 0.985) col.setHex([0xe8d24a, 0xd8d8e8, 0xc85a5a][Math.floor(fl * 1000) % 3]); else col.setHSL(0.2 + Math.abs(rr) * 0.06, 0.38, 0.17 + Math.abs((hx * 2.3) % 1) * 0.1);
+    G.im.setColorAt(k, col); k++;
+  }
+  G.im.count = k; G.im.instanceMatrix.needsUpdate = true; if (G.im.instanceColor) G.im.instanceColor.needsUpdate = true;
+}
+
 let wT = 0;
 export function updateWorld(dt, cam) {
+  updateGrass(cam);
   wT += dt;
   if (R.waterU) { R.waterU.time.value = wT; R.waterU.camPos.value.copy(cam.position); R.waterU.fogD.value = R.scene.fog.density; }
   skyU.time.value = wT;

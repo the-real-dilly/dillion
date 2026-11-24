@@ -140,6 +140,7 @@ export function buildWorld() {
   buildRelay(B, W, r, POI.relayN); buildRelay(B, W, r, POI.relayE);
   for (const rd of W.roads) for (const p of rd.pts) { const i = Math.round((p[0] + HALF) / CELL), j = Math.round((p[2] + HALF) / CELL); for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < N && jj < N && W.S[jj * N + ii] !== SURF.WATER && W.S[jj * N + ii] !== SURF.CONCRETE) W.S[jj * N + ii] = SURF.ROAD; } }
   scatterNature(W, r, nz);
+  decorate(W);
   W.special.spawnRange = { x: -520, z: 440, yaw: 0 };
   return W;
 }
@@ -315,7 +316,7 @@ export function buildingAt(W, x, z) {
 // ---------------------------------------------------------------------------------------------
 // building kit: walls with openings, enterable houses, towers, props, loot points
 class Builder {
-  constructor(W, r) { this.W = W; this.r = r; }
+  constructor(W, r) { this.W = W; this.r = r; this.dr = mulberry32(MAP_SEED ^ 0xdec0); }
   floorY(x, z) { return terrainH(this.W, x, z); }
   // axis-aligned wall from (x0,z0) to (x1,z1) (either x0==x1 or z0==z1), with openings [{u,w,y0,y1}] (u from start)
   wall(bi, x0, z0, x1, z1, y, h, th, s, openings = [], style) {
@@ -374,13 +375,18 @@ class Builder {
       W.loot.push({ x: lx, y, z: lz, tier: bld.tier, b: bi });
     }
     if (o.furnish !== false) {
-      const nf = Math.floor(w * d / 30);
+      // furniture along the walls (decoration RNG so the loot layout stays stable)
+      const dr = this.dr, nf = Math.max(2, Math.floor(w * d / 14));
+      const list = o.furn || ["table", "shelf", "bed", "sofa", "fridge", "counter", "tv", "lamp", "bookcase", "crates", "rug"];
       for (let q = 0; q < nf; q++) {
-        const kind = this.r.pick(o.furn || ["table", "shelf", "bed", "crates", "sofa"]);
-        const side = this.r.int(0, 3), fx = side === 0 ? x0 + 0.8 : side === 1 ? x1 - 0.8 : lerp(x0 + 1.5, x1 - 1.5, this.r()), fz = side === 2 ? z0 + 0.8 : side === 3 ? z1 - 0.8 : lerp(z0 + 1.5, z1 - 1.5, this.r());
-        if (bld.doors.some((dd) => Math.hypot(dd.x - fx, dd.z - fz) < 2.2)) continue;
-        W.props.push({ kind, x: fx, y, z: fz, rot: side < 2 ? Math.PI / 2 : 0 });
-        if (kind === "shelf" || kind === "crates") addBox(W, fx - 0.5, fx + 0.5, y, y + (kind === "shelf" ? 1.9 : 1.0), fz - 0.5, fz + 0.5, SURF.WOOD, bi, { prop: true });
+        const kind = dr.pick(list);
+        const side = dr.int(0, 3), fx = side === 0 ? x0 + 0.7 : side === 1 ? x1 - 0.7 : lerp(x0 + 1.4, x1 - 1.4, dr()), fz = side === 2 ? z0 + 0.7 : side === 3 ? z1 - 0.7 : lerp(z0 + 1.4, z1 - 1.4, dr());
+        const cx = kind === "rug" || kind === "table" ? lerp(x0 + 2, x1 - 2, dr()) : fx, cz = kind === "rug" || kind === "table" ? lerp(z0 + 2, z1 - 2, dr()) : fz;
+        if (bld.doors.some((dd) => Math.hypot(dd.x - cx, dd.z - cz) < 2.0)) continue;
+        if (bld.part && ((bld.part.x != null && Math.abs(cx - bld.part.x) < 1.0) || (bld.part.z != null && Math.abs(cz - bld.part.z) < 1.0))) continue;
+        W.props.push({ kind, x: cx, y, z: cz, rot: side < 2 ? Math.PI / 2 : 0, side });
+        if (kind === "shelf" || kind === "crates" || kind === "bookcase" || kind === "fridge") addBox(W, cx - 0.45, cx + 0.45, y, y + (kind === "crates" ? 1.0 : 1.85), cz - 0.45, cz + 0.45, SURF.WOOD, bi, { prop: true });
+        if (kind === "counter") addBox(W, cx - 0.4, cx + 0.4, y, y + 0.95, cz - 0.4, cz + 0.4, SURF.WOOD, bi, { prop: true });
       }
     }
     return bld;
@@ -620,6 +626,52 @@ function scatterNature(W, r, nz) {
     const sc = 0.6 + r() * (s === SURF.ROCK ? 3.2 : 1.6);
     W.rocks.push({ x, y, z, s: sc, rot: r() * 6.28 });
     if (sc > 1.1) addBox(W, x - sc * 0.8, x + sc * 0.8, y - 1, y + sc * 1.1, z - sc * 0.8, z + sc * 0.8, SURF.ROCK, -1, { rock: true });
+  }
+}
+
+// visual dressing: fences, utility poles + wires, barrels, pallets, dumpsters, benches, road decals
+function decorate(W) {
+  const r = mulberry32(MAP_SEED ^ 0x5ea1), occupied = (x, z, m) => W.buildings.some((b) => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
+  W.poles = []; W.decals = [];
+  // garden fences round hamlet and farm houses, open on the main door side
+  for (const b of W.buildings) {
+    if (!(b.type === "house" && (["saltbrush", "caraway", "hollow", "farm"].includes(b.poi)))) continue;
+    if (r() < 0.25) continue;
+    const m = 3 + r() * 1.5, d = b.doors[0];
+    W.fences.push({ x0: b.x0 - m, x1: b.x1 + m, z0: b.z0 - m, z1: b.z1 + m, gap: d ? (d.oz < 0 ? "n" : d.oz > 0 ? "s" : d.ox > 0 ? "e" : "w") : "s", gx: d ? d.x : 0, gz: d ? d.z : 0, kind: r() < 0.5 ? "picket" : "wire" });
+  }
+  // utility poles along country roads
+  for (const rd of W.roads) {
+    if (rd.city) continue; const line = []; let acc = 0;
+    for (let i = 1; i < rd.pts.length; i++) {
+      const a = rd.pts[i - 1], b = rd.pts[i], l = Math.hypot(b[0] - a[0], b[2] - a[2]); acc += l;
+      if (acc < 42) continue; acc = 0;
+      const nx = -(b[2] - a[2]) / l, nz = (b[0] - a[0]) / l, x = b[0] + nx * 6.5, z = b[2] + nz * 6.5;
+      if (occupied(x, z, 1) || terrainH(W, x, z) < 0.5) { line.length && W.poles.push(line.splice(0)); continue; }
+      line.push([x, terrainH(W, x, z), z]);
+    }
+    if (line.length > 1) W.poles.push(line);
+  }
+  // barrels, pallets around industrial sites; collider for barrel clusters
+  const sites = [[POI.port, 18, 140], [POI.farm, 8, 70], [POI.quarry, 8, 60], [POI.airfield, 10, 90], [POI.compound, 6, 55], [POI.lp, 10, 140]];
+  for (const [P, n, rad] of sites) for (let k = 0; k < n * 3 && n > 0; k++) {
+    const x = P.x + (r() - 0.5) * rad * 1.6, z = P.z + (r() - 0.5) * rad * 1.6; if (occupied(x, z, 2) || roadQuery(W, x, z, 6) || terrainH(W, x, z) < 1) continue;
+    const y = groundAt(W, x, z, 999), kind = r() < 0.55 ? "barrels" : "pallet";
+    W.props.push({ kind, x, y, z, rot: r() * 6.28 });
+    if (kind === "barrels") addBox(W, x - 0.75, x + 0.75, y, y + 1.0, z - 0.75, z + 0.75, SURF.METAL, -1, { prop: true });
+    if (--sites.find((q) => q[0] === P)[1] <= 0) break;
+  }
+  // Los Pepinos: dumpsters (cover) on corners, benches on the boulevard
+  if (W.lpStreets) {
+    const { AX, SZ } = W.lpStreets;
+    for (let i = 0; i < 14; i++) { const x = r.pick(AX) + r.pick([-8.5, 8.5]), z = r.pick(SZ) + r.pick([-12, 12]); if (occupied(x, z, 0.3)) continue; const y = groundAt(W, x, z, 999); W.props.push({ kind: "dumpster", x, y, z, rot: 0 }); addBox(W, x - 0.9, x + 0.9, y, y + 1.3, z - 0.6, z + 0.6, SURF.METAL, -1, { prop: true }); }
+    for (let x = 300; x < 585; x += 24) W.props.push({ kind: "bench", x: x + 6, y: groundAt(W, x + 6, 551, 999), z: 551, rot: 0 });
+  }
+  // road decals: cracks, patches, oil stains
+  for (const rd of W.roads) for (let i = 0; i < rd.pts.length; i += rd.city ? 1 : 3) {
+    if (r() > (rd.city ? 0.9 : 0.35)) continue;
+    const a = rd.city ? [lerp(rd.pts[0][0], rd.pts[1][0], r()), 0, lerp(rd.pts[0][2], rd.pts[1][2], r())] : rd.pts[i];
+    W.decals.push({ x: a[0] + (r() - 0.5) * rd.w * 0.6, z: a[2] + (r() - 0.5) * rd.w * 0.6, s: 1 + r() * 2.5, rot: r() * 6.28, t: Math.floor(r() * 4) });
   }
 }
 
