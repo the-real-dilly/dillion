@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261124203658";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261124204542";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -1435,14 +1435,51 @@ const treeList = [], palmList = [], lamps = [], blinkers = [], signGlows = [];
 const blockInfo = [];
 const PROPS = [], storefronts = [];
 const decalAcc = new Acc(), helipads = [], signLights = [], pierLamps = [], ferrisCabs = [], clutter = [];
-const MAPW = 430, MAPPX = 1024;
+const MAPW = 430, MAPPX = 2048;
 const m2p = (v) => (v + MAPW) * MAPPX / (2 * MAPW);
 const [mapCv, mctx] = mkCanvas(MAPPX, MAPPX);
-mctx.fillStyle = "#1c2230"; mctx.fillRect(0, 0, MAPPX, MAPPX);
-mctx.fillStyle = "#6a7184"; mctx.fillRect(m2p(-EDGE), m2p(-EDGE), m2p(EDGE) - m2p(-EDGE), m2p(EDGE) - m2p(-EDGE));
-mctx.fillStyle = "#1d5a8c"; mctx.fillRect(0, m2p(SEA), MAPPX, MAPPX);
-mctx.fillStyle = "#c9a46c"; mctx.fillRect(m2p(-EDGE - 6), m2p(EDGE), m2p(EDGE + 6) - m2p(-EDGE - 6), m2p(SEA) - m2p(EDGE));
-const mapRect = (x0, z0, x1, z1, c) => { mctx.fillStyle = c; mctx.fillRect(m2p(x0), m2p(z0), m2p(x1) - m2p(x0), m2p(z1) - m2p(z0)); };
+mctx.clearRect(0, 0, MAPPX, MAPPX);
+// GTA V dark-asphalt street grid base (core city only — blends seamlessly into WMAPCV)
+mctx.fillStyle = "#3a404c"; mctx.fillRect(m2p(-EDGE), m2p(-EDGE), m2p(EDGE) - m2p(-EDGE), m2p(EDGE) - m2p(-EDGE));
+// Beach boardwalk + sand strip along south downtown edge
+mctx.fillStyle = "#c8b082"; mctx.fillRect(m2p(-EDGE - 6), m2p(EDGE), m2p(EDGE + 6) - m2p(-EDGE - 6), m2p(SEA) - m2p(EDGE));
+mctx.fillStyle = "#8a7860"; mctx.fillRect(m2p(-EDGE), m2p(EDGE), m2p(EDGE) - m2p(-EDGE), m2p(EDGE + 5) - m2p(EDGE));
+mctx.fillStyle = "rgba(225,245,255,0.42)"; mctx.fillRect(m2p(-EDGE - 6), m2p(SEA - 1.5), m2p(EDGE + 6) - m2p(-EDGE - 6), m2p(SEA + 2.2) - m2p(SEA - 1.5));
+const mapRect = (x0, z0, x1, z1, c) => {
+  const px = m2p(x0), py = m2p(z0), pw = m2p(x1) - px, ph = m2p(z1) - py;
+  if (c === "#2c3242") {
+    // City block with crisp GTA sidewalk border
+    mctx.fillStyle = "#5b6270"; mctx.fillRect(px, py, pw, ph);
+    mctx.fillStyle = "#484f5d"; mctx.fillRect(px + 2.5, py + 2.5, Math.max(1, pw - 5), Math.max(1, ph - 5));
+    return;
+  }
+  if (c === "#2f6a3a") {
+    // Detailed park with lawn, walking paths, and tree clusters
+    mctx.fillStyle = "#3c6e44"; mctx.fillRect(px, py, pw, ph);
+    mctx.strokeStyle = "rgba(210,204,185,0.42)"; mctx.lineWidth = 2.5;
+    mctx.beginPath(); mctx.moveTo(px + 4, py + ph * 0.5); mctx.lineTo(px + pw - 4, py + ph * 0.5); mctx.moveTo(px + pw * 0.5, py + 4); mctx.lineTo(px + pw * 0.5, py + ph - 4); mctx.stroke();
+    mctx.fillStyle = "#2b5532";
+    for (let k = 0; k < 8; k++) { const a = k * 0.785, rx = px + pw * (0.5 + Math.cos(a) * 0.30), ry = py + ph * (0.5 + Math.sin(a) * 0.30); mctx.beginPath(); mctx.arc(rx, ry, Math.min(pw, ph) * 0.09, 0, Math.PI * 2); mctx.fill(); }
+    return;
+  }
+  if (c === "#20242f" || c === "#3a2f2a" || c === "#4a5266") {
+    // Building footprint with drop shadow, roof outline, and rooftop HVAC detail
+    mctx.fillStyle = "rgba(8,10,14,0.42)"; mctx.fillRect(px + 3, py + 3, pw, ph);
+    mctx.fillStyle = c === "#3a2f2a" ? "#6c645c" : c === "#4a5266" ? "#626a7a" : "#565e6d";
+    mctx.fillRect(px, py, pw, ph);
+    mctx.strokeStyle = "rgba(255,255,255,0.16)"; mctx.lineWidth = 1.2; mctx.strokeRect(px + 0.6, py + 0.6, Math.max(1, pw - 1.2), Math.max(1, ph - 1.2));
+    if (pw > 18 && ph > 18) {
+      mctx.fillStyle = "rgba(22,26,34,0.38)"; mctx.fillRect(px + pw * 0.22, py + ph * 0.22, pw * 0.56, ph * 0.56);
+      mctx.fillStyle = "rgba(180,190,205,0.22)"; mctx.fillRect(px + pw * 0.32, py + ph * 0.30, pw * 0.16, ph * 0.16);
+    }
+    return;
+  }
+  if (c === "#7a8296") {
+    mctx.fillStyle = "#3f4654"; mctx.fillRect(px, py, pw, ph);
+    return;
+  }
+  mctx.fillStyle = c; mctx.fillRect(px, py, pw, ph);
+};
 let dillTop = null;
 const LANDMARK = { "3,3": "dill", "4,3": "bank", "3,4": "hotel", "4,4": "plaza" };
 const PARKS = new Set();
@@ -2018,9 +2055,39 @@ function updateTrafficLights() {
   if (TOD.lamp > 0.3) for (const s of signLights) dynGlow.add(s[0], s[1], s[2], 1, 0.95, 0.85, 7, 0.35 * TOD.lamp);
 }
 
-// map details: lanes (thin) on the minimap
-mctx.strokeStyle = "rgba(255,255,255,.12)"; mctx.lineWidth = 1;
-for (let k = 0; k <= N; k++) { mctx.beginPath(); mctx.moveTo(m2p(roadC(k)), m2p(-EDGE)); mctx.lineTo(m2p(roadC(k)), m2p(EDGE)); mctx.moveTo(m2p(-EDGE), m2p(roadC(k))); mctx.lineTo(m2p(EDGE), m2p(roadC(k))); mctx.stroke(); }
+// high-detail map cartography: dashed centerlines, intersection crosswalks, pier detail, and helipads
+mctx.save();
+mctx.strokeStyle = "rgba(240,198,84,0.45)"; mctx.lineWidth = 1.6; mctx.setLineDash([7, 7]);
+for (let k = 0; k <= N; k++) {
+  const rk = m2p(roadC(k));
+  mctx.beginPath(); mctx.moveTo(rk, m2p(-EDGE)); mctx.lineTo(rk, m2p(EDGE));
+  mctx.moveTo(m2p(-EDGE), rk); mctx.lineTo(m2p(EDGE), rk); mctx.stroke();
+}
+mctx.setLineDash([]);
+// zebra crosswalks at every street intersection
+mctx.fillStyle = "rgba(235,240,248,0.42)";
+for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+  const ix = m2p(roadC(i)), iz = m2p(roadC(j)), hrp = (HR / (2 * MAPW)) * MAPPX;
+  for (let s = -2; s <= 2; s++) {
+    mctx.fillRect(ix + s * 3.2 - 0.9, iz - hrp - 3, 1.8, 4.5);
+    mctx.fillRect(ix + s * 3.2 - 0.9, iz + hrp - 1.5, 1.8, 4.5);
+    mctx.fillRect(ix - hrp - 3, iz + s * 3.2 - 0.9, 4.5, 1.8);
+    mctx.fillRect(ix + hrp - 1.5, iz + s * 3.2 - 0.9, 4.5, 1.8);
+  }
+}
+// Pepino Pier planks & Ferris wheel icon
+mctx.strokeStyle = "rgba(65,45,25,0.45)"; mctx.lineWidth = 1.4;
+for (let pz = PIER.z0; pz <= PIER.z1; pz += 6) { const py = m2p(pz); mctx.beginPath(); mctx.moveTo(m2p(PIER.x - PIER.w / 2), py); mctx.lineTo(m2p(PIER.x + PIER.w / 2), py); mctx.stroke(); }
+mctx.strokeStyle = "rgba(255,220,110,0.85)"; mctx.lineWidth = 2.4;
+mctx.beginPath(); mctx.arc(m2p(PIER.x), m2p(PIER.z1 - 24), 11, 0, Math.PI * 2); mctx.stroke();
+// rooftop H helipads
+for (const hp of helipads) {
+  const hx = m2p(hp[0]), hz = m2p(hp[2]);
+  mctx.fillStyle = "#2b313c"; mctx.beginPath(); mctx.arc(hx, hz, 8, 0, Math.PI * 2); mctx.fill();
+  mctx.strokeStyle = "#f2c94c"; mctx.lineWidth = 1.6; mctx.stroke();
+  mctx.fillStyle = "#f2c94c"; mctx.font = "700 10px 'Barlow Condensed', sans-serif"; mctx.textAlign = "center"; mctx.textBaseline = "middle"; mctx.fillText("H", hx, hz + 0.5);
+}
+mctx.restore();
 
 /* =====================================================================
    vehicles & pedestrians (merged geometry, vertex colours)
@@ -4305,7 +4372,16 @@ function drawMinimap() {
   };
   for (let i = 0; i < PICKLES.length; i++) if (!PICKLES[i].got) blip(PICKLES[i].x, PICKLES[i].z, blipCol("pickle"), 3.2, false);
   for (const p of PICKUPS) if (p.cd <= 0) blip(p.x, p.z, blipCol(p.kind), p.kind === "nuke" ? 5 : 3, p.kind === "nuke", p.kind === "party" ? "sq" : null);
-  for (const c of cops) blip(c.x, c.z, Math.floor(gameTime * 6) % 2 ? blipCol("copA") : blipCol("copB"), 4.8, true, S.cbBlips ? "sq" : null);
+  // GTA V police radar vision cones
+  for (const c of cops) {
+    if (c.blown || c.leaving) continue;
+    const [cx, cy] = toMap(c.x, c.z);
+    if (cx < -40 || cx > Wd + 40 || cy < -40 || cy > Ht + 40) continue;
+    const ang = phi + Math.atan2(Math.sin(c.h), Math.cos(c.h)) - Math.PI / 2;
+    ctx.fillStyle = Math.floor(gameTime * 6) % 2 ? "rgba(255,42,58,0.22)" : "rgba(58,107,255,0.22)";
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 34 * sc, ang - 0.45, ang + 0.45); ctx.closePath(); ctx.fill();
+  }
+  for (const c of cops) if (!c.blown) blip(c.x, c.z, Math.floor(gameTime * 6) % 2 ? blipCol("copA") : blipCol("copB"), 4.8, true, S.cbBlips ? "sq" : null);
   if (D.onFoot) blip(P.x, P.z, blipCol("car"), 4, false);
   if (WAYPOINT) blip(WAYPOINT.x, WAYPOINT.z, blipCol("wp"), 5.5, true);
   if (window.__ambReady && EVT.cur && EVT.cur.x != null) blip(EVT.cur.x, EVT.cur.z, "#3888d8", 5.5, true, "sq");
@@ -6057,25 +6133,55 @@ function outerRoadName(x, z) {
 const WMAP = { S: 3800, x0: -1900, z0: -1950, px: 2048 };
 const [WMAPCV, wmx] = mkCanvas(WMAP.px, WMAP.px);
 {
-  const k = WMAP.px / WMAP.S, cell = 8, ctx = wmx;
-  ctx.fillStyle = "#1a5a86"; ctx.fillRect(0, 0, WMAP.px, WMAP.px);
+  const k = WMAP.px / WMAP.S, cell = 4, ctx = wmx;
+  const wx = (x) => (x - WMAP.x0) * k, wz = (z) => (z - WMAP.z0) * k;
+  // Deep ocean bathymetry gradient
+  const seaG = ctx.createLinearGradient(0, 0, 0, WMAP.px);
+  seaG.addColorStop(0, "#133452"); seaG.addColorStop(0.55, "#19486e"); seaG.addColorStop(1, "#0f2b45");
+  ctx.fillStyle = seaG; ctx.fillRect(0, 0, WMAP.px, WMAP.px);
   for (let py = 0; py < WMAP.px; py += cell) for (let px = 0; px < WMAP.px; px += cell) {
     const x = WMAP.x0 + (px + cell / 2) / k, z = WMAP.z0 + (py + cell / 2) / k;
-    if (x < WORLD.x0 - 40 || x > WORLD.x1 + 40 || z < WORLD.z0 - 40) { ctx.fillStyle = "#2c3d52"; ctx.fillRect(px, py, cell, cell); continue; }
-    const h = terrainRaw(x, z); if (h < -0.6 || z > SEA + 4) continue;
-    const b = biome(x, z), hs = clamp((terrainRaw(x + 6, z - 6) - h) * 0.08, -0.25, 0.25);
-    const base = z > SEA - 34 ? [214, 192, 140] : b === "desert" ? [216, 172, 116] : b === "port" ? [128, 128, 126] : b === "hills" ? [124, 138, 76] : b === "suburb" ? [96, 146, 72] : b === "bay" ? [200, 186, 140] : [92, 136, 70];
-    const sh = 1 - hs + Math.min(0.25, h / 400);
-    ctx.fillStyle = `rgb(${Math.round(base[0] * sh)},${Math.round(base[1] * sh)},${Math.round(base[2] * sh)})`; ctx.fillRect(px, py, cell, cell);
+    if (x < WORLD.x0 - 40 || x > WORLD.x1 + 40 || z < WORLD.z0 - 40) { ctx.fillStyle = "#182433"; ctx.fillRect(px, py, cell, cell); continue; }
+    const h = terrainRaw(x, z);
+    if (h < -0.6 || z > SEA + 4) {
+      // Coastal shallow water shelf & bathymetry contour
+      if (h > -5.5 && z <= SEA + 48) { ctx.fillStyle = h > -2.2 ? "#2e7a9c" : "#226185"; ctx.fillRect(px, py, cell, cell); }
+      continue;
+    }
+    const b = biome(x, z), hs = clamp((terrainRaw(x + 5, z - 5) - h) * 0.09, -0.28, 0.28);
+    const base = z > SEA - 34 ? [206, 186, 138] : b === "desert" ? [196, 162, 118] : b === "port" ? [104, 110, 118] : b === "hills" ? [112, 126, 78] : b === "suburb" ? [94, 130, 76] : b === "bay" ? [184, 174, 136] : [88, 122, 74];
+    const sh = 1 - hs + Math.min(0.24, h / 380);
+    // Crisp topographic elevation contour lines every 16m
+    const cont = h > 10 && Math.abs((h % 16) - 8) > 7.1 ? 0.82 : 1;
+    // Shoreline surf edge
+    const surf = h < 1.1 || (z > SEA - 4 && z <= SEA + 4);
+    ctx.fillStyle = surf ? "rgba(218,240,252,0.58)" : `rgb(${Math.round(base[0] * sh * cont)},${Math.round(base[1] * sh * cont)},${Math.round(base[2] * sh * cont)})`;
+    ctx.fillRect(px, py, cell, cell);
   }
+  // Port of Brine docks, shipping berths & container yard blocks
+  ctx.fillStyle = "#4c535f"; ctx.fillRect(wx(1040), wz(-140), 540 * k, 460 * k);
+  ctx.strokeStyle = "rgba(255,255,255,0.22)"; ctx.lineWidth = 2; ctx.strokeRect(wx(1040), wz(-140), 540 * k, 460 * k);
+  const contCols = ["#a83228", "#2d6496", "#c48428", "#3d7a4a", "#6e4c8a"];
+  for (let row = 0; row < 6; row++) for (let col = 0; col < 5; col++) {
+    ctx.fillStyle = contCols[(row + col) % contCols.length];
+    ctx.fillRect(wx(1110 + col * 52), wz(-70 + row * 48), 38 * k, 22 * k);
+  }
+  // Salt Flats gas station & desert runway strip
+  ctx.fillStyle = "#525864"; ctx.fillRect(wx(GAS.x - 42), wz(-1115), 84 * k, 58 * k);
+  ctx.fillStyle = "#e6b83a"; ctx.fillRect(wx(GAS.x - 20), wz(-1096), 40 * k, 18 * k);
+  // 3-pass highway & road network: dark casing, asphalt fill, and crisp yellow/white centerlines
   ctx.lineCap = "round"; ctx.lineJoin = "round";
-  for (const pass of [0, 1]) for (const e of REDGES) {
-    ctx.strokeStyle = pass ? (e.kind === "fwy" ? "#ffd38a" : e.kind === "tunnel" ? "#8c8780" : "#e9e6df") : "rgba(20,10,30,.55)"; ctx.lineWidth = (e.w + (pass ? 0 : 6)) * k;
-    ctx.beginPath(); e.pts.forEach((p, i) => { const X = (p[0] - WMAP.x0) * k, Y = (p[1] - WMAP.z0) * k; i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke();
+  for (const pass of [0, 1, 2]) for (const e of REDGES) {
+    if (pass === 0) { ctx.strokeStyle = "rgba(10,14,22,0.82)"; ctx.lineWidth = (e.w + 7) * k; ctx.setLineDash([]); }
+    else if (pass === 1) { ctx.strokeStyle = e.kind === "fwy" ? "#4e5564" : e.kind === "tunnel" ? "#6c6966" : "#646c7a"; ctx.lineWidth = e.w * k; ctx.setLineDash(e.kind === "tunnel" ? [6, 5] : []); }
+    else { ctx.strokeStyle = e.kind === "fwy" ? "#f2c94c" : "rgba(255,255,255,0.45)"; ctx.lineWidth = Math.max(1.2, (e.kind === "fwy" ? 2.4 : 1.3) * k); ctx.setLineDash(e.kind === "fwy" ? [] : [5, 5]); }
+    ctx.beginPath(); e.pts.forEach((p, i) => { const X = wx(p[0]), Y = wz(p[1]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.stroke();
   }
+  ctx.setLineDash([]);
+  // Overlay 2048x2048 high-detail downtown city map
   ctx.drawImage(mapCv, (-MAPW - WMAP.x0) * k, (-MAPW - WMAP.z0) * k, 2 * MAPW * k, 2 * MAPW * k);
-  // sign and landmarks
-  ctx.fillStyle = "#fff"; ctx.fillRect((HSIGN.x - 70 - WMAP.x0) * k, (HSIGN.z - 2 - WMAP.z0) * k, 140 * k, 4 * k);
+  // LOS PEPINOS hillside sign landmark
+  ctx.fillStyle = "#fff"; ctx.fillRect(wx(HSIGN.x - 70), wz(HSIGN.z - 3), 140 * k, 6 * k);
 }
 const OUT_LABELS = [["Los Pepinos Hills", 0, -1150], ["Pepino Peak", 0, -1620], ["Salt Flats", 1300, -1350], ["Port of Brine", 1180, 80], ["Cucumber Heights", -1350, -180], ["Brine Bay", -862, -500], ["Northgate", 0, -540], ["Pickle Ridge", 700, -900], ["Dill Bridge", -862, 30]];
 /* outer golden pickles + ramps on the desert highway */
@@ -6703,51 +6809,138 @@ const DLABELS = (() => {
   return out;
 })();
 function mapScale(w, h) { return Math.min(w, h) / (2 * MAPW) * MAPV.zoom; }
+const MAP_POIS = [
+  ["H", "Dill Tower Helipad", roadC(3) + CELL / 2, roadC(3) + CELL / 2, "#f2c94c"],
+  ["$", "Brine Bank", roadC(4) + CELL / 2, roadC(3) + CELL / 2, "#58c96b"],
+  ["P", "Crunch Park", roadC(4) + CELL / 2, roadC(4) + CELL / 2, "#5cb86e"],
+  ["F", "Salt Flats Fuel", GAS.x, -1084, "#ff9f43"],
+  ["⚓", "Port of Brine", 1220, 120, "#5cb4ff"],
+  ["◎", "Pepino Pier Wheel", PIER.x, PIER.z1 - 24, "#ffd166"],
+  ["★", "Los Pepinos Sign", HSIGN.x, HSIGN.z, "#ffffff"]
+];
+const HWY_SHIELDS = [
+  ["I-5", -520, -490, "#2457a6", "#c82828"],
+  ["I-5", 520, -490, "#2457a6", "#c82828"],
+  ["HWY 1", -862, 30, "#2e7a48", "#1c4d2d"],
+  ["RT 66", 1180, -1100, "#d99b26", "#222428"]
+];
 function drawBigMap() {
   const cv = $("bigmap"), r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
   if (r.width < 10) return;
   const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
   if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
   const ctx = cv.getContext("2d"), sc = mapScale(w, h), tx = (x) => w / 2 + (x - MAPV.cx) * sc, tz = (z) => h / 2 + (z - MAPV.cz) * sc;
-  const bg = ctx.createLinearGradient(0, 0, w, h); bg.addColorStop(0, "#1b2a5a"); bg.addColorStop(0.55, "#2a1d55"); bg.addColorStop(1, "#43205a");
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+  // Crisp GTA V ocean / atlas backdrop (no muddy purple wash)
+  ctx.fillStyle = "#112f4a"; ctx.fillRect(0, 0, w, h);
   ctx.save(); ctx.translate(w / 2, h / 2); ctx.scale(sc, sc); ctx.translate(-MAPV.cx, -MAPV.cz);
-  ctx.filter = "saturate(1.35) contrast(1.06) brightness(1.08)"; ctx.imageSmoothingEnabled = true; ctx.drawImage(WMAPCV, WMAP.x0, WMAP.z0, WMAP.S, WMAP.S); ctx.drawImage(mapCv, -MAPW, -MAPW, 2 * MAPW, 2 * MAPW); ctx.filter = "none";
-  ctx.globalCompositeOperation = "soft-light"; const g2 = ctx.createLinearGradient(-1800, -1800, 1800, 1800); g2.addColorStop(0, "#7b3cff"); g2.addColorStop(0.5, "#ff3d8b"); g2.addColorStop(1, "#ff8a3d"); ctx.fillStyle = g2; ctx.globalAlpha = 0.6; ctx.fillRect(WMAP.x0, WMAP.z0, WMAP.S, WMAP.S); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(WMAPCV, WMAP.x0, WMAP.z0, WMAP.S, WMAP.S);
+  ctx.drawImage(mapCv, -MAPW, -MAPW, 2 * MAPW, 2 * MAPW);
   const k = 1 / sc;
-  if (mission) strokeRoute(ctx, mission.route || routePts(mission.x, mission.z), [[9 * k, "rgba(30,0,50,.55)"], [5 * k, "#b45cff"]]);
-  if (WAYPOINT) strokeRoute(ctx, routePts(WAYPOINT.x, WAYPOINT.z), [[9 * k, "rgba(50,0,20,.55)"], [5 * k, blipCol("wp")]]);
+  // Subtle tactical coordinate grid (every 400m)
+  ctx.strokeStyle = "rgba(255,255,255,0.09)"; ctx.lineWidth = 1 * k;
+  ctx.beginPath();
+  for (let gx = -1600; gx <= 1600; gx += 400) { ctx.moveTo(gx, -1800); ctx.lineTo(gx, 1200); }
+  for (let gz = -1800; gz <= 1200; gz += 400) { ctx.moveTo(-1600, gz); ctx.lineTo(1600, gz); }
+  ctx.stroke();
+  if (mission) strokeRoute(ctx, mission.route || routePts(mission.x, mission.z), [[9 * k, "rgba(0,0,0,.75)"], [5 * k, "#f2c94c"]]);
+  if (WAYPOINT) strokeRoute(ctx, routePts(WAYPOINT.x, WAYPOINT.z), [[9 * k, "rgba(0,0,0,.75)"], [5 * k, blipCol("wp")]]);
   ctx.restore();
-  // district labels
+  // Zoom-adaptive street names along downtown boulevards & avenues
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  const fs = clamp(12 * dpr * Math.sqrt(MAPV.zoom), 11 * dpr, 26 * dpr);
+  if (MAPV.zoom >= 1.1) {
+    const sfs = clamp(9.5 * dpr * Math.sqrt(MAPV.zoom * 0.7), 9 * dpr, 14 * dpr);
+    ctx.font = `700 ${sfs}px 'Barlow Condensed', sans-serif`;
+    ctx.lineWidth = 3 * dpr; ctx.strokeStyle = "rgba(10,14,20,0.88)"; ctx.fillStyle = "rgba(232,238,248,0.88)";
+    for (let j = 0; j <= N; j++) {
+      const sy = tz(roadC(j)); if (sy < 12 || sy > h - 12) continue;
+      for (const bx of [-220, 60, 260]) {
+        const sx = tx(bx); if (sx < 30 || sx > w - 30) continue;
+        ctx.strokeText(HROADS[j].toUpperCase(), sx, sy); ctx.fillText(HROADS[j].toUpperCase(), sx, sy);
+      }
+    }
+    for (let i = 0; i <= N; i++) {
+      const sx = tx(roadC(i)); if (sx < 12 || sx > w - 12) continue;
+      for (const bz of [-200, 120]) {
+        const sy = tz(bz); if (sy < 30 || sy > h - 30) continue;
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(-Math.PI / 2);
+        ctx.strokeText(VROADS[i].toUpperCase(), 0, 0); ctx.fillText(VROADS[i].toUpperCase(), 0, 0);
+        ctx.restore();
+      }
+    }
+  }
+  // District labels (declutter inner sub-districts when zoomed out to regional view)
+  const fs = clamp(12.5 * dpr * Math.sqrt(MAPV.zoom), 11 * dpr, 25 * dpr);
   for (const [n, x, z] of DLABELS) {
+    const inner = Math.abs(x) < EDGE - 10 && Math.abs(z) < EDGE - 10;
+    if (inner && MAPV.zoom < 0.72) continue;
     const sx = tx(x), sy = tz(z); if (sx < -100 || sx > w + 100 || sy < -30 || sy > h + 30) continue;
-    ctx.font = `${fs}px Anton, Impact, sans-serif`; ctx.lineWidth = 4 * dpr; ctx.strokeStyle = "rgba(20,6,34,.75)"; ctx.fillStyle = n.includes("Ocean") ? "rgba(160,220,255,.75)" : "#fff";
+    ctx.font = `700 ${fs}px 'Barlow Condensed', Impact, sans-serif`; ctx.lineWidth = 4 * dpr; ctx.strokeStyle = "rgba(8,12,18,.82)";
+    ctx.fillStyle = n.includes("Ocean") ? "rgba(148,214,255,.78)" : "rgba(255,255,255,0.92)";
     const t = n.toUpperCase().split("").join(String.fromCharCode(8202)); ctx.strokeText(t, sx, sy); ctx.fillText(t, sx, sy);
   }
+  if (MAPV.zoom < 0.72) {
+    const sx = tx(0), sy = tz(0);
+    ctx.font = `700 ${16 * dpr}px 'Barlow Condensed', Impact, sans-serif`; ctx.lineWidth = 5 * dpr; ctx.strokeStyle = "rgba(8,12,18,.9)"; ctx.fillStyle = "#fff";
+    ctx.strokeText("LOS PEPINOS", sx, sy); ctx.fillText("LOS PEPINOS", sx, sy);
+  }
+  // Highway route shields (I-5, HWY 1, RT 66)
+  for (const [code, x, z, bgc, topc] of HWY_SHIELDS) {
+    const sx = tx(x), sy = tz(z); if (sx < -30 || sx > w + 30 || sy < -30 || sy > h + 30) continue;
+    const sw = 28 * dpr, sh = 19 * dpr;
+    ctx.fillStyle = bgc; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.6 * dpr;
+    ctx.fillRect(sx - sw / 2, sy - sh / 2, sw, sh);
+    ctx.fillStyle = topc; ctx.fillRect(sx - sw / 2, sy - sh / 2, sw, sh * 0.34);
+    ctx.strokeRect(sx - sw / 2, sy - sh / 2, sw, sh);
+    ctx.fillStyle = "#fff"; ctx.font = `700 ${9.5 * dpr}px 'Barlow Condensed', sans-serif`;
+    ctx.fillText(code, sx, sy + sh * 0.14);
+  }
+  // POI landmark badges
+  for (const [ic, label, x, z, col] of MAP_POIS) {
+    const sx = tx(x), sy = tz(z); if (sx < -24 || sx > w + 24 || sy < -24 || sy > h + 24) continue;
+    const pr = 8.5 * dpr;
+    ctx.fillStyle = "rgba(12,15,20,0.9)"; ctx.strokeStyle = col; ctx.lineWidth = 1.8 * dpr;
+    ctx.beginPath(); ctx.arc(sx, sy, pr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = col; ctx.font = `700 ${10 * dpr}px 'Barlow Condensed', sans-serif`; ctx.fillText(ic, sx, sy + 0.5 * dpr);
+    if (MAPV.zoom >= 1.45) {
+      ctx.font = `600 ${9 * dpr}px 'Barlow Condensed', sans-serif`; ctx.lineWidth = 2.5 * dpr; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.fillStyle = "#e8edf5";
+      ctx.strokeText(label.toUpperCase(), sx, sy + pr + 7 * dpr); ctx.fillText(label.toUpperCase(), sx, sy + pr + 7 * dpr);
+    }
+  }
+  // Live blips
   const blip = (x, z, col, r, shape) => { const sx = tx(x), sy = tz(z); if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) return; r *= dpr; ctx.fillStyle = col; ctx.strokeStyle = "#0b0610"; ctx.lineWidth = 2 * dpr; ctx.beginPath();
     if (shape === "star") { for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr); } ctx.closePath(); }
     else if (shape === "sq") ctx.rect(sx - r, sy - r, 2 * r, 2 * r); else if (shape === "pin") { ctx.arc(sx, sy - r * 1.6, r, Math.PI * 0.85, Math.PI * 2.15); ctx.lineTo(sx, sy); ctx.closePath(); } else ctx.arc(sx, sy, r, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke(); };
   for (const p of PICKLES) if (!p.got) blip(p.x, p.z, blipCol("pickle"), 5);
   for (const p of PICKUPS) if (p.cd <= 0) blip(p.x, p.z, blipCol(p.kind), p.kind === "nuke" ? 7 : 4.5, p.kind === "party" ? "sq" : null);
-  const cbl = Math.floor(performance.now() / 300) % 2; for (const c of cops) blip(c.x, c.z, cbl ? blipCol("copA") : blipCol("copB"), 6, S.cbBlips ? "sq" : null);
+  const cbl = Math.floor(performance.now() / 300) % 2; for (const c of cops) if (!c.blown) blip(c.x, c.z, cbl ? blipCol("copA") : blipCol("copB"), 6, S.cbBlips ? "sq" : null);
   if (D.onFoot) blip(P.x, P.z, blipCol("car"), 5);
   if (mission) blip(mission.x, mission.z, mission.stage === "pickup" ? blipCol("pickup") : blipCol("drop"), 11, "star");
   if (WAYPOINT) blip(WAYPOINT.x, WAYPOINT.z, blipCol("wp"), 7, "pin");
-  // you
-  ctx.save(); ctx.translate(tx(ME.x), tz(ME.z)); ctx.rotate(-(ME.h || 0) + Math.PI); ctx.scale(dpr * 1.3, dpr * 1.3); ctx.fillStyle = "#fff"; ctx.strokeStyle = "#0b0610"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(8, 8); ctx.lineTo(0, 3); ctx.lineTo(-8, 8); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  // Player arrow
+  ctx.save(); ctx.translate(tx(ME.x), tz(ME.z)); ctx.rotate(-(ME.h || 0) + Math.PI); ctx.scale(dpr * 1.35, dpr * 1.35); ctx.fillStyle = "#fff"; ctx.strokeStyle = "#0b0610"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(8, 8); ctx.lineTo(0, 3); ctx.lineTo(-8, 8); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  // Dynamic metric scale bar (bottom-right)
+  const targetM = MAPV.zoom > 2.4 ? 100 : MAPV.zoom > 0.9 ? 250 : 500, barW = targetM * sc;
+  const bx = w - 18 * dpr - barW, by = h - 18 * dpr;
+  ctx.fillStyle = "rgba(0,0,0,0.72)"; ctx.fillRect(bx - 6 * dpr, by - 16 * dpr, barW + 12 * dpr, 22 * dpr);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * dpr;
+  ctx.beginPath(); ctx.moveTo(bx, by - 4 * dpr); ctx.lineTo(bx, by); ctx.lineTo(bx + barW, by); ctx.lineTo(bx + barW, by - 4 * dpr); ctx.stroke();
+  ctx.fillStyle = "#fff"; ctx.font = `700 ${10 * dpr}px 'Barlow Condensed', sans-serif`; ctx.textAlign = "center"; ctx.fillText(targetM + " M", bx + barW / 2, by - 8 * dpr);
 }
 function legend() {
-  const L = [["You", "#fff"], ["Your car", blipCol("car")], ["Crate pickup", blipCol("pickup"), "st"], ["Drop-off", blipCol("drop"), "st"], ["Waypoint", blipCol("wp")], ["Golden pickle", blipCol("pickle")], ["Party crate", blipCol("party"), "sq"], ["Water jug", blipCol("water")], ["Potato sack", blipCol("potato")], ["Piss nuke", blipCol("nuke")], ["Police", blipCol("copA"), S.cbBlips ? "sq" : ""]];
+  const L = [["You", "#fff"], ["Your car", blipCol("car")], ["Mission pickup", blipCol("pickup"), "st"], ["Drop-off", blipCol("drop"), "st"], ["Waypoint", blipCol("wp")], ["Golden pickle", blipCol("pickle")], ["Ammo / Weapons", blipCol("party"), "sq"], ["Helipad / Bank / Fuel", "#f2c94c"], ["Police", blipCol("copA"), S.cbBlips ? "sq" : ""]];
   $("legendList").innerHTML = L.map(([n, c, s]) => `<div class="li"><i class="${s || ""}" style="background:${c}"></i>${n}</div>`).join("") + `<p style="font:500 12px/1.5 var(--body);color:rgba(255,255,255,.6);margin-top:12px">Districts: ${DLABELS.filter((d) => !d[0].includes("Ocean")).map((d) => d[0]).join(" · ")}</p>`;
 }
 {
-  const wrap = $("bigmapwrap"), cv = $("bigmap");
+  const wrap = $("bigmapwrap"), cv = $("bigmap"), hintEl = wrap.querySelector(".hint");
   const toWorld = (e) => { const r = cv.getBoundingClientRect(), dpr = cv.width / r.width, sc = mapScale(cv.width, cv.height); return [MAPV.cx + ((e.clientX - r.left) * dpr - cv.width / 2) / sc, MAPV.cz + ((e.clientY - r.top) * dpr - cv.height / 2) / sc]; };
   wrap.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) return; MAPV.drag = { x: e.clientX, y: e.clientY, cx: MAPV.cx, cz: MAPV.cz, moved: 0 }; wrap.setPointerCapture(e.pointerId); });
-  wrap.addEventListener("pointermove", (e) => { const d = MAPV.drag; if (!d) return; const r = cv.getBoundingClientRect(), sc = mapScale(cv.width, cv.height) * r.width / cv.width; d.moved = Math.max(d.moved, Math.hypot(e.clientX - d.x, e.clientY - d.y)); MAPV.cx = d.cx - (e.clientX - d.x) / sc; MAPV.cz = d.cz - (e.clientY - d.y) / sc; drawBigMap(); });
+  wrap.addEventListener("pointermove", (e) => {
+    const [wx, wz] = toWorld(e);
+    if (hintEl) { const distM = Math.round(Math.hypot(wx - ME.x, wz - ME.z)); hintEl.textContent = `${district(wx, wz).toUpperCase()} · ${distM}M AWAY · CLICK: WAYPOINT · DRAG: PAN · SCROLL: ZOOM`; }
+    const d = MAPV.drag; if (!d) return; const r = cv.getBoundingClientRect(), sc = mapScale(cv.width, cv.height) * r.width / cv.width; d.moved = Math.max(d.moved, Math.hypot(e.clientX - d.x, e.clientY - d.y)); MAPV.cx = d.cx - (e.clientX - d.x) / sc; MAPV.cz = d.cz - (e.clientY - d.y) / sc; drawBigMap();
+  });
   wrap.addEventListener("pointerup", (e) => { const d = MAPV.drag; MAPV.drag = null; if (!d || d.moved > 5) return; const [x, z] = toWorld(e); if (WAYPOINT && Math.hypot(WAYPOINT.x - x, WAYPOINT.z - z) < 14 / mapScale(1, 1) * 0.02 + 12) setWaypoint(null); else setWaypoint(clamp(x, -WALLD + 4, WALLD - 4), clamp(z, -WALLD + 4, SEA + 120)); drawBigMap(); });
   wrap.addEventListener("wheel", (e) => { e.preventDefault(); const [x0, z0] = toWorld(e); MAPV.zoom = clamp(MAPV.zoom * (e.deltaY > 0 ? 1 / 1.15 : 1.15), 0.15, 7); const [x1, z1] = toWorld(e); MAPV.cx += x0 - x1; MAPV.cz += z0 - z1; drawBigMap(); }, { passive: false });
   $("zin").addEventListener("click", () => { MAPV.zoom = Math.min(7, MAPV.zoom * 1.3); drawBigMap(); });
