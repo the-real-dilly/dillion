@@ -61,7 +61,7 @@ async function boot() {
 }
 const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
 function fatal(msg) { const f = $("fatal"); f.textContent = msg; f.classList.remove("hidden"); $("boot").classList.add("hidden"); }
-function pickPreset() { return S.time === "random" ? (Math.random() < 0.6 ? "golden" : "overcast") : S.time; }
+function pickPreset() { if (S.time !== "random") return S.time; const r = Math.random(); return r < 0.5 ? "daylight" : r < 0.8 ? "golden" : "overcast"; }
 
 // ---------------------------------------------------------------------------------------------
 // operator preview on the title screen (scissor render after the post stack)

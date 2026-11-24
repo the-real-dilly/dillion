@@ -54,7 +54,7 @@ export function initFX() {
   FX.shellMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.012, 0.012, 0.05, 6).rotateZ(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xc8a050, metalness: 0.9, roughness: 0.3 }), 64);
   FX.shellMesh.frustumCulled = false; FX.shells = []; R.scene.add(FX.shellMesh); FX.shellMesh.count = 0;
   // gas wall
-  const gu = FX.gasU = { time: { value: 0 }, col: { value: new THREE.Color(0xd2662a) }, r: { value: 500 }, inside: { value: 0 } };
+  const gu = FX.gasU = { time: { value: 0 }, col: { value: new THREE.Color(0xc8783a) }, r: { value: 500 }, inside: { value: 0 } };
   const gm = new THREE.ShaderMaterial({
     uniforms: gu, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
     vertexShader: `varying vec3 vW; varying vec2 vUv; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
@@ -68,7 +68,8 @@ export function initFX() {
         float a = (0.18 + n * 0.32) * hfade;
         float band = smoothstep(0.0, 6.0, vW.y) * (1.0 - smoothstep(6.0, 14.0, vW.y)) * 0.25;
         vec3 c = col * (0.7 + n * 0.6) * 1.4;
-        gl_FragColor = vec4(c, clamp(a + band, 0.0, 0.8));
+        float far = smoothstep(120.0, 900.0, distance(cameraPosition, vW));
+        gl_FragColor = vec4(c, clamp(a + band, 0.0, 0.8) * mix(1.0, 0.22, far));
       }`
   });
   FX.gasWall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 700, 96, 1, true).translate(0, 330, 0), gm); FX.gasWall.renderOrder = 3; FX.gasWall.frustumCulled = false; R.scene.add(FX.gasWall);
