@@ -80,7 +80,8 @@ views.home = () => {
     <a class="promo-shot" href="dilly-gone-mad.html?v=20261120024213#play"><img src="img/dilly-gone-mad.jpg?v=20261120024213" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: Dilly waves next to a cherry-red convertible on a sunset city street lined with palms and high-rises."></a>
     <div class="promo-copy">
       <p class="eyebrow">New game <span class="tag">OUT NOW</span></p>
-      <h2>Dilly Gone Mad</h2>
+      <img class="promo-logo" src="assets/brand/dg-logo.png" width="1200" height="524" alt="Dilly Gone Mad logo: a silver D and gold G over a mountain peak." loading="lazy">
+      <h2 class="sr-only">Dilly Gone Mad</h2>
       <p>A cinematic 3D open-world romp through the sunset city of Los Pepinos. Chase cams, police pursuits, stunt jumps and a radio full of brine.</p>
       <div class="row"><a class="btn big" href="dilly-gone-mad.html?v=20261120024213#play">Play now</a><a class="btn ghost" href="dilly-gone-mad.html?v=20261120024213#trailer">▶ Trailer</a></div>
       <p class="sub small-note">Free in your browser. Desktop + keyboard; press Q to switch graphics quality.</p>

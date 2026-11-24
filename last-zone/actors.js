@@ -253,8 +253,8 @@ export class Avatar {
     if (this.gun && ground) {
       const hand = B["DEF-handR"]; hand.getWorldPosition(_v);
       const aiming = upper === "Pistol_Aim_Neutral" || p.adsT > 0.2;
-      const gy = yaw + (p.recY || 0), gp = aiming ? p.pitch + (p.recP || 0) : (p.sprint ? -0.9 : -0.55);
-      const yawOff = aiming ? 0 : (p.sprint ? 0.9 : 0.35);
+      const gy = yaw + (p.recY || 0), gp = aiming ? p.pitch + (p.recP || 0) : (p.sprint ? -0.8 : -0.4);
+      const yawOff = aiming ? 0 : (p.sprint ? 0.6 : 0.12);
       this.gunHolder.position.copy(_v);
       const cp = Math.cos(gp); _v2.set(_v.x - Math.sin(gy + yawOff) * cp, _v.y + Math.sin(gp), _v.z - Math.cos(gy + yawOff) * cp);
       this.gunHolder.lookAt(_v2);

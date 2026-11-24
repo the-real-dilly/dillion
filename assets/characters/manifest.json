@@ -1,0 +1,5 @@
+{
+  "note": "Dilly Gone Mad loads an authored character only when it is listed here (this avoids 404 noise when no model exists). After adding assets/characters/dilly.glb, set \"dilly\" to \"assets/characters/dilly.glb\" (and optionally \"dilly_lod1\"). See docs/character-pipeline.md.",
+  "dilly": null,
+  "dilly_lod1": null
+}

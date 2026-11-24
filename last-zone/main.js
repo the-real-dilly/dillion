@@ -374,7 +374,7 @@ function onHit(e, fast) {
     if (e.broke) AUD.sfxPlateBreak();
   }
   if (e.pid === me.id && !fast) {
-    G.hurt = Math.min(1, G.hurt + e.dmg / 60);
+    if (!me.god) G.hurt = Math.min(1, G.hurt + e.dmg / 60);
     if (e.wid !== "gas") { AUD.sfxHurt(e.armor); if (e.by && e.by !== me.id) { const a = Math.atan2(e.ax - me.x, e.az - me.z); const rel = wrapA(-(a - Math.atan2(-Math.sin(G.yaw), -Math.cos(G.yaw)))); HUD.damageDir(rel); } }
     if (e.broke) AUD.sfxPlateBreak();
   }
@@ -445,13 +445,12 @@ function updateCamera(dt) {
     if (G.camMode === "fp" && target === me) {
       cam.position.set(me.x + fx * 0.15, ey, me.z + fz * 0.15);
     } else {
-      const back = lerp(2.6, 1.15, ads), right = lerp(0.62, 0.45, ads), up = lerp(0.18, 0.08, ads);
+      const back = lerp(2.7, 1.6, ads), right = lerp(0.8, 0.66, ads), up = lerp(0.25, 0.16, ads);
       const px = target.x, py = ey, pz = target.z;
-      const tx = px - fx * back + rx * right, ty = py + up - fy * back * 0.9, tz = pz - fz * back + rz * right;
-      // pull the camera in front of walls
-      const dx = tx - px, dy = ty - py, dz = tz - pz, d = Math.hypot(dx, dy, dz);
-      const h = raycast(W, px, py, pz, dx / d, dy / d, dz / d, d + 0.25);
-      const k = h ? Math.max(0.15, (h.t - 0.3) / d) : 1;
+      const test = (sr) => { const tx = px - fx * back + rx * right * sr, ty = py + up - fy * back * 0.9, tz = pz - fz * back + rz * right * sr; const dx = tx - px, dy = ty - py, dz = tz - pz, d = Math.hypot(dx, dy, dz); const h = raycast(W, px, py, pz, dx / d, dy / d, dz / d, d + 0.25); return { dx, dy, dz, k: h ? Math.max(0.12, (h.t - 0.3) / d) : 1 }; };
+      let c = test(G.shoulder || 1);
+      if (c.k < 0.7) { const o = test(-(G.shoulder || 1)); if (o.k > c.k + 0.15) { c = o; G.shoulder = -(G.shoulder || 1); } }
+      const { dx, dy, dz, k } = c;
       cam.position.set(px + dx * k, py + dy * k, pz + dz * k);
     }
     cam.rotation.set(cp, cy, 0, "YXZ");

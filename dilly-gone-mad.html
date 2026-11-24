@@ -663,7 +663,7 @@ function setQuality(level, why) {
   bloom.enabled = hi; cine.enabled = hi; renderPass.enabled = !hi; grade.uniforms.ca.value = hi ? 0.006 : 0;
   sun.shadow.mapSize.set(hi ? 2048 : 1024, hi ? 2048 : 1024);
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
-  resize();
+  resize(); if (window.__humanReady) setHumanQuality(level);
   if (why) toast("QUALITY: " + level.toUpperCase() + (why === "auto" ? " (AUTO)" : ""), "gold");
 }
 function trackFps(dt, rendering) {
@@ -2142,8 +2142,8 @@ function dillyPrims(q, hiRes) {
   cap("head", [-0.045, 0.157, 0.083], [0.045, 0.157, 0.083], 0.0105, 0.0105, "skin", 0.016, { grid: "head" });    // brow ridge
   cap("head", [0, 0.142, 0.09], [0, 0.103, 0.107], 0.0072, 0.0095, "nose", 0.01, { grid: "head" });               // nose bridge
   ell("head", [0, 0.096, 0.106], [0.0115, 0.011, 0.011], "nose", 0.008, [0, 0, 0], { grid: "head" });            // nose tip
-  cap("head", [-0.021, 0.067, 0.094], [0.021, 0.067, 0.094], 0.0062, 0.0062, "lip", 0.009, { grid: "head" });     // upper lip
-  cap("head", [-0.019, 0.0555, 0.092], [0.019, 0.0555, 0.092], 0.0072, 0.0072, "lip", 0.008, { grid: "head", jaw: 1 }); // lower lip
+  cap("head", [-0.02, 0.0665, 0.094], [0.02, 0.0665, 0.094], 0.0054, 0.0054, "lip", 0.009, { grid: "head" });     // upper lip
+  cap("head", [-0.018, 0.0562, 0.092], [0.018, 0.0562, 0.092], 0.006, 0.006, "lip", 0.008, { grid: "head", jaw: 1 }); // lower lip
   add({ bone: "head", t: "cap", a: [-0.024, 0.0615, 0.103], b: [0.024, 0.0615, 0.103], ra: 0.0016, rb: 0.0016, mat: "lip", k: 0.002, op: "sub", grid: "head" }); // mouth line
   cap("head", [0, -0.085, -0.012], [0, 0.06, -0.008], 0.046, 0.044, "skin", 0.02, { grid: "head", neck: 1 });   // neck
   ell("head", [0, 0.02, 0.0], [0.03, 0.03, 0.03], "skin", 0.03, [0, 0, 0], { grid: "head", neck: 1 });        // throat
@@ -2217,6 +2217,7 @@ const HTEX = (() => {
   // hair strands: alpha-tested card texture
   const [hc, hx] = mkCanvas(128, 256); hx.clearRect(0, 0, 128, 256);
   for (let i = 0; i < 140; i++) { const x0 = Math.random() * 128, w = 0.6 + Math.random() * 1.4, l = 150 + Math.random() * 100, hue = 18 + Math.random() * 10, li = 10 + Math.random() * 16; hx.strokeStyle = `hsla(${hue},45%,${li}%,${0.55 + Math.random() * 0.45})`; hx.lineWidth = w; hx.beginPath(); hx.moveTo(x0, 0); hx.bezierCurveTo(x0 + (Math.random() - 0.5) * 12, l * 0.4, x0 + (Math.random() - 0.5) * 18, l * 0.7, x0 + (Math.random() - 0.5) * 20, l); hx.stroke(); }
+  hx.globalCompositeOperation = "destination-in"; const hg = hx.createLinearGradient(0, 0, 128, 0); hg.addColorStop(0, "rgba(0,0,0,0)"); hg.addColorStop(0.3, "rgba(0,0,0,1)"); hg.addColorStop(0.7, "rgba(0,0,0,1)"); hg.addColorStop(1, "rgba(0,0,0,0)"); hx.fillStyle = hg; hx.fillRect(0, 0, 128, 256); const vg = hx.createLinearGradient(0, 0, 0, 256); vg.addColorStop(0, "rgba(0,0,0,1)"); vg.addColorStop(0.6, "rgba(0,0,0,0.9)"); vg.addColorStop(1, "rgba(0,0,0,0)"); hx.fillStyle = vg; hx.fillRect(0, 0, 128, 256); hx.globalCompositeOperation = "source-over";
   const hairT = new THREE.CanvasTexture(hc); hairT.encoding = THREE.sRGBEncoding;
   // eyeball: iris at the +z pole (equirect bands)
   const [ec, ex] = mkCanvas(256, 128); ex.fillStyle = "#f1ece6"; ex.fillRect(0, 0, 256, 128);
@@ -2240,7 +2241,7 @@ const HMAT = {
   teeth: new THREE.MeshPhysicalMaterial({ color: "#f3efe4", roughness: 0.3, clearcoat: 0.6 }),
   tongue: new THREE.MeshPhysicalMaterial({ color: "#b75f63", roughness: 0.45, clearcoat: 0.5 }),
   mouth: new THREE.MeshStandardMaterial({ color: "#3a1414", roughness: 0.9, side: THREE.BackSide }),
-  hair: new THREE.MeshPhysicalMaterial({ map: HTEX.hairT, alphaTest: 0.38, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.35, sheenColor: new THREE.Color("#5a3a26"), sheenRoughness: 0.45, color: "#9a8478" })
+  hair: new THREE.MeshPhysicalMaterial({ map: HTEX.hairT, alphaTest: 0.38, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.35, sheenColor: new THREE.Color("#5a3a26"), sheenRoughness: 0.45, color: "#6e5f58" })
 };
 const MATORDER = ["skin", "hairCap", "fleece", "pants", "gaiter", "boot", "sole"];
 const _sk = new THREE.Color();
@@ -2260,7 +2261,7 @@ function headDetailColor(px, py, pz, c) {
   if (brow > 0.45) c.lerp(_c2.set("#3b2416"), clamp((brow - 0.45) * 1.8, 0, 0.85));
   const stub = g(0, 0.04, 0.07, 0.04) * 0.08; c.multiplyScalar(1 - stub);
   if (pz > 0.083) { const ax = Math.abs(px), up = py > 0.0615, lipW = (up ? 0.02 : 0.018) * (1 - Math.pow(clamp((up ? py - 0.0615 : 0.0615 - py) / (up ? 0.0105 : 0.0115), 0, 1), 2) * 0.35), lipH = up ? 0.0098 - ax * 0.12 : 0.011 - ax * 0.15; const inLip = sstep(lipW + 0.002, lipW - 0.002, ax) * sstep(lipH + 0.0015, lipH - 0.0015, Math.abs(py - 0.0615)); c.lerp(_c2.set("#c27c6e"), inLip * 0.85); }
-  const hl = hairAmt(px, py, pz); if (hl > 0) c.lerp(_c2.set("#2e1c11"), hl);
+  const hl = c.ear ? 0 : hairAmt(px, py, pz); if (hl > 0) c.lerp(_c2.set("#2e1c11"), hl);
   return c;
 }
 const _c2 = new THREE.Color();
@@ -2277,7 +2278,7 @@ function inHairline(x, y, z) {
 /* ---------- build ---------- */
 function buildHumanMesh(quality) {
   const t0 = performance.now(), M = bindMatrices(), all = prepPrims(dillyPrims(quality, quality === "high"), M);
-  const res = quality === "high" ? { body: 0.0235, head: 0.0058, hand: 0.0047 } : { body: 0.032, head: 0.0095, hand: 0.008 };
+  const res = quality === "high" ? { body: 0.026, head: 0.0064, hand: 0.005 } : { body: 0.032, head: 0.0095, hand: 0.008 };
   const grids = ["body", "head", "handL", "handR"];
   const P = [], I = [], LAB = [], BON = [], NOR = [];
   const boneSeg = {}; for (const [n, p] of BONE_DEF) { const o = new THREE.Vector3().setFromMatrixPosition(M[n]); boneSeg[n] = { a: o }; }
@@ -2331,7 +2332,7 @@ function buildHumanMesh(quality) {
     let m = lab === "fleece" ? "fleece" : lab === "pants" ? "pants" : lab === "gaiter" ? "gaiter" : lab === "boot" ? "boot" : lab === "sole" ? "sole" : "skin";
 
     mat[v] = MATORDER.indexOf(m);
-    const c = skinTone(x, y, z, lab === "lip" ? "skin" : lab).clone(); if (q && q.grid === "head") { hv.set(x, y, z).applyMatrix4(headInv); headDetailColor(hv.x, hv.y, hv.z, c); }
+    const c = skinTone(x, y, z, lab === "lip" ? "skin" : lab).clone(); if (q && q.grid === "head") { hv.set(x, y, z).applyMatrix4(headInv); c.ear = lab === "ear"; headDetailColor(hv.x, hv.y, hv.z, c); }
     col[v * 3] = c.r; col[v * 3 + 1] = c.g; col[v * 3 + 2] = c.b;
     // box-projected uvs (fabric weave, pores)
     const nx = Math.abs(NOR[v * 3]), ny = Math.abs(NOR[v * 3 + 1]), sc = m === "skin" || m === "hairCap" ? 24 : 7;
@@ -2372,7 +2373,7 @@ function buildHairCards(n) {
   const surf = (th, ph, off) => { const d = new THREE.Vector3(Math.sin(ph) * Math.cos(th), Math.cos(ph), Math.sin(ph) * Math.sin(th)); const p = new THREE.Vector3(d.x * (R.x + off), d.y * (R.y + off), d.z * (R.z + off)).add(C); return [p, d]; };
   for (let i = 0; i < n; i++) {
     const fringe = i < n * 0.16, th = fringe ? Math.PI / 2 + (r() - 0.5) * 1.3 : r() * Math.PI * 2, ph = fringe ? 0.55 + r() * 0.25 : r() * 1.55;
-    const [p0, d0] = surf(th, ph, 0.004); if (!fringe && !inHairline(p0.x, p0.y - 0.004, p0.z)) continue;
+    const [p0, d0] = surf(th, ph, 0.004); if (!fringe && (!inHairline(p0.x, p0.y - 0.004, p0.z) || p0.y < 0.1)) continue;
     let dir = new THREE.Vector3(-0.5, 0, -1); if (fringe) dir.set(-0.85, -0.35, 0.35); dir.add(new THREE.Vector3(r() - 0.5, (r() - 0.5) * 0.4, r() - 0.5).multiplyScalar(0.7)); dir.sub(d0.clone().multiplyScalar(dir.dot(d0))).normalize();
     const len = fringe ? 0.055 + r() * 0.03 : 0.05 + r() * 0.04, w = 0.012 + r() * 0.01, segs = 5, side = new THREE.Vector3().crossVectors(d0, dir).normalize();
     const b = pos.length / 3; let p = p0.clone(), nrm = d0.clone();
@@ -2382,7 +2383,7 @@ function buildHairCards(n) {
       for (const sgn of [-1, 1]) { const v = q.clone().add(side.clone().multiplyScalar(sgn * ww / 2)); pos.push(v.x, v.y, v.z); nor.push(nrm.x, nrm.y, nrm.z); uvs.push(sgn < 0 ? 0 : 1, 1 - t); }
       // walk along the scalp: step then project back onto the ellipsoid
       p.add(dir.clone().multiplyScalar(len / segs)); const rel = p.clone().sub(C); const dd = new THREE.Vector3(rel.x / R.x, rel.y / R.y, rel.z / R.z).normalize();
-      p.set(dd.x * R.x, dd.y * R.y, dd.z * R.z).add(C); nrm.copy(dd);
+      p.set(dd.x * R.x, dd.y * R.y, dd.z * R.z).add(C); nrm.copy(dd); if (p.y < 0.075) p.y = 0.075;
       if (fringe) dir.y -= 0.18; dir.sub(nrm.clone().multiplyScalar(dir.dot(nrm))).normalize();
     }
     for (let k = 0; k < segs; k++) { const a = b + k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
@@ -2433,6 +2434,14 @@ function buildAvatar() {
   for (const kn of ["kneeL", "kneeR"]) { const st = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.006, 6, 18), HMAT.gaiter); st.rotation.x = Math.PI / 2; st.scale.set(1, 1.9, 1); st.position.set(0, -0.505, 0.06); BB[kn].add(st); }
   return { root, body, hips: J.hips, legs: [J.legL, J.legR], knees: [J.kneeL, J.kneeR], shoulders: [J.shL, J.shR], elbows: [J.elL, J.elR], hands: [J.handL, J.handR], head: J.head, torso: J.torso, phase: 0, idle: 0, J, BB, mesh, hair, face, jaw: BB.jaw, skel };
 }
+const HUMAN_GEO = {};
+function setHumanQuality(level) {
+  const q = level === "low" ? "low" : "high"; if (HUMAN.quality === q) return;
+  if (!HUMAN_GEO[HUMAN.quality]) HUMAN_GEO[HUMAN.quality] = { geo: AVA.mesh.geometry, hair: AVA.hair.geometry };
+  if (!HUMAN_GEO[q]) { const b = buildHumanMesh(q); HUMAN_GEO[q] = { geo: b.geo, hair: buildHairCards(q === "low" ? 160 : 520), tris: b.tris }; }
+  AVA.mesh.geometry = HUMAN_GEO[q].geo; AVA.hair.geometry = HUMAN_GEO[q].hair; HUMAN.quality = q; HUMAN.tris = AVA.mesh.geometry.index.count / 3;
+  if (EXT.model) setExternalVisible(q === "high");
+}
 // copy the animated joints onto the bones; called before rendering
 function syncSkeleton() {
   const A = AVA; for (const [n] of BONE_DEF) { if (n === "jaw") continue; const j = A.J[n], b = A.BB[n]; b.position.copy(j.position); b.quaternion.copy(j.quaternion); b.scale.copy(j.scale); }
@@ -2448,8 +2457,7 @@ function updateFace(dt, t) {
   let lx = FACE.tx, ly = FACE.ty;
   if (mode === "title" || mode === "photo") { A.head.updateWorldMatrix(true, false); const v = camera.position.clone(); A.head.worldToLocal(v); lx = clamp(Math.atan2(v.x, v.z), -0.5, 0.5); ly = clamp(Math.atan2(v.y - 0.135, Math.hypot(v.x, v.z)), -0.3, 0.3); }
   FACE.eyeX += (lx - FACE.eyeX) * Math.min(1, dt * 18); FACE.eyeY += (ly - FACE.eyeY) * Math.min(1, dt * 18);
-  for (const e of A.face.eyes) e.rotation.set(-FACE.eyeY, FACE.eyeX, 0);
-  for (const l of A.face.lids) l.rotation.x = 0.3 - FACE.eyeY * 0.5 + bl * 1.05;
+  if (!EXT.active) { for (const e of A.face.eyes) e.rotation.set(-FACE.eyeY, FACE.eyeX, 0); for (const l of A.face.lids) l.rotation.x = 0.2 - FACE.eyeY * 0.5 + bl * 1.15; }
   // visemes: vowels in the line being spoken drive jaw + lip shapes
   let jaw = 0, oo = 0, ee = 0;
   const cur = window.__voxReady && VOX.cur && VOX.cur.who === "Dilly" ? VOX.cur : null;
@@ -2457,6 +2465,7 @@ function updateFace(dt, t) {
   FACE.jaw += (jaw - FACE.jaw) * Math.min(1, dt * 22); FACE.oo += (oo - FACE.oo) * Math.min(1, dt * 16); FACE.ee += (ee - FACE.ee) * Math.min(1, dt * 16);
   const happy = mode === "title" || (cur && /!/.test(cur.text)) ? 0.6 : 0.15, worried = W.stars > 0 && mode === "game" ? 0.5 : 0;
   FACE.smile += (happy * (1 - worried) - FACE.smile) * Math.min(1, dt * 2); FACE.frown += (worried - FACE.frown) * Math.min(1, dt * 2); FACE.brow += ((cur && /[!?]/.test(cur.text) ? 0.7 : 0) - FACE.brow) * Math.min(1, dt * 4);
+  if (applyFace({ jaw: FACE.jaw, oo: FACE.oo, ee: FACE.ee, smile: FACE.smile, frown: FACE.frown, brow: FACE.brow, blink: bl, eyeX: FACE.eyeX, eyeY: FACE.eyeY })) return;
   A.jaw.rotation.x = FACE.jaw;
   const mi = A.mesh.morphTargetInfluences; mi[0] = FACE.smile; mi[1] = FACE.frown; mi[2] = FACE.brow; mi[3] = FACE.oo * 0.8; mi[4] = FACE.ee * 0.7;
   // hair sway: spring on head yaw changes
@@ -2464,14 +2473,15 @@ function updateFace(dt, t) {
   A.hair.rotation.y = clamp(FACE.hairA, -0.06, 0.06); A.hair.rotation.x = Math.sin(t * 1.3) * 0.004;
 }
 
-const AVA = buildAvatar();
+const AVA = buildAvatar(); window.__humanReady = true;
 const D = { x: 0, y: 0, z: 0, h: 0, vx: 0, vz: 0, v: 0, onFoot: false };
 let ME = null;
 function avatarPose(kind, t, opts = {}) {
   const A = AVA, k = opts.k == null ? 1 : opts.k;
   const set = (o, x, y = 0, z = 0) => { o.rotation.set(lerp(o.rotation.x, x, k), lerp(o.rotation.y, y, k), lerp(o.rotation.z, z, k)); };
   if (kind === "seat") {
-    for (let i = 0; i < 2; i++) { set(A.legs[i], -1.45, 0, (i ? -1 : 1) * 0.08); set(A.knees[i], 1.35); set(A.shoulders[i], -0.95, 0, (i ? -1 : 1) * 0.18); set(A.elbows[i], -0.55, 0, 0); }
+    const st = clamp(opts.steer || 0, -1, 1);
+    for (let i = 0; i < 2; i++) { const sg = i ? -1 : 1; set(A.legs[i], -1.45, 0, sg * 0.08); set(A.knees[i], 1.35); set(A.shoulders[i], -1.05 + st * sg * 0.18, 0, sg * 0.2 + st * 0.16); set(A.elbows[i], -0.75 - st * sg * 0.25, 0, 0); }
     set(A.head, 0, opts.look || 0, 0); set(A.torso, -0.05, 0, 0); set(A.hips, 0, 0, 0);
     A.body.position.set(0, Math.sin(t * 7.5) * 0.008 * (opts.bob || 0), 0); A.torso.scale.y = 1;
     return;
@@ -2491,6 +2501,7 @@ function avatarPose(kind, t, opts = {}) {
     T.legs[0] = [0.02, 0, 0.03 + w * 0.02]; T.legs[1] = [-0.03, 0, -0.03 + w * 0.02]; T.knees[0] = [0.05 + Math.max(0, w) * 0.1, 0, 0]; T.knees[1] = [0.05 + Math.max(0, -w) * 0.1, 0, 0];
     T.sh[0] = [0.04, 0, -0.12]; T.sh[1] = [0.04, 0, 0.12]; T.el[0] = [-0.18, 0, 0]; T.el[1] = [-0.18, 0, 0];
     headT = [0.02 + Math.sin(t * 0.37) * 0.04, Math.sin(t * 0.23) * 0.35 + (opts.look || 0), 0]; hipsT = [0, 0, w * 0.03];
+    if (window.__voxReady && VOX.cur && VOX.cur.who === "Dilly" && kind !== "hero") { const g = Math.sin(t * 2.4), g2 = Math.sin(t * 3.3 + 1); T.sh[1] = [-0.45 + g * 0.18, 0, -0.18]; T.el[1] = [-1.15 + g2 * 0.25, 0, 0]; T.sh[0] = [-0.2 + g2 * 0.1, 0, 0.16]; T.el[0] = [-0.6 + g * 0.15, 0, 0]; headT[0] += g * 0.04; }
   }
   if (kind === "hero") {
     T.sh[1] = [-0.15, 0, 1.45 + Math.sin(t * 1.3) * 0.05]; T.el[1] = [0, 0, 1.35 + Math.sin(t * 5) * 0.32];
@@ -2510,7 +2521,123 @@ function avatarOnFoot(x, z, h) {
   scene.add(AVA.root); D.onFoot = true; D.x = x; D.z = z; D.h = h; D.vx = D.vz = D.v = 0; D.y = groundH(x, z); ME = D;
   AVA.root.position.set(x, D.y + 0.98, z); AVA.root.rotation.set(0, h, 0); avatarPose("stand", 0); if (window.__wepReady) updateWeaponMesh();
 }
-function syncAvatar() { if (D.onFoot) { AVA.root.position.set(D.x, D.y + 0.93, D.z); AVA.root.rotation.set(0, D.h, 0); } syncSkeleton(); }
+function syncAvatar() { if (D.onFoot) { AVA.root.position.set(D.x, D.y + 0.93, D.z); AVA.root.rotation.set(0, D.h, 0); } syncSkeleton(); if (EXT.active) retargetExternal(); }
+
+/* =====================================================================
+   optional authored model: assets/characters/dilly.glb (MetaHuman / CC4
+   export, see docs/character-pipeline.md). If it exists and its rig is
+   recognised (Mixamo or Unreal/MetaHuman bone names) it replaces the
+   procedural mesh; the procedural skeleton keeps driving all animation
+   and is retargeted onto the model each frame. Any failure keeps the
+   procedural Dilly and logs one warning.
+   ===================================================================== */
+const EXT = { active: false, model: null, map: null, morphs: [], eyes: [], tried: false, rig: null };
+const RIGMAPS = {
+  mixamo: { hips: "Hips", torso: "Spine1", head: "Head", neck: "Neck", shL: "LeftArm", elL: "LeftForeArm", handL: "LeftHand", shR: "RightArm", elR: "RightForeArm", handR: "RightHand", legL: "LeftUpLeg", kneeL: "LeftLeg", footL: "LeftFoot", legR: "RightUpLeg", kneeR: "RightLeg", footR: "RightFoot", eyeL: "LeftEye", eyeR: "RightEye" },
+  unreal: { hips: "pelvis", torso: "spine_03", head: "head", neck: "neck_01", shL: "upperarm_l", elL: "lowerarm_l", handL: "hand_l", shR: "upperarm_r", elR: "lowerarm_r", handR: "hand_r", legL: "thigh_l", kneeL: "calf_l", footL: "foot_l", legR: "thigh_r", kneeR: "calf_r", footR: "foot_r", eyeL: "FACIAL_L_Eye", eyeR: "FACIAL_R_Eye" }
+};
+// our joint -> the joint whose position marks the end of that limb segment
+const SEGS = [["shL", "elL"], ["elL", "handL"], ["shR", "elR"], ["elR", "handR"], ["legL", "kneeL"], ["kneeL", "footL"], ["legR", "kneeR"], ["kneeR", "footR"]];
+function findBone(root, want) {
+  let hit = null; const w = want.toLowerCase();
+  root.traverse((o) => { if (hit || !o.isBone) return; const n = o.name.toLowerCase().replace(/^mixamorig[:_]?/, "").replace(/^.*[:|]/, ""); if (n === w) hit = o; });
+  return hit;
+}
+function detectRig(root) {
+  let names = []; root.traverse((o) => { if (o.isBone) names.push(o.name); });
+  if (names.some((n) => /^mixamorig/i.test(n)) || names.includes("Hips")) return "mixamo";
+  if (names.includes("pelvis") && names.some((n) => /upperarm_l/i.test(n))) return "unreal";
+  return null;
+}
+function upgradeMaterials(root, quality) {
+  root.traverse((o) => {
+    if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = true;
+    const fix = (m) => {
+      const n = (m.name || "").toLowerCase(), base = { map: quality === "high" ? m.map : null, normalMap: quality === "high" ? m.normalMap : null, roughnessMap: m.roughnessMap, aoMap: m.aoMap, color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1), name: m.name, skinning: true };
+      delete base.skinning;
+      if (/skin|body|head|face/.test(n)) return new THREE.MeshPhysicalMaterial(Object.assign(base, { roughness: 0.5, clearcoat: 0.12, clearcoatRoughness: 0.45, sheen: 0.55, sheenColor: new THREE.Color("#ff9a84"), sheenRoughness: 0.5 }));
+      if (/eye|cornea/.test(n)) return new THREE.MeshPhysicalMaterial(Object.assign(base, { roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.03, transparent: !!m.transparent, opacity: m.opacity }));
+      if (/hair|brow|lash/.test(n)) return new THREE.MeshPhysicalMaterial(Object.assign(base, { alphaMap: m.alphaMap, alphaTest: 0.38, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.35, sheenColor: new THREE.Color("#5a3a26"), transparent: false }));
+      if (/fleece|top|shirt|jacket/.test(n)) return new THREE.MeshPhysicalMaterial(Object.assign(base, { roughness: 0.95, sheen: 1, sheenColor: new THREE.Color("#fff3dc"), sheenRoughness: 0.75 }));
+      if (/trouser|pant|leg/.test(n)) return new THREE.MeshPhysicalMaterial(Object.assign(base, { roughness: 0.75, sheen: 0.5, sheenColor: new THREE.Color("#ffffff"), sheenRoughness: 0.8 }));
+      if (/boot|shoe|gaiter/.test(n)) return new THREE.MeshPhysicalMaterial(Object.assign(base, { roughness: 0.42, clearcoat: 0.45, clearcoatRoughness: 0.35 }));
+      return m;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
+  });
+}
+const ARKIT = ["jawOpen", "mouthClose", "mouthFunnel", "mouthPucker", "mouthSmile_L", "mouthSmile_R", "mouthFrown_L", "mouthFrown_R", "eyeBlink_L", "eyeBlink_R", "browInnerUp", "browOuterUp_L", "browOuterUp_R", "mouthStretch_L", "mouthStretch_R", "eyeLookUp_L", "eyeLookUp_R", "eyeLookDown_L", "eyeLookDown_R", "eyeLookIn_L", "eyeLookIn_R", "eyeLookOut_L", "eyeLookOut_R"];
+async function loadExternalDilly(urlOverride) {
+  if (EXT.tried) return; EXT.tried = true;
+  let url = urlOverride;
+  try {
+    if (!url) { const man = await fetch("assets/characters/manifest.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null); url = man && man.dilly; }
+    if (!url) return;                         // no authored model listed: keep the procedural Dilly quietly
+    const [{ GLTFLoader }, SU] = await Promise.all([import("./vendor/jsm/loaders/GLTFLoader.js"), import("./vendor/jsm/utils/SkeletonUtils.js")]);
+    const gltf = await new GLTFLoader().loadAsync(url);
+    const model = SU.clone(gltf.scene), rig = detectRig(model);
+    if (!rig) throw new Error("unrecognised skeleton (expected Mixamo or Unreal/MetaHuman bone names)");
+    const names = RIGMAPS[rig], map = {};
+    for (const k in names) { const b = findBone(model, names[k]); if (b) map[k] = b; }
+    for (const k of ["hips", "torso", "head", "shL", "elL", "handL", "shR", "elR", "handR", "legL", "kneeL", "legR", "kneeR"]) if (!map[k]) throw new Error("retarget: missing bone for " + k + " (" + names[k] + ")");
+    // fit: model hips height to ours (body space, before the 0.92 body scale)
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model), hipsY = new THREE.Vector3().setFromMatrixPosition(map.hips.matrixWorld).y - box.min.y;
+    const s = (1.0 + 0.0) / Math.max(0.3, hipsY); // our hips sit ~1.0 body units above the soles
+    model.scale.setScalar(s); model.position.set(0, -box.min.y * s - 1.0, 0);
+    upgradeMaterials(model, Q.level === "low" ? "low" : "high");
+    // rest pose of every mapped bone
+    const rest = {}; for (const k in map) rest[k] = map[k].quaternion.clone();
+    // morph targets (ARKit names)
+    const morphs = []; model.traverse((o) => { if (o.isMesh && o.morphTargetDictionary) { const d = o.morphTargetDictionary, hit = ARKIT.filter((n) => d[n] != null); if (hit.length) morphs.push({ mesh: o, dict: d }); } });
+    Object.assign(EXT, { model, map, rest, rig, morphs, scale: s });
+    AVA.body.add(model);
+    if (Q.level === "low") { model.visible = false; return; } // low tier keeps the cheaper procedural body
+    setExternalVisible(true);
+    window.__extInfo = { rig, bones: Object.keys(map).length, morphs: morphs.map((m) => Object.keys(m.dict).filter((n) => ARKIT.includes(n)).length) };
+  } catch (e) {
+    EXT.active = false; if (EXT.model && EXT.model.parent) EXT.model.parent.remove(EXT.model); EXT.model = null;
+    console.warn("Dilly: couldn't use " + url + ", keeping the procedural character. " + (e && e.message ? e.message : e));
+  }
+}
+function setExternalVisible(on) {
+  if (!EXT.model) return; EXT.active = on; EXT.model.visible = on;
+  AVA.mesh.visible = !on; AVA.hair.visible = !on; for (const k of ["eyes", "lids", "lower"]) for (const o of AVA.face[k]) o.visible = !on;
+  AVA.BB.jaw.children.forEach((c) => (c.visible = !on)); AVA.BB.head.children.forEach((c) => { if (c.isMesh) c.visible = !on; });
+}
+// direction-matching retarget: limbs follow our joints' world directions, trunk and head copy our rotations
+const X_ra = new THREE.Vector3(), X_rb = new THREE.Vector3(), X_rc = new THREE.Vector3(), X_rd = new THREE.Vector3(), X_rq = new THREE.Quaternion(), X_rq2 = new THREE.Quaternion(), X_rq3 = new THREE.Quaternion();
+const _ourEnd = { footL: new THREE.Vector3(), footR: new THREE.Vector3() };
+function retargetExternal() {
+  if (!EXT.active) return; const J = AVA.J, map = EXT.map;
+  for (const k of ["hips", "torso", "head"]) map[k].quaternion.copy(EXT.rest[k]).multiply(J[k].quaternion);
+  AVA.root.updateMatrixWorld(true);
+  for (const [a, b] of SEGS) {
+    const bone = map[a], child = b.startsWith("foot") ? map[b] : map[b]; if (!bone || !child) continue;
+    J[a].getWorldPosition(X_ra); if (b.startsWith("foot")) { X_rb.set(0, -0.47, 0.0); J[a].localToWorld(X_rb); } else J[b].getWorldPosition(X_rb);
+    X_rc.subVectors(X_rb, X_ra).normalize();
+    bone.updateWorldMatrix(true, false); bone.getWorldPosition(X_ra); child.getWorldPosition(X_rb); X_rd.subVectors(X_rb, X_ra).normalize();
+    X_rq.setFromUnitVectors(X_rd, X_rc);                                    // world-space correction
+    bone.getWorldQuaternion(X_rq2); X_rq2.premultiply(X_rq);                // desired world rotation
+    bone.parent.getWorldQuaternion(X_rq3); bone.quaternion.copy(X_rq3.invert().multiply(X_rq2));
+    bone.updateWorldMatrix(false, true);
+  }
+}
+// one face interface for both characters
+function applyFace(F2) {
+  if (!EXT.active) return false;
+  for (const { mesh, dict } of EXT.morphs) {
+    const I = mesh.morphTargetInfluences, set = (n, v) => { if (dict[n] != null) I[dict[n]] = clamp(v, 0, 1); };
+    set("jawOpen", F2.jaw * 4); set("mouthClose", 0); set("mouthFunnel", F2.oo * 0.7); set("mouthPucker", F2.oo * 0.5); set("mouthStretch_L", F2.ee * 0.5); set("mouthStretch_R", F2.ee * 0.5);
+    set("mouthSmile_L", F2.smile); set("mouthSmile_R", F2.smile); set("mouthFrown_L", F2.frown); set("mouthFrown_R", F2.frown);
+    set("eyeBlink_L", F2.blink); set("eyeBlink_R", F2.blink); set("browInnerUp", F2.brow); set("browOuterUp_L", F2.brow * 0.6); set("browOuterUp_R", F2.brow * 0.6);
+    set("eyeLookUp_L", Math.max(0, F2.eyeY) * 2); set("eyeLookUp_R", Math.max(0, F2.eyeY) * 2); set("eyeLookDown_L", Math.max(0, -F2.eyeY) * 2); set("eyeLookDown_R", Math.max(0, -F2.eyeY) * 2);
+    set("eyeLookOut_L", Math.max(0, -F2.eyeX) * 2); set("eyeLookIn_R", Math.max(0, -F2.eyeX) * 2); set("eyeLookIn_L", Math.max(0, F2.eyeX) * 2); set("eyeLookOut_R", Math.max(0, F2.eyeX) * 2);
+  }
+  for (const k of ["eyeL", "eyeR"]) if (EXT.map[k]) EXT.map[k].quaternion.copy(EXT.rest[k]).multiply(X_rq.setFromEuler(new THREE.Euler(-F2.eyeY, F2.eyeX, 0)));
+  if (EXT.map.jaw) EXT.map.jaw.rotation.x = F2.jaw;
+  return true;
+}
 
 /* ---------- pedestrians: avatar-style figures, instanced per body part, posed every frame ---------- */
 const PED_N = 45;
@@ -2539,6 +2666,42 @@ const PEDGEO = (() => {
 })();
 const pedMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.75, sheen: 0.6, sheenColor: new THREE.Color("#ffffff"), sheenRoughness: 0.8 });
 const pedSkinMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.52, clearcoat: 0.2, clearcoatRoughness: 0.6, sheen: 0.35, sheenColor: new THREE.Color("#ffb8a0"), sheenRoughness: 0.6 });
+/* pedestrians reuse the human sculpt in simplified form: each instanced body part is meshed
+   from the same signed-distance shapes at low resolution (~4k triangles per person) */
+function pedPartGeo(bone, h, filt, colorFn, shift = [0, 0, 0]) {
+  const I4 = {}; I4[bone] = new THREE.Matrix4().makeTranslation(...shift);
+  const prims = prepPrims(dillyPrims("low").filter((p) => p.bone === bone && (!filt || filt(p))), I4);
+  if (!prims.length) return null;
+  const bb = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9]; for (const q of prims) if (q.op !== "sub") for (let a = 0; a < 3; a++) { bb[a] = Math.min(bb[a], q.bb[a] + 0.03); bb[a + 3] = Math.max(bb[a + 3], q.bb[a + 3] - 0.03); }
+  const f = (x, y, z) => sdfScene(prims, x, y, z), nx = Math.ceil((bb[3] - bb[0]) / h) + 3, ny = Math.ceil((bb[4] - bb[1]) / h) + 3, nz = Math.ceil((bb[5] - bb[2]) / h) + 3;
+  const { pos, idx } = surfaceNets(f, bb[0] - h, bb[1] - h, bb[2] - h, nx, ny, nz, h), e = h * 0.5, nor = [], col = [];
+  for (let i = 0; i < pos.length; i += 3) {
+    let x = pos[i], y = pos[i + 1], z = pos[i + 2]; const d = f(x, y, z), gx = f(x + e, y, z) - f(x - e, y, z), gy = f(x, y + e, z) - f(x, y - e, z), gz = f(x, y, z + e) - f(x, y, z - e), gl = Math.hypot(gx, gy, gz) || 1;
+    x -= gx / gl * d; y -= gy / gl * d; z -= gz / gl * d; pos[i] = x; pos[i + 1] = y; pos[i + 2] = z; nor.push(gx / gl, gy / gl, gz / gl);
+    const c = colorFn ? colorFn(x - shift[0], y - shift[1], z - shift[2]) : [1, 1, 1]; col.push(c[0], c[1], c[2]);
+  }
+  for (let i = 0; i < idx.length; i += 3) { const a = idx[i] * 3, b = idx[i + 1] * 3, c = idx[i + 2] * 3, ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2], vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2]; if ((uy * vz - uz * vy) * nor[a] + (uz * vx - ux * vz) * nor[a + 1] + (ux * vy - uy * vx) * nor[a + 2] < 0) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; } }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeBoundingSphere(); return g;
+}
+{
+  const t0 = performance.now();
+  const faceCol = (x, y, z) => { const c = new THREE.Color(1, 1, 1); headDetailColor(x, y, z, c); const hl = hairAmt(x, y, z); if (hl > 0) c.lerp(_c2.setRGB(1, 1, 1), hl); return [c.r / 0.94, c.g / 0.78, c.b / 0.68].map((v) => Math.min(1, v)); };
+  const head = pedPartGeo("head", 0.0165, (p) => !p.neck, faceCol, [0, -0.122, 0]);
+  if (head) { const eyes = []; for (const sgn of [-1, 1]) { eyes.push([new THREE.SphereGeometry(0.0125, 8, 6), MX(sgn * 0.032, 0.135 - 0.122, 0.071), 0xf4f1ea]); eyes.push([new THREE.SphereGeometry(0.0062, 8, 6), MX(sgn * 0.032, 0.135 - 0.122, 0.082), 0x2a1a10]); } const eg = merge(eyes); eg.deleteAttribute("uv"); PEDGEO.head = mergeGeos([head, eg]); }
+  const torso = pedPartGeo("torso", 0.034, (p) => !p.collar); if (torso) PEDGEO.torso = torso;
+  const hips = pedPartGeo("hips", 0.036); if (hips) PEDGEO.hips = hips;
+  const thigh = pedPartGeo("legR", 0.034); if (thigh) PEDGEO.thigh = thigh;
+  const shin = pedPartGeo("kneeR", 0.036, null, (x, y, z) => (y < -0.2 ? [0.16, 0.16, 0.17] : [1, 1, 1])); if (shin) PEDGEO.shin = shin;
+  const upper = pedPartGeo("shR", 0.03); if (upper) PEDGEO.upper = upper;
+  const fore = pedPartGeo("elR", 0.03); if (fore) PEDGEO.fore = fore;
+  const hand = pedPartGeo("handR", 0.016); if (hand) PEDGEO.hand = hand;
+  HUMAN.pedMs = performance.now() - t0; HUMAN.pedParts = Object.fromEntries(["head", "torso", "hips", "thigh", "shin", "upper", "fore", "hand"].map((k) => [k, Math.round(PEDGEO[k].index ? PEDGEO[k].index.count / 3 : PEDGEO[k].attributes.position.count / 3)])); HUMAN.pedTris = ["head", "torso", "hips", "thigh", "shin", "upper", "fore", "hand"].reduce((s2, k) => s2 + (PEDGEO[k].index ? PEDGEO[k].index.count : PEDGEO[k].attributes.position.count) / 3 * (["thigh", "shin", "upper", "fore", "hand"].includes(k) ? 2 : 1), 0);
+}
+function mergeGeos(list) {
+  let n = 0, off = 0; const pos = [], nor = [], col = [], idx = [];
+  for (const g of list) { const p = g.attributes.position, nn = g.attributes.normal, c = g.attributes.color; for (let i = 0; i < p.count; i++) { pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(nn.getX(i), nn.getY(i), nn.getZ(i)); col.push(c ? c.getX(i) : 1, c ? c.getY(i) : 1, c ? c.getZ(i) : 1); } if (g.index) for (let i = 0; i < g.index.count; i++) idx.push(g.index.getX(i) + off); else for (let i = 0; i < p.count; i++) idx.push(i + off); off += p.count; }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeBoundingSphere(); return g;
+}
 const PIM = {};
 for (const [k, n, mat] of [["hips", 1, pedMat], ["torso", 1, pedMat], ["neck", 1, pedSkinMat], ["head", 1, pedSkinMat], ["hairS", 1, pedMat], ["hairL", 1, pedMat], ["thigh", 2, pedMat], ["shin", 2, pedMat], ["upper", 2, pedMat], ["fore", 2, pedMat], ["hand", 2, pedSkinMat]]) {
   const im = new THREE.InstancedMesh(PEDGEO[k], mat, PED_N * n); im.castShadow = k !== "hand" && k !== "neck"; im.receiveShadow = true; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(im); PIM[k] = im; reflHide.push(im);
@@ -5175,6 +5338,7 @@ function updateDebug(dt) {
 }
 
 cycleTarget(CLOCK.h); setPreset("cycle", true); window.__ambReady = true;
+loadExternalDilly(new URLSearchParams(location.search).get("dillyglb") || null);
 /* =====================================================================
    car visuals & glows
    ===================================================================== */
@@ -6148,7 +6312,7 @@ function tick(dt, doRender) {
   updateTrafficLights(); updateFerris(gameTime); updateLOD(); updateWorld();
   if (window.__ambReady) { updateWeather(dt); updateAmbient(mode === "pause" ? 0 : dt); updateEvents(dt); if ((AMB.dT = (AMB.dT || 0) - dt) <= 0) { AMB.dT = 2; updateDensity(); } updateDebug(dt); }
   ocean.t.value = gameTime; skyU.time.value = gameTime; storeMat.uniforms.night.value = TOD.lamp; storeMat.uniforms.sky.value.copy(TOD.mid).lerp(TOD.top, 0.4);
-  if (!D.onFoot) { const sIn = mode === "game" ? (P.steerIn || 0) : clamp(P.yaw * 0.6, -1, 1); P.look = lerp(P.look || 0, sIn * 0.45, Math.min(1, dt * 5)); avatarPose("seat", gameTime, { look: P.look + (WEP.locked ? camState.orbit * 0.3 : 0), bob: clamp(Math.hypot(P.vx, P.vz) / 20, 0, 1), k: Math.min(1, dt * 8) }); }
+  if (!D.onFoot) { const sIn = mode === "game" ? (P.steerIn || 0) : clamp(P.yaw * 0.6, -1, 1); P.look = lerp(P.look || 0, sIn * 0.45, Math.min(1, dt * 5)); avatarPose("seat", gameTime, { steer: sIn, look: P.look + (WEP.locked ? camState.orbit * 0.3 : 0), bob: clamp(Math.hypot(P.vx, P.vz) / 20, 0, 1), k: Math.min(1, dt * 8) }); }
   if (!D.onFoot) weaponPose();
   if (window.__voxReady) updateVoices(dt);
   updateFace(dt, gameTime);

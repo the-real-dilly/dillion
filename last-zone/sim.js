@@ -278,7 +278,7 @@ function spreadDeg(p, W) {
   if (p.moveSpd > 1) s += p.adsT > 0.5 ? 0.5 : W.hip * 0.45;
   if (!p.onGround) s += 2.5;
   if (p.crouch) s *= 0.8;
-  return s * R.ctl + p.bloom;
+  return s * R.ctl + p.bloom * (1 - 0.55 * p.adsT);
 }
 export function currentSpread(p) { const w = curWeapon(p); return w ? spreadDeg(p, WEAPONS[w.id]) : 0; }
 function fire(M, p, w) {
