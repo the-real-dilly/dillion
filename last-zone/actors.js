@@ -52,7 +52,7 @@ export function makeGun(wid, scale = 1) {
 // ---------------------------------------------------------------------------------------------
 // character styles (Dilly + rival contractors)
 export const STYLES = {
-  dilly: { top: 0x9a8866, legs: 0x46494b, boots: 0x2c2a26, skin: 0x9a7055, glove: 0x34312c, helmet: 0x7c7a5c, vest: 0x8b7d58, pack: 0x5a5440, joint: 0x3a3833, headset: true },
+  dilly: { top: 0x9a8866, legs: 0x46494b, boots: 0x3a3026, skin: 0x9a7055, glove: 0x34312c, helmet: 0x7c7a5c, vest: 0x7d6e4f, pack: 0x5f5643, joint: 0x3a3833, headset: true, hat: "helmet", face: "bare", packType: "hydro", patch: 0xff7a45, belt: 0x4a4436, knee: 0x2a2a26 },
   rivals: [
     { top: 0x55603e, legs: 0x4a5236, boots: 0x22201c, skin: 0x8f6a52, glove: 0x2a2a26, helmet: 0x4d5636, vest: 0x5f6a45, pack: 0x3e4430 },
     { top: 0x2c2f33, legs: 0x26282b, boots: 0x161616, skin: 0xa77d61, glove: 0x1b1b1b, helmet: 0x1f2124, vest: 0x34383c, pack: 0x2b2d30 },
@@ -61,10 +61,10 @@ export const STYLES = {
     { top: 0x6b4a3a, legs: 0x4f4a42, boots: 0x231d18, skin: 0x9a7058, glove: 0x2c2620, helmet: 0x5a4f40, vest: 0x6a5a44, pack: 0x4c4234 },
     { top: 0x5e6b6b, legs: 0x4f5650, boots: 0x22251f, skin: 0xb0866a, glove: 0x2a2e2a, helmet: 0x56605a, vest: 0x6a756a, pack: 0x4c5450, cap: true }
   ],
-  target: { top: 0xd8d4c8, legs: 0xc8c2b4, boots: 0x6a6460, skin: 0xd8d4c8, glove: 0xb8b2a4, helmet: 0xc0503a, vest: 0xc0503a, pack: 0x8a8478, joint: 0x8a8478, noPack: true }
+  target: { top: 0xd8d4c8, legs: 0xc8c2b4, boots: 0x6a6460, skin: 0xd8d4c8, glove: 0xb8b2a4, helmet: 0xc0503a, vest: 0xc0503a, pack: 0x8a8478, joint: 0x8a8478, hat: "helmet", face: "bare", packType: "none" }
 };
 
-const BONES = ["DEF-head", "DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-hips", "DEF-handR", "DEF-handL", "DEF-upper_armR", "DEF-forearmR", "DEF-upper_armL", "DEF-forearmL", "DEF-f_middle01R", "DEF-f_middle01L"];
+const BONES = ["DEF-head", "DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-hips", "DEF-handR", "DEF-handL", "DEF-upper_armR", "DEF-forearmR", "DEF-upper_armL", "DEF-forearmL", "DEF-f_middle01R", "DEF-f_middle01L", "DEF-thighR", "DEF-thighL", "DEF-shinR", "DEF-shinL", "DEF-neck"];
 const UPPER = new Set(["DEF-spine001", "DEF-spine002", "DEF-spine003", "DEF-neck", "DEF-head"]);
 const isUpper = (n) => UPPER.has(n) || /shoulder|upper_arm|forearm|hand|thumb|f_index|f_middle|f_ring|f_pinky/.test(n);
 const clipCache = {};
@@ -116,13 +116,87 @@ function solveArm(upper, fore, hand, finger, target, pole, handDir) {
   if (finger && handDir) { finger.getWorldPosition(_tg); aimBone(hand, _tg, handDir); }
 }
 
+// ---------------------------------------------------------------------------------------------
+// tactical kit (procedural, CC0-free: no external assets). Shared materials per colour + map.
+const KIT = {};
+function kitTex(kind) {
+  if (KIT["t_" + kind]) return KIT["t_" + kind];
+  const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d");
+  x.fillStyle = "#c8c8c8"; x.fillRect(0, 0, 64, 64);
+  for (let i = 0; i < 600; i++) { const v = 150 + Math.random() * 90; x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(Math.random() * 64, Math.random() * 64, 1, 1); }
+  if (kind === "molle") { x.fillStyle = "rgba(40,40,40,0.55)"; for (let y = 6; y < 64; y += 12) x.fillRect(0, y, 64, 4); x.fillStyle = "rgba(255,255,255,0.15)"; for (let y = 6; y < 64; y += 12) x.fillRect(0, y, 64, 1); }
+  else { x.strokeStyle = "rgba(60,60,60,0.35)"; for (let i = 0; i < 64; i += 4) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 64); x.stroke(); } }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; t.repeat.set(2, 2);
+  return (KIT["t_" + kind] = t);
+}
+function kitMat(color, rough, map) {
+  const k = color + "/" + rough + "/" + map; if (KIT[k]) return KIT[k];
+  return (KIT[k] = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: map === "metal" ? 0.5 : 0, map: map === "plain" || map === "metal" ? null : kitTex(map), envMapIntensity: 0.6 }));
+}
+function buildKit(gear, st) {
+  const kc = st.vest, pc = st.pack, dark = 0x1c1c1c;
+  // head
+  if (st.hat === "cap") { gear(new THREE.SphereGeometry(0.128, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.72, 1.08), st.helmet, "DEF-head", 0, 1.72, -0.005); gear(new THREE.BoxGeometry(0.15, 0.012, 0.09), st.helmet, "DEF-head", 0, 1.715, 0.135, -0.15); }
+  else if (st.hat === "boonie") { gear(new THREE.SphereGeometry(0.13, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.8, 1.05), st.helmet, "DEF-head", 0, 1.715, 0); gear(new THREE.CylinderGeometry(0.21, 0.22, 0.012, 16), st.helmet, "DEF-head", 0, 1.72, 0); }
+  else {
+    gear(new THREE.SphereGeometry(0.152, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55).scale(1.02, 0.9, 1.1), st.helmet, "DEF-head", 0, 1.69, -0.005, 0, 0, 0, 0.75, "plain");
+    gear(new THREE.TorusGeometry(0.152, 0.008, 6, 24, Math.PI * 2).rotateX(Math.PI / 2).scale(1.02, 1, 1.1), st.helmet, "DEF-head", 0, 1.69, -0.005, 0, 0, 0, 0.8, "plain");
+    for (const sx of [-1, 1]) gear(new THREE.BoxGeometry(0.012, 0.03, 0.14), dark, "DEF-head", sx * 0.152, 1.705, 0.0, 0, 0, 0, 0.5, "plain"); // rails
+    gear(new THREE.BoxGeometry(0.07, 0.045, 0.02), dark, "DEF-head", 0, 1.735, 0.155, -0.3, 0, 0, 0.4, "plain"); // NVG shroud
+    gear(new THREE.BoxGeometry(0.07, 0.04, 0.05), 0x5a5a52, "DEF-head", 0, 1.815, -0.08, 0.5, 0, 0, 0.7); // counterweight pouch
+  }
+  if (st.headset || st.hat === "helmet") for (const sx of [-1, 1]) gear(new THREE.CylinderGeometry(0.048, 0.05, 0.045, 12).rotateZ(Math.PI / 2), 0x2a2a28, "DEF-head", sx * 0.142, 1.635, 0.0, 0, 0, 0, 0.6, "plain");
+  if (st.face === "shades") gear(new THREE.BoxGeometry(0.13, 0.03, 0.02), 0x111111, "DEF-head", 0, 1.665, 0.12, 0, 0, 0, 0.15, "plain");
+  if (st.face === "goggles") { gear(new THREE.BoxGeometry(0.15, 0.045, 0.03), 0x2a2a2a, "DEF-head", 0, 1.66, 0.115, 0, 0, 0, 0.3, "plain"); gear(new THREE.BoxGeometry(0.13, 0.03, 0.01), 0x6a5a30, "DEF-head", 0, 1.66, 0.132, 0, 0, 0, 0.1, "metal"); }
+  // plate carrier: plates, shoulder straps, cummerbund, pouches
+  gear(new THREE.BoxGeometry(0.31, 0.33, 0.05), kc, "DEF-spine003", 0, 1.285, 0.125, 0, 0, 0, 0.9, "molle");
+  gear(new THREE.BoxGeometry(0.31, 0.35, 0.05), kc, "DEF-spine003", 0, 1.3, -0.145, 0, 0, 0, 0.9, "molle");
+  for (const sx of [-1, 1]) { gear(new THREE.BoxGeometry(0.065, 0.025, 0.29), kc, "DEF-spine003", sx * 0.105, 1.462, -0.01); gear(new THREE.BoxGeometry(0.05, 0.17, 0.25), kc, "DEF-spine003", sx * 0.165, 1.2, -0.01, 0, 0, 0, 0.9, "molle"); }
+  for (const px of [-0.085, 0, 0.085]) { gear(new THREE.BoxGeometry(0.072, 0.115, 0.05), pc, "DEF-spine003", px, 1.165, 0.17); gear(new THREE.BoxGeometry(0.074, 0.03, 0.054), pc, "DEF-spine003", px, 1.225, 0.172); }
+  gear(new THREE.BoxGeometry(0.19, 0.07, 0.03), pc, "DEF-spine003", 0, 1.355, 0.163);
+  gear(new THREE.BoxGeometry(0.05, 0.12, 0.06), dark, "DEF-spine003", 0.19, 1.24, -0.06, 0, 0, 0, 0.6, "plain"); // radio
+  gear(new THREE.CylinderGeometry(0.005, 0.005, 0.32, 5), dark, "DEF-spine003", 0.2, 1.45, -0.08, 0.15, 0, -0.1, 0.5, "plain"); // antenna
+  if (st.patch) gear(new THREE.BoxGeometry(0.012, 0.05, 0.065), st.patch, "DEF-upper_armL", 0.215, 1.405, 0.0, 0, 0, 0, 0.7, "plain");
+  // belt, holster, knee pads, boot cuffs
+  gear(new THREE.CylinderGeometry(0.158, 0.158, 0.055, 18, 1, true).scale(1, 1, 0.82), st.belt || 0x2b2b28, "DEF-hips", 0, 0.975, -0.02, 0, 0, 0, 0.9, "molle");
+  for (const sx of [-1, 1]) gear(new THREE.BoxGeometry(0.06, 0.09, 0.08), pc, "DEF-hips", sx * 0.15, 0.95, -0.07);
+  gear(new THREE.BoxGeometry(0.06, 0.16, 0.09), dark, "DEF-thighR", -0.155, 0.8, 0.02, 0, 0, 0, 0.6, "plain");
+  for (const sx of [-1, 1]) {
+    const leg = sx < 0 ? "R" : "L";
+    gear(new THREE.SphereGeometry(0.058, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).scale(1, 1.15, 0.6), st.knee || dark, "DEF-shin" + leg, sx * 0.089, 0.535, 0.055, 0, 0, 0, 0.6, "plain");
+    gear(new THREE.CylinderGeometry(0.058, 0.062, 0.09, 12), st.boots, "DEF-shin" + leg, sx * 0.089, 0.165, -0.01, 0, 0, 0, 0.7, "plain");
+  }
+  // pack variants
+  if (st.packType === "assault") { gear(new THREE.BoxGeometry(0.28, 0.36, 0.14), pc, "DEF-spine003", 0, 1.25, -0.235); gear(new THREE.BoxGeometry(0.22, 0.12, 0.05), pc, "DEF-spine003", 0, 1.16, -0.32); }
+  else if (st.packType === "hydro") gear(new THREE.BoxGeometry(0.2, 0.3, 0.06), pc, "DEF-spine003", 0, 1.28, -0.2);
+}
+const RIVAL_CAMO = [
+  { name: "woodland", top: 0x4b5236, cA: 0x2f3322, cB: 0x6b6040, cC: 0x1d1d18, camo: 1 },
+  { name: "desert", top: 0xb09a72, cA: 0x8a7452, cB: 0xcdbb94, cC: 0x6f5c40, camo: 1 },
+  { name: "urban", top: 0x6f7378, cA: 0x4a4d52, cB: 0x9a9ea2, cC: 0x2e3034, camo: 2 },
+  { name: "multi", top: 0x8a8064, cA: 0x5f6a44, cB: 0xb3a37e, cC: 0x4a3b2c, camo: 1 },
+  { name: "black", top: 0x26282b, camo: 0 }, { name: "ranger", top: 0x4a5038, camo: 0 }, { name: "digital-wood", top: 0x55603e, cA: 0x3a4028, cB: 0x7a7350, cC: 0x23251a, camo: 2 }
+];
+const KIT_COL = [0x8a7656, 0x4c5238, 0x232325, 0x5a5e60, 0xa89272, 0x6b5e44];
+const SKINS = [0x8d5a3b, 0xc69076, 0xe0b89a, 0x6b4430, 0xa8735a, 0x4a2f22, 0xd2a07c, 0xb98563];
+// a varied rival contractor from a seed
+export function rivalStyle(seed) {
+  let a = (seed * 2654435761) >>> 0; const r = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const pick = (L) => L[Math.floor(r() * L.length)];
+  const cam = pick(RIVAL_CAMO), pants = r() < 0.6 ? cam : pick(RIVAL_CAMO), kit = pick(KIT_COL), skin = pick(SKINS);
+  const face = r() < 0.3 ? "balaclava" : r() < 0.55 ? "shades" : r() < 0.75 ? "goggles" : "bare";
+  const hat = r() < 0.72 ? "helmet" : r() < 0.6 ? "cap" : "boonie";
+  return { top: cam.top, camo: cam.camo, camoA: cam.cA, camoB: cam.cB, camoC: cam.cC, legs: pants.top, boots: r() < 0.5 ? 0x2a2620 : 0x6b5a44, skin: face === "balaclava" ? 0x1e1f1d : skin, glove: r() < 0.6 ? 0x1f1f1f : kit,
+    helmet: hat === "helmet" ? (r() < 0.5 ? kit : cam.top) : cam.top, vest: kit, pack: r() < 0.5 ? kit : cam.cA || kit, joint: 0x2a2a28, hat, face, packType: pick(["assault", "hydro", "none"]), belt: kit, seed: r() * 10, knee: r() < 0.5 ? 0x222222 : kit };
+}
+
 export class Avatar {
   constructor(style, opts = {}) {
     const st = this.style = style;
     const root = this.root = new THREE.Group(); root.rotation.order = "YXZ";
     const model = this.model = skClone(A.gltf.scene);
     model.rotation.y = Math.PI; root.add(model);
-    const uni = { cTop: { value: new THREE.Color(st.top) }, cLegs: { value: new THREE.Color(st.legs) }, cBoots: { value: new THREE.Color(st.boots) }, cSkin: { value: new THREE.Color(st.skin) }, cGlove: { value: new THREE.Color(st.glove) }, uFlash: { value: 0 }, uHide: { value: 0 } };
+    const uni = { cTop: { value: new THREE.Color(st.top) }, cLegs: { value: new THREE.Color(st.legs) }, cBoots: { value: new THREE.Color(st.boots) }, cSkin: { value: new THREE.Color(st.skin) }, cGlove: { value: new THREE.Color(st.glove) }, uFlash: { value: 0 }, uHide: { value: 0 }, uCamo: { value: st.camo || 0 }, cA: { value: new THREE.Color(st.camoA || st.top) }, cB: { value: new THREE.Color(st.camoB || st.top) }, cC: { value: new THREE.Color(st.camoC || st.top) }, uSeed: { value: st.seed || 0 } };
     this.uni = uni;
     model.traverse((o) => {
       if (o.isSkinnedMesh || o.isMesh) {
@@ -132,16 +206,28 @@ export class Avatar {
         if (!isJoint) m.onBeforeCompile = (sh) => {
           Object.assign(sh.uniforms, uni);
           sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vBP;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvBP = position;");
-          sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vBP; uniform vec3 cTop, cLegs, cBoots, cSkin, cGlove; uniform float uFlash, uHide;")
+          sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+varying vec3 vBP; uniform vec3 cTop, cLegs, cBoots, cSkin, cGlove, cA, cB, cC; uniform float uFlash, uHide, uCamo, uSeed;
+              float h3(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+              float n3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+                return mix(mix(mix(h3(i), h3(i + vec3(1, 0, 0)), f.x), mix(h3(i + vec3(0, 1, 0)), h3(i + vec3(1, 1, 0)), f.x), f.y), mix(mix(h3(i + vec3(0, 0, 1)), h3(i + vec3(1, 0, 1)), f.x), mix(h3(i + vec3(0, 1, 1)), h3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+              vec3 camo(vec3 base, vec3 p){
+                if (uCamo < 0.5) return base;
+                p += uSeed;
+                if (uCamo > 1.5) p = floor(p * 34.0) / 34.0; // digital
+                float a = n3(p * 6.0) * 0.65 + n3(p * 13.0) * 0.35, b = n3(p * 9.0 + 11.0) * 0.6 + n3(p * 19.0 + 3.0) * 0.4, c = n3(p * 15.0 + 27.0);
+                vec3 col = base; col = mix(col, cA, smoothstep(0.52, 0.56, a)); col = mix(col, cB, smoothstep(0.6, 0.64, b)); col = mix(col, cC, smoothstep(0.7, 0.73, c)); return col;
+              }`)
             .replace("#include <color_fragment>", `#include <color_fragment>
               float ax = abs(vBP.x); vec3 zc = cTop;
               if (uHide > 0.5 && vBP.y > 1.47 && ax < 0.2) discard;
-              if (vBP.y < 0.99) zc = cLegs;
+              zc = camo(cTop, vBP);
+              if (vBP.y < 0.99) zc = camo(cLegs, vBP + vec3(3.1));
               if (vBP.y > 0.93 && vBP.y < 1.0 && ax < 0.24) zc = cBoots * 1.4;
               if (vBP.y < 0.15) zc = cBoots;
               if (vBP.y > 1.5 && ax < 0.16) zc = cSkin;
               if (ax > 0.7) zc = cGlove;
-              float fab = 0.92 + 0.08 * sin(vBP.y * 180.0) * sin(vBP.x * 160.0);
+              float fab = 0.9 + 0.1 * sin(vBP.y * 260.0) * sin(vBP.x * 240.0 + vBP.z * 240.0) - 0.06 * smoothstep(0.2, 0.0, abs(fract(vBP.y * 9.0) - 0.5)) * step(vBP.y, 1.45) * step(0.15, vBP.y);
               diffuseColor.rgb = zc * fab + vec3(1.0, 0.2, 0.1) * uFlash;`);
         };
         o.material = m;
@@ -150,8 +236,8 @@ export class Avatar {
     this.bones = {}; model.traverse((o) => { if (o.isBone && BONES.includes(o.name)) this.bones[o.name] = o; });
     // gear in bind pose
     model.updateMatrixWorld(true);
-    const gear = (geo, color, bone, x, y, z, rx = 0, ry = 0, rz = 0, rough = 0.8) => {
-      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: rough }));
+    const gear = (geo, color, bone, x, y, z, rx = 0, ry = 0, rz = 0, rough = 0.85, map = "cordura") => {
+      const mesh = new THREE.Mesh(geo, kitMat(color, rough, map));
       mesh.castShadow = true;
       const b = this.bones[bone]; b.updateMatrixWorld(true);
       const world = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(1, 1, 1));
@@ -161,16 +247,8 @@ export class Avatar {
       local.decompose(mesh.position, mesh.quaternion, mesh.scale);
       b.add(mesh); if (bone === "DEF-head") this.headGear.push(mesh); return mesh;
     };
-    const hc = st.helmet; this.headGear = [];
-    if (st.cap) gear(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.75, 1.1), hc, "DEF-head", 0, 1.72, 0.0);
-    else {
-      gear(new THREE.SphereGeometry(0.15, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.56).scale(1.02, 0.92, 1.1), hc, "DEF-head", 0, 1.69, -0.005, 0, 0, 0, 0.7);
-      gear(new THREE.BoxGeometry(0.1, 0.035, 0.03), 0x1a1a1a, "DEF-head", 0, 1.71, 0.155, 0, 0, 0, 0.3); // NVG mount
-    }
-    if (st.headset) { for (const sx of [-1, 1]) gear(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 10).rotateZ(Math.PI / 2), 0x2a2a28, "DEF-head", sx * 0.14, 1.62, 0.0); }
-    gear(new THREE.BoxGeometry(0.4, 0.4, 0.29), st.vest, "DEF-spine003", 0, 1.27, 0.015);
-    for (const px of [-0.12, 0, 0.12]) gear(new THREE.BoxGeometry(0.1, 0.13, 0.06), st.pack, "DEF-spine003", px, 1.16, 0.18);
-    if (!st.noPack) gear(new THREE.BoxGeometry(0.3, 0.38, 0.15), st.pack, "DEF-spine003", 0, 1.26, -0.22);
+    this.headGear = [];
+    buildKit(gear, st);
     // animation
     const mixer = this.mixer = new THREE.AnimationMixer(model);
     this.act = { lower: {}, upper: {} };

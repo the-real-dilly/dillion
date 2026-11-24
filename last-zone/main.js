@@ -4,7 +4,7 @@ import { buildWorld, terrainH, groundAt, raycast, POIS, SURF, surfaceAt, HALF, p
 import * as Sim from "./sim.js";
 import { initBots, updateBots } from "./bots.js";
 import { R, createRenderer, buildIsland, applyPreset, updateSun, updateWorld, renderFrame, setQuality } from "./render.js";
-import { A, loadAssets, Avatar, STYLES, makePlaneMesh, makeItemMesh, makeCrateMesh, makeGun, makeGrenadeMesh, makeVMArms, poseVMArm, FORE } from "./actors.js";
+import { A, loadAssets, Avatar, STYLES, rivalStyle, makePlaneMesh, makeItemMesh, makeCrateMesh, makeGun, makeGrenadeMesh, makeVMArms, poseVMArm, FORE } from "./actors.js";
 import { FX, initFX, updateFX, impact, bodyHit, tracer, muzzle, shell, explosion, smokeCloud, landingDust, splash } from "./fx.js";
 import * as AUD from "./audio.js";
 import * as HUD from "./hud.js";
@@ -118,7 +118,7 @@ function newMatch(o = {}) {
   if (M.plane) { G.yaw = Math.atan2(-M.plane.dx, -M.plane.dz); }
   // avatars
   let ri = 0;
-  for (const p of M.players) G.av.set(p.id, new Avatar(p.human ? STYLES.dilly : p.target ? STYLES.target : STYLES.rivals[ri++ % STYLES.rivals.length]));
+  for (const p of M.players) G.av.set(p.id, new Avatar(p.human ? STYLES.dilly : p.target ? STYLES.target : rivalStyle(M.seed + 31 * ri++)));
   for (const c of M.crates) { const m = makeCrateMesh(c); R.scene.add(m); G.crates.push(m); }
   handleEvents();
   G.plane.visible = !!M.plane; G.demoPlane.visible = false;
@@ -643,7 +643,7 @@ window.LZ = {
   kit() { const me = G.me; me.pl = [50, 50, 50]; Object.assign(me.inv, { plate: 5, bandage: 6, medkit: 3, frag: 3, smoke: 2 }); },
   god(on = true) { if (G.me) G.me.god = on; },
   gasStage(n) { Sim.forceGasStage(G.M, n); handleEvents(false); return this.state().gas; },
-  spawnBots(n = 2, dist = 25) { const M = G.M, me = G.me; const out = []; for (let i = 0; i < n; i++) { const a = i / n * 6.28, x = me.x + Math.cos(a) * dist, z = me.z + Math.sin(a) * dist; const p = Sim.addPlayer(M, CALLSIGNS[(i + 5) % CALLSIGNS.length], { bot: true, st: "ground", x, z, y: groundAt(W, x, z, 999) }); p.onGround = true; p.inv.w[0] = { id: "falcon", r: 1, mag: 30 }; p.inv.ammo.heavy = 120; p.ai = { poi: POIS[0], tx: x, tz: z, jumpS: 0, mode: "rotate", think: 0, goal: null, enemy: null, seenT: -99, react: 0, aimY: 0, aimP: 0, errY: 0, errP: 0, trackT: 0, burst: 0, burstCd: 0, strafe: 1, strafeT: 0, crouchT: 0, stuckT: 0, lastX: x, lastZ: z, detT: 0, detA: 0, wanderT: 0, coverT: 0, grenT: 99, rng: mulberry32(i * 7 + 3), stuckN: 0, diff: { aimErr: 2.6, react: 0.55, spot: 95, burst: 5, track: 0.8, heal: 0.45, acc: 0.8 }, heardT: -99, semi: false, lookY: 0 }; G.av.set(p.id, new Avatar(STYLES.rivals[i % STYLES.rivals.length])); out.push(p.name); } return out; },
+  spawnBots(n = 2, dist = 25) { const M = G.M, me = G.me; const out = []; for (let i = 0; i < n; i++) { const a = i / n * 6.28, x = me.x + Math.cos(a) * dist, z = me.z + Math.sin(a) * dist; const p = Sim.addPlayer(M, CALLSIGNS[(i + 5) % CALLSIGNS.length], { bot: true, st: "ground", x, z, y: groundAt(W, x, z, 999) }); p.onGround = true; p.inv.w[0] = { id: "falcon", r: 1, mag: 30 }; p.inv.ammo.heavy = 120; p.ai = { poi: POIS[0], tx: x, tz: z, jumpS: 0, mode: "rotate", think: 0, goal: null, enemy: null, seenT: -99, react: 0, aimY: 0, aimP: 0, errY: 0, errP: 0, trackT: 0, burst: 0, burstCd: 0, strafe: 1, strafeT: 0, crouchT: 0, stuckT: 0, lastX: x, lastZ: z, detT: 0, detA: 0, wanderT: 0, coverT: 0, grenT: 99, rng: mulberry32(i * 7 + 3), stuckN: 0, diff: { aimErr: 2.6, react: 0.55, spot: 95, burst: 5, track: 0.8, heal: 0.45, acc: 0.8 }, heardT: -99, semi: false, lookY: 0 }; G.av.set(p.id, new Avatar(rivalStyle(p.id * 13 + i))); out.push(p.name); } return out; },
   cam(mode) { G.camMode = mode; },
   quality(q) { setQuality(q); },
   watch(name) { G.watch = name ? G.M.players.find((p) => p.name === name) : null; return !!G.watch; },
