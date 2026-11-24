@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261124192035";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261124192721";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -161,17 +161,25 @@
   #cream { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
   #cream i { position: absolute; border-radius: 48% 52% 45% 55%; background: radial-gradient(circle at 40% 35%, #fffdf6, #fff1d6 45%, #f3dcb4 75%, rgba(243,220,180,0) 76%); filter: drop-shadow(0 4px 6px rgba(0,0,0,.25)); transform: translate(-20%, -20%); }
 
-  /* ---------- cinematic FX ---------- */
+  /* ---------- cinematic FX (GTA VI official trailer style) ---------- */
   #fx { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
-  #vig { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,.42) 100%); opacity: .45; }
-  .bar { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .8s cubic-bezier(.6,0,.2,1); }
+  #vig { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 54%, rgba(0,0,0,.52) 100%); opacity: .45; transition: opacity .6s; }
+  .bar { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .75s cubic-bezier(.6,0,.2,1); z-index: 3; }
   #barT { top: 0; } #barB { bottom: 0; }
-  body.cine .bar { height: 11vh; }
-  #fade { position: absolute; inset: 0; background: #000; opacity: 0; }
-  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: screen; }
-  #tcard { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; }
-  #tcard .txt { font: 900 min(11vw, 146px)/1 var(--big); letter-spacing: .04em; color: #fff; text-shadow: 3px 3px 0 #000, -1.5px -1.5px 0 #000, 0 12px 30px rgba(0,0,0,.85); opacity: 0; white-space: nowrap; padding: 0 .1em; }
-  #tlogo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,.68) 0%, rgba(0,0,0,.25) 50%, transparent 74%); }
+  body.cine .bar { height: 12vh; }
+  #fade { position: absolute; inset: 0; background: #000; opacity: 0; z-index: 4; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: screen; z-index: 4; }
+  #trBadge { position: absolute; left: 26px; top: calc(6vh - 8px); z-index: 5; font: 700 11px/1 var(--hud); letter-spacing: .24em; text-transform: uppercase; color: rgba(255,255,255,.62); opacity: 0; transition: opacity .6s .4s; display: flex; align-items: center; gap: 8px; }
+  #trBadge i { width: 6px; height: 6px; background: var(--gta-gold); display: inline-block; }
+  body.cine #trBadge { opacity: 1; }
+  #trProg { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.12); z-index: 5; opacity: 0; transition: opacity .4s; }
+  #trProg i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--gta-gold), #ff5e8a, #5cd6ff); }
+  body.cine #trProg { opacity: 1; }
+  #tcard { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 2; }
+  #tcard .kicker { font: 700 14px/1 var(--hud); letter-spacing: .38em; text-transform: uppercase; color: var(--gta-gold); text-shadow: 0 2px 10px rgba(0,0,0,.95); margin-bottom: 10px; opacity: 0; }
+  #tcard .txt { font: 900 min(8.2vw, 108px)/0.95 var(--big); letter-spacing: .06em; text-transform: uppercase; color: #fff; text-shadow: 3px 3px 0 #000, -1.5px -1.5px 0 #000, 0 14px 36px rgba(0,0,0,.9); opacity: 0; white-space: nowrap; padding: 0 .14em; }
+  #tlogo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; z-index: 2; background: radial-gradient(ellipse at center, rgba(18,8,22,.72) 0%, rgba(12,6,18,.38) 46%, transparent 74%); }
+  #tlogo::before { content: ""; position: absolute; width: min(76vw, 760px); height: min(44vh, 320px); background: radial-gradient(ellipse at center, rgba(255,112,82,.34) 0%, rgba(255,70,150,.22) 45%, transparent 72%); filter: blur(28px); pointer-events: none; z-index: -1; }
   .logo { font: 900 min(15vw, 180px)/0.88 var(--big); text-transform: uppercase; text-align: center; letter-spacing: .02em; color: #fff; text-shadow: 3px 3px 0 #000, -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 0 10px 26px rgba(0,0,0,.8); }
   .logo .l2 { display: block; font-size: .56em; letter-spacing: .12em; color: var(--gta-gold); }
   .dglogo { display: block; width: min(44vw, 340px); height: auto; filter: drop-shadow(0 8px 20px rgba(0,0,0,.85)); }
@@ -179,15 +187,15 @@
   #title .panel .dglogo + .logo { font-size: min(9vw, 62px); }
   #boot .dglogo { width: min(56vw, 360px); margin-bottom: 8px; }
   #boot .dglogo + .logo { font-size: min(8vw, 56px); }
-  #tlogo .dglogo { width: min(52vw, 460px); margin-bottom: 8px; }
-  #tlogo .dglogo + .logo { font-size: min(8vw, 88px); }
+  #tlogo .dglogo { width: min(48vw, 420px); margin-bottom: 6px; }
+  #tlogo .dglogo + .logo { font-size: min(8.5vw, 96px); }
   #ptop .wm { display: flex; align-items: center; gap: 10px; } #ptop .dgmark { height: 28px; width: auto; }
   #phone .phmark { position: absolute; left: 16px; top: 10px; height: 15px; z-index: 2; }
   #phone .sb { padding-left: 60px; }
   #tlogo .logo { font-size: min(12vw, 144px); }
-  .tagline { margin-top: 14px; font: 700 15px/1.4 var(--hud); letter-spacing: .32em; text-transform: uppercase; color: #e2e6ec; text-shadow: 0 2px 4px #000; }
-  .soonbig { margin-top: 12px; font: 900 40px var(--big); letter-spacing: .18em; color: var(--gta-green); text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; }
-  #skiphint { position: absolute; right: 24px; bottom: calc(11vh + 10px); font: 600 13px var(--hud); letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.78); opacity: 0; transition: opacity .4s; }
+  .tagline { margin-top: 14px; font: 700 14px/1.4 var(--hud); letter-spacing: .34em; text-transform: uppercase; color: #eef2f6; text-shadow: 0 2px 6px #000; }
+  .soonbig { margin-top: 14px; font: 900 36px/1 var(--big); letter-spacing: .24em; padding: 6px 22px; background: #fff; color: #000; text-shadow: none; box-shadow: 0 8px 24px rgba(0,0,0,.65); }
+  #skiphint { position: absolute; right: 26px; bottom: calc(6vh - 8px); z-index: 5; font: 700 12px/1 var(--hud); letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.72); opacity: 0; transition: opacity .4s; }
   body.cine #skiphint { opacity: 1; }
 
   /* ---------- buttons (authentic Rockstar white-flip sharp buttons) ---------- */
@@ -373,10 +381,12 @@
 
 <div id="fx">
   <div id="vig"></div>
-  <div id="tcard"><div class="txt"></div></div>
-  <div id="tlogo"><img class="dglogo" src="assets/brand/dg-logo.png" alt="DG" onerror="this.remove()"><div class="logo">Dilly<span class="l2">Gone Mad</span></div><div class="tagline">Los Pepinos · one driver · no brakes</div><div class="soonbig">OUT NOW</div><div class="tagline" id="tpress" style="opacity:0;letter-spacing:.2em;font-size:13px">press any key</div></div>
+  <div id="tcard"><div class="kicker"></div><div class="txt"></div></div>
+  <div id="tlogo"><img class="dglogo" src="assets/brand/dg-logo.png" alt="DG" onerror="this.remove()"><div class="logo">Dilly<span class="l2">Gone Mad</span></div><div class="tagline">Los Pepinos · One Driver · No Brakes</div><div class="soonbig">OUT NOW</div><div class="tagline" id="tpress" style="opacity:0;letter-spacing:.26em;font-size:12px">Press any key to play</div></div>
   <div class="bar" id="barT"></div><div class="bar" id="barB"></div>
+  <div id="trBadge"><i></i>OFFICIAL TRAILER · CAPTURED IN-ENGINE</div>
   <div id="skiphint">press any key to skip</div>
+  <div id="trProg"><i></i></div>
   <div id="flash"></div>
   <div id="fade"></div>
 </div>
@@ -5780,9 +5790,21 @@ function attractCam(t) {
    trailer
    ===================================================================== */
 const TR = { t: 0, dur: 65.2, shot: -1, bus: null, skid: 0, look: new THREE.Vector3(), cops: [], jump: null, unlocked: false, ending: false };
-const tcardEl = $("tcard").firstElementChild, tlogo = $("tlogo"), fadeEl = $("fade"), flashEl = $("flash");
-const CARDS = [[1.0, 5.2, "THIS SUMMER…"], [7.0, 10.6, "WELCOME TO LOS PEPINOS", 1], [12.0, 14.4, "ONE DRIVER.", 1], [19.0, 22.6, "ONE CITY.", 1], [28.8, 31.4, "NO BRAKES."], [38.3, 40.2, "NEW TOYS.", 1], [40.7, 42.6, "SPLASH ZONE.", 1], [44.3, 46.4, "PISS NUKE!"], [46.8, 48.7, "CASH.", 1], [49.0, 51.0, "COPS.", 1], [51.3, 53.3, "CHAOS.", 1]];
-const HITS = [1.0, 7.0, 12.0, 19.0, 26.4, 28.8, 38.3, 40.7, 44.3, 46.8, 49.0, 51.3, 55.7];
+const tcardWrap = $("tcard"), tcardKicker = tcardWrap.querySelector(".kicker"), tcardEl = tcardWrap.querySelector(".txt"), tlogo = $("tlogo"), fadeEl = $("fade"), flashEl = $("flash"), trProgEl = $("trProg").firstElementChild;
+const CARDS = [
+  [1.0, 5.0, "DILLION GAMES", 0, "PRESENTS"],
+  [7.0, 10.6, "WELCOME TO LOS PEPINOS", 1, "THE SUNSHINE METROPOLIS"],
+  [11.6, 14.3, "MEET DILLY", 1, "ONE DRIVER"],
+  [19.0, 22.6, "ONE CITY.", 1, "ZERO LIMITS"],
+  [28.8, 31.4, "NO BRAKES.", 0, "FULL THROTTLE"],
+  [38.3, 40.2, "NEW TOYS.", 1, "ARSENAL"],
+  [40.7, 42.6, "SPLASH ZONE.", 1, "BOULEVARD CHAOS"],
+  [44.3, 46.4, "PISS NUKE!", 0, "TOTAL MAYHEM"],
+  [46.8, 48.7, "AFTER DARK.", 1, "VCPD PURSUIT"],
+  [49.0, 51.0, "COPS.", 1, "FIVE-STAR HEAT"],
+  [51.3, 53.3, "CHAOS.", 1, "LOS PEPINOS"]
+];
+const HITS = [1.0, 7.0, 11.6, 19.0, 26.4, 28.8, 38.3, 40.7, 44.3, 46.8, 49.0, 51.3, 55.7];
 const LOGO_T = 55.7;
 const DRIFT = { x0: roadC(5) - 2.25, z0: -10, zArc: roadC(5) - 12, R: 14.25 };
 function driftPath(s) {
@@ -5804,30 +5826,32 @@ function blockRoads(list) {
   }
 }
 const SHOTS = [
-  // golden hour from the beach: palm silhouettes against the skyline
+  // golden hour from the beach: palm silhouettes against the Los Pepinos skyline
   { t0: 0, enter() { blockRoads([]); trailerCops(0); avatarInCar(); scriptCar(P, 2.25, 300, Math.PI, 0, 0); },
-    cam(lt) { const x = -70 + lt * 7; setCam(x, 2.2 + lt * 0.25, SEA + 26, x + 30, 30 + lt * 1.5, -120, 46); } },
+    cam(lt) { const x = -72 + lt * 7.5; setCam(x, 2.4 + lt * 0.28, SEA + 26, x + 32, 28 + lt * 1.6, -120, 44); } },
   // the pier and the Ferris wheel at sunset
-  { t0: 6, cam(lt) { setCam(92 + lt * 3.5, 2.6 + lt * 0.35, SEA + 52 - lt * 1.5, PIER.x, 22, PIER.z1 - 30, 44); } },
-  // hero: Dilly beside the convertible
-  { t0: 11, enter() { blockRoads(["v4"]); scriptCar(P, 2.25, 150, Math.PI, 0, 0); P.yaw = 0; const w = localToWorld(P, 1.75, 0, 0.5); avatarOnFoot(w[0], w[2], 0.3); },
-    update(lt) { scriptCar(P, 2.25, 150, Math.PI, 0, 0); P.yaw = 0; avatarPose("hero", lt + 2, { k: 1 }); D.h = 0.3 + Math.sin(lt * 0.6) * 0.08; },
-    cam(lt) { const e = ease(lt / 3.6); setCam(D.x - 1.6 + e * 0.9, 0.75 + e * 0.25, D.z + 6.4 - e * 2.6, D.x + 0.15, D.y + 1.45 - e * 0.1, D.z, 40 - e * 6); } },
-  // drive-off
-  { t0: 14.6, enter() { avatarInCar(); }, update(lt) { scriptCar(P, 2.25, 150 - 4 * lt * lt - 10 * lt, Math.PI, 0, 18); }, cam(lt) { setCam(P.x - 5.6, 1.5, P.z - 5 + lt * 1.6, P.x - 0.2, 1.45, P.z - 0.6, 40); } },
+  { t0: 6, cam(lt) { setCam(92 + lt * 3.8, 2.5 + lt * 0.32, SEA + 52 - lt * 1.6, PIER.x, 22, PIER.z1 - 30, 42); } },
+  // GTA VI hero reveal: low 3/4 dolly across Dilly & the sculpted GT Convertible
+  { t0: 11, enter() { blockRoads(["v4"]); scriptCar(P, 2.25, 150, Math.PI - 0.18, 0, 0); P.yaw = 0; const w = localToWorld(P, 1.65, 0, 0.35); avatarOnFoot(w[0], w[2], 0.25); },
+    update(lt) { scriptCar(P, 2.25, 150, Math.PI - 0.18, 0, 0); P.yaw = 0; avatarPose("hero", lt + 2, { k: 1 }); D.h = 0.22 + Math.sin(lt * 0.55) * 0.08; },
+    cam(lt) { const e = ease(lt / 3.6); setCam(P.x - 2.6 + e * 1.4, 0.92 + e * 0.28, P.z + 5.2 - e * 1.6, P.x + 0.55, 1.08 + e * 0.12, P.z - 0.15, 38 - e * 4); } },
+  // low-angle burnout launch showcasing widebody rear fenders, quad exhausts & gold split-spoke alloys
+  { t0: 14.6, mb: 0.35, enter() { avatarInCar(); },
+    update(lt) { scriptCar(P, 2.25, 150 - 5.2 * lt * lt - 11 * lt, Math.PI, 0, 16 + lt * 10); TR.skid = lt < 1.3 ? 1 : 0; if (lt < 1.4 && Math.random() < 0.75) { for (const sx of [-0.85, 0.85]) emitSmoke(P.x + sx, 0.28, P.z + 1.5, 0.38, 1.5, 0.25, 0.85); } },
+    cam(lt) { const e = ease(lt / 3.2); setCam(P.x - 2.8 - e * 1.6, 0.72 + e * 0.55, P.z + 3.4 + e * 2.2, P.x, 0.88, P.z - 1.2, 42); } },
   // the LOS PEPINOS sign on the hills at sunset
-  { t0: 18, enter() { blockRoads([]); scriptCar(P, 0, -2000, 0, 0, 0); const cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60, SIGN.y - 2, SIGN.z + 250, cx, SIGN.y, SIGN.z, 50); updateWorld(true); }, cam(lt) { const e = ease(lt / 5), cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60 - e * 30, SIGN.y - 2 + e * 14, SIGN.z + 250 - e * 40, cx - 6, SIGN.y + 4, SIGN.z, 50 - e * 4); } },
+  { t0: 18, enter() { TR.skid = 0; blockRoads([]); scriptCar(P, 0, -2000, 0, 0, 0); const cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60, SIGN.y - 2, SIGN.z + 250, cx, SIGN.y, SIGN.z, 50); updateWorld(true); }, cam(lt) { const e = ease(lt / 5), cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60 - e * 30, SIGN.y - 2 + e * 14, SIGN.z + 250 - e * 40, cx - 6, SIGN.y + 4, SIGN.z, 50 - e * 4); } },
   // scale: aerial over Northgate toward Pickle Ridge and the hills, blimp in frame
   { t0: 21, enter() { setCam(-320, 190, -520, 500, 10, -1000, 50); updateWorld(true); AMB.t = 140; }, cam(lt) { const e = ease(lt / 2); setCam(-320 + e * 90, 190 + e * 25, -520 - e * 150, 520, 10, -1010, 50 - e * 3); } },
-  // drift through an intersection with the cops behind
-  { t0: 23, enter() { blockRoads(["v5", "h5"]); trailerCops(2); TR.look.set(roadC(5), 1, 40); }, update(lt, dt) {
+  // drift through an intersection with VCPD interceptors in hot pursuit
+  { t0: 23, mb: 0.38, enter() { blockRoads(["v5", "h5"]); trailerCops(2); TR.look.set(roadC(5), 1, 40); }, update(lt, dt) {
       const s = -4 + 24 * lt; const [x, z, ph] = driftPath(s), da = driftAngle(s);
       scriptCar(P, x, z, ph + da, 0, 24); TR.skid = da > 0.15 ? 1 : 0;
       if (da > 0.12) { const fx = Math.sin(P.h), fz = Math.cos(P.h); for (const k of [-1, 1]) emitSmoke(P.x - fx * 1.5 + fz * k * 0.9, 0.35, P.z - fz * 1.5 - fx * k * 0.9, 0.42, 1.8, 0.3, 0.95); }
       TR.cops.forEach((c, i) => { const cs = s - 15 - i * 13, [cx, cz, cph] = driftPath(cs), cda = driftAngle(cs) * 0.8; scriptCar(c, cx + (i ? 2.2 : 0), cz, cph + cda, 0, 24); if (cda > 0.2 && Math.random() < 0.5) emitSmoke(c.x, 0.35, c.z, 0.3, 1.6, 0.6, 0.9); });
-    }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, 1.1, P.z), 1 - Math.exp(-dt * 5)); setCam(79.2 + lt * 0.15, 1.5, 99, TR.look.x, TR.look.y, TR.look.z, 56); } },
-  // scale: the elevated Pickle Freeway at sunset, traffic underneath
-  { t0: 28.3, enter() { blockRoads([]); trailerCops(0); avatarInCar(); setCam(-80, 10.5, -691, -40, 9.2, -697, 46); updateWorld(true); }, update(lt) { const x = -70 + 33 * lt; scriptCar(P, x, -697.2, Math.PI / 2, groundH(x, -697.2, 12), 33); }, cam(lt) { setCam(P.x - 13 + lt * 2.2, 10.6 + lt * 0.6, P.z + 8.5 - lt * 0.8, P.x + 7, 9.4, P.z - 1, 46); } },
+    }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, 1.05, P.z), 1 - Math.exp(-dt * 5.5)); setCam(79.0 + lt * 0.25, 1.28, 98.5, TR.look.x, TR.look.y, TR.look.z, 52); } },
+  // scale: the elevated Pickle Freeway at sunset, high-speed low tracking shot
+  { t0: 28.3, mb: 0.45, enter() { TR.skid = 0; blockRoads([]); trailerCops(0); avatarInCar(); setCam(-80, 10.5, -691, -40, 9.2, -697, 46); updateWorld(true); }, update(lt) { const x = -70 + 34 * lt; scriptCar(P, x, -697.2, Math.PI / 2, groundH(x, -697.2, 12), 34); }, cam(lt) { setCam(P.x - 11.5 + lt * 2.4, 10.1 + lt * 0.4, P.z + 7.2 - lt * 0.7, P.x + 7, 9.3, P.z - 0.8, 44); } },
   // slow-motion stunt jump
   { t0: 31.5, enter() { blockRoads(["h2"]); trailerCops(0); TR.jump = { x: -42, y: 0, vy: 0, air: false, done: false }; TR.look.set(-20, 1, roadC(2)); }, update(lt, dt) {
       const J = TR.jump, r = RAMPS[0], v = 30; const slow = J.air ? 0.42 : 1; const ddt = dt * slow;
@@ -5836,38 +5860,38 @@ const SHOTS = [
       else { const prevY = J.y; J.y = g; if (J.x > r.x + r.L && !J.done) { J.air = true; J.vy = v * r.H / r.L * 1.3; J.y = r.H; } else if (g > 0) J.vy = (g - prevY) / Math.max(ddt, 1e-3); }
       scriptCar(P, J.x, r.z, Math.PI / 2, J.y, v); P.pitch = J.air ? clamp(-J.vy * 0.03, -0.4, 0.4) : g > 0 ? -0.28 : 0;
       if (J.air && !TR.said) { TR.said = true; subtitle("<span class=n>Dilly:</span> BRINE TIIIIME!", 2.4); }
-    }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, P.y + 1.2, P.z), 1 - Math.exp(-dt * 6)); setCam(54, 0.5, roadC(2) - 8.6, TR.look.x, TR.look.y + 0.6, TR.look.z, 62); } },
+    }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, P.y + 1.2, P.z), 1 - Math.exp(-dt * 6)); setCam(54, 0.5, roadC(2) - 8.6, TR.look.x, TR.look.y + 0.6, TR.look.z, 60); } },
   // new toys: potato cannon on foot vs a parked cop car
   { t0: 38, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(58, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = 2; updateWeaponMesh(); TR.fired = false; },
     update(lt) { scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); D.h = -Math.PI / 2; avatarPose("walk", lt, { speed: 0, k: 1 }); weaponPose();
       if (lt > 0.55 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("potato", o.x, o.y, o.z, -24, 4.2, -0.9); for (let i = 0; i < 6; i++) emitSmoke(o.x, o.y, o.z, 0.4, 0.9, 0.15, 0.9); sfxThunk(); camShakeT = 0.25; } },
-    focus() { return TR.cops[0]; }, cam(lt) { setCam(D.x + 3.6 - lt * 0.3, 1.65, D.z + 1.3, 41, 1.0, 84.6, 46); } },
-  // drive-by with the squirt gun
+    focus() { return TR.cops[0]; }, cam(lt) { setCam(D.x + 3.4 - lt * 0.3, 1.58, D.z + 1.25, 41, 1.0, 84.6, 44); } },
+  // drive-by with the squirt gun past Vice City pedestrians
   { t0: 40.4, enter() { trailerCops(0); avatarInCar(); WEP.cur = 1; updateWeaponMesh(); WEP.scripted = true; WEP.trigger = false; WEP.scriptDir = new THREE.Vector3(0.28, 0.12, -1).normalize(); trailerPeds([[22, 73.6], [27, 73.2], [31, 73.8], [36, 73.4], [40, 73.6], [45, 73.3]]); },
     update(lt) { scriptCar(P, -6 + 21 * lt, 86.25, Math.PI / 2, 0, 21); WEP.trigger = lt > 0.6; },
-    cam(lt) { setCam(P.x + 12, 1.7, P.z + 5.5, P.x - 3, 1.0, P.z - 7, 48); } },
+    cam(lt) { setCam(P.x + 11.5, 1.65, P.z + 5.2, P.x - 3, 1.0, P.z - 7, 46); } },
   // the piss nuke
   { t0: 42.8, enter() { WEP.trigger = false; WEP.scripted = false; WEP.cur = -1; updateWeaponMesh(); scriptCar(P, 0, -2000, 0, 0, 0); trailerPeds([[74, 72], [78, 96], [96, 74], [92, 97], [70, 82], [99, 88], [86, 70], [80, 99], [73, 92], [97, 79]]); TR.fired = false; },
     update(lt) { if (lt > 0.1 && !TR.fired) { TR.fired = true; launchProj("nuke", 40, 3, 120, 31.4, 9.3, -25.7); sfxWhistle(); } },
     cam(lt) { setCam(150 - lt * 2, 13 + lt * 0.8, 84.5, 84, 5, 84, 50); } },
-  // night, rain, neon
-  { t0: 46.6, night: true, enter() { blockRoads(["h" + Math.round(NEON.z / CELL + N / 2)]); TR.said = false; trailerCops(1); }, update(lt) { const x = NEON.x0 + 6 + lt * 22; scriptCar(TR.cops[0], x, NEON.z + 2.25, Math.PI / 2, 0, 22); scriptCar(P, x + 14, NEON.z + 2.25, Math.PI / 2, 0, 22); }, cam(lt) { const z = NEON.z, x0 = NEON.x0; setCam(x0 + lt * 9, 2.4, z - NEON.side * 4.5, x0 + lt * 9 + 22, 4.2, z + NEON.side * 9, 58); } },
+  // night, rain, neon pursuit
+  { t0: 46.6, night: true, mb: 0.35, enter() { blockRoads(["h" + Math.round(NEON.z / CELL + N / 2)]); TR.said = false; trailerCops(1); }, update(lt) { const x = NEON.x0 + 6 + lt * 22; scriptCar(TR.cops[0], x, NEON.z + 2.25, Math.PI / 2, 0, 22); scriptCar(P, x + 14, NEON.z + 2.25, Math.PI / 2, 0, 22); }, cam(lt) { const z = NEON.z, x0 = NEON.x0; setCam(x0 + lt * 9, 2.2, z - NEON.side * 4.5, x0 + lt * 9 + 22, 4.0, z + NEON.side * 9, 54); } },
   // banana-peel spin-out (night chase)
   { t0: 48.9, night: true, enter() { blockRoads(["h6"]); trailerCops(1); TR.ban = null; TR.spin = -1; const c = TR.cops[0]; c.dizzy = 0; c.slip = 0; WEP.cur = WI.banana; updateWeaponMesh(); },
     update(lt, dt) { const z = roadC(6) + 2.25, x = -40 + 34 * lt, c = TR.cops[0]; scriptCar(P, x, z, Math.PI / 2, 0, 34);
       if (lt > 0.25 && !TR.ban) { TR.ban = { x: x - 3.4, z }; dropMine("banana", TR.ban.x, z); MINES[MINES.length - 1].arm = 0; WEP.throwT = 0.3; subtitle("<span class=n>Dilly:</span> Slippery when wet!", 1.8); }
       if (TR.spin < 0) { scriptCar(c, x - 12, z, Math.PI / 2, 0, 34); if (TR.ban && c.x > TR.ban.x - 1.2) { TR.spin = lt; TR.sx = c.x; dizzyCop(c, 3, 3); } }
       else { const u = lt - TR.spin, v = 34 * Math.exp(-u * 1.6); TR.sx += v * dt; scriptCar(c, TR.sx, z + Math.min(3, u * 2.4), Math.PI / 2 + u * 7.5, 0, v); c.vx = 34 * Math.exp(-u * 1.6); camShakeT = Math.max(camShakeT, u < 0.2 ? 0.2 : 0); if (Math.random() < 0.6) emitSmoke(c.x, 0.4, c.z, 0.35, 1.6, 0.6, 0.85); }
-    }, focus() { return TR.cops[0]; }, cam(lt) { const z = roadC(6); setCam(-4 - lt * 1.2, 1.1, z + 9, -22, 0.9, z + 1.2, 48); } },
+    }, focus() { return TR.cops[0]; }, cam(lt) { const z = roadC(6); setCam(-4 - lt * 1.2, 1.1, z + 9, -22, 0.9, z + 1.2, 46); } },
   // scale: thunderstorm over downtown from the freeway viaduct
   { t0: 51.2, night: true, enter() { trailerCops(0); WEP.cur = -1; updateWeaponMesh(); while (MINES.length) removeMine(0); scriptCar(P, 0, -2000, 0, 0, 0); rain = true; rainMesh.visible = true; applyTOD(0); setCam(520, 14, 352, 100, 40, 0, 52); updateWorld(true); TR.bolts = 0; }, update(lt) { if ((lt > 0.25 && TR.bolts === 0) || (lt > 1.35 && TR.bolts === 1)) { TR.bolts++; lightning(60 + TR.bolts * 70, -160 - TR.bolts * 40); } }, cam(lt) { setCam(520 - lt * 6, 14 + lt * 1.5, 352, 100, 40, 0, 52); } },
   // confetti bazooka at a night block party
   { t0: 53.5, night: true, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(60, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.confetti; updateWeaponMesh(); TR.fired = false; trailerPeds([[42, 88.5], [44, 80.5], [41, 79.6], [45.5, 89], [38, 89.5], [47, 82]]); },
     update(lt) { scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); D.h = -Math.PI / 2; avatarPose("walk", lt, { speed: 0, k: 1 }); weaponPose();
       if (lt > 0.35 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("rocket", o.x, o.y, o.z, -36, 0.6, -0.9); subtitle("<span class=n>Dilly:</span> Surprise party!", 1.6); for (let i = 0; i < 8; i++) emitSmoke(o.x + 1, o.y, o.z, 0.45, 1.4, 0.3, 0.95); sfxThunk(); sfxHorn(0.6); camShakeT = 0.3; } },
-    focus() { return TR.cops[0]; }, cam(lt) { setCam(67 - lt * 0.8, 1.8 + lt * 0.4, 91.5, 47, 2 + lt * 0.6, 84.8, 52); } },
-  // logo over the sunset skyline
-  { t0: 55.7, enter() { rain = false; rainMesh.visible = false; applyTOD(0); }, cam(lt) { setCam(-80 + lt * 4, 6 + lt * 1.2, SEA + 30, -20, 40 + lt, -150, 46); } }
+    focus() { return TR.cops[0]; }, cam(lt) { setCam(67 - lt * 0.8, 1.8 + lt * 0.4, 91.5, 47, 2 + lt * 0.6, 84.8, 50); } },
+  // GTA VI palm-sunset skyline logo reveal
+  { t0: 55.7, enter() { rain = false; rainMesh.visible = false; applyTOD(0); }, cam(lt) { setCam(-80 + lt * 4, 6 + lt * 1.2, SEA + 30, -20, 40 + lt, -150, 44); } }
 ];
 let camShakeT = 0;
 const NEON = { z: 0, x0: 0, side: 1 };
@@ -5922,7 +5946,7 @@ function endTrailer() {
   if (mode !== "trailer") return;
   if (TR.bus && AU.ctx) { const b = TR.bus; b.gain.setTargetAtTime(0, AU.ctx.currentTime, 0.15); setTimeout(() => { try { b.disconnect(); } catch (e) { /* ignore */ } }, 900); TR.bus = null; }
   TR.skid = 0; trailerCops(0); blockRoads([]); while (MINES.length) removeMine(0); for (let i = PROJ.length - 1; i >= 0; i--) removeProj(i); WEP.boomOut = false; camera.up.set(0, 1, 0); P.scripted = false; WEP.scripted = false; WEP.trigger = false; updateWeaponMesh(); for (const q of TR.peds || []) placePed(q); TR.peds = []; WEP.scriptDir = null; WEP.cur = -1; avatarInCar();
-  document.body.classList.remove("cine"); tcardEl.style.opacity = 0; tlogo.style.opacity = 0; fadeEl.style.opacity = 0; flashEl.style.opacity = 0; $("sub").classList.remove("on");
+  document.body.classList.remove("cine"); tcardEl.style.opacity = 0; tcardKicker.style.opacity = 0; tlogo.style.opacity = 0; fadeEl.style.opacity = 0; flashEl.style.opacity = 0; trProgEl.style.width = "0%"; $("sub").classList.remove("on");
   rain = !!TR.rainWas; rainMesh.visible = rain; wetT = rain ? 1 : 0;
   placePlayer(SPAWN.x, SPAWN.z, SPAWN.h); cycleTarget(CLOCK.h); setPreset("cycle", true); for (const t of traffic) spawnTraffic(t);
   if (location.hash === "#trailer") history.replaceState(null, "", location.pathname + location.search);
@@ -5936,22 +5960,26 @@ function updateTrailer(dt) {
   const S = SHOTS[si], lt = t - S.t0;
   if (S.update) S.update(lt, dt);
   S.cam(lt, dt);
-  { const tgt = SHOTS[si].focus ? SHOTS[si].focus() : (D.onFoot ? D : P), fd = camera.position.distanceTo(_v3.set(tgt.x, (tgt.y || 0) + 1.2, tgt.z)); if (fd < 45 && Math.abs(tgt.z) < 1000) { CINE.dof = 0.8; CINE.focus = fd; } if (SHOTS[si].mb) CINE.mb = SHOTS[si].mb; }
+  { const tgt = SHOTS[si].focus ? SHOTS[si].focus() : (D.onFoot ? D : P), fd = camera.position.distanceTo(_v3.set(tgt.x, (tgt.y || 0) + 1.2, tgt.z)); if (fd < 45 && Math.abs(tgt.z) < 1000) { CINE.dof = 0.45; CINE.focus = fd; } if (SHOTS[si].mb) CINE.mb = SHOTS[si].mb; }
   if (camShakeT > 0) { camShakeT -= dt; camera.position.y += rnd(-0.2, 0.2) * camShakeT; }
-  // title cards
-  let op = 0, txt = "", sc = 1, low = 0;
-  for (const [a, b, s, lw] of CARDS) if (t >= a && t <= b) { const u = (t - a) / (b - a); op = Math.min(1, (t - a) / 0.25, (b - t) / 0.4); txt = s; sc = 1.12 - 0.12 * ease(u); low = lw || 0; }
+  // GTA VI title cards with subtle kicker & expanding letter-spacing
+  let op = 0, txt = "", kickTxt = "", sc = 1, low = 0, track = 0.06;
+  for (const [a, b, s, lw, kk] of CARDS) if (t >= a && t <= b) { const u = (t - a) / (b - a); op = Math.min(1, (t - a) / 0.25, (b - t) / 0.4); txt = s; kickTxt = kk || ""; sc = 1.08 - 0.08 * ease(u); low = lw || 0; track = 0.04 + 0.06 * ease(u); }
   if (tcardEl.textContent !== txt && txt) tcardEl.textContent = txt;
-  tcardEl.style.opacity = op.toFixed(3); tcardEl.style.transform = low ? `translateY(-25vh) scale(${(sc * 0.62).toFixed(4)})` : `scale(${sc.toFixed(4)})`;
-  // cuts dip to black
-  let fade = 0; for (const s of SHOTS) { const d = Math.abs(t - s.t0); if (s.t0 > 0) fade = Math.max(fade, 1 - d / 0.22); }
-  fade = Math.max(fade, 1 - t / 1.2, t > 62.6 ? (t - 62.6) / 2.4 : 0);
+  if (tcardKicker.textContent !== kickTxt) tcardKicker.textContent = kickTxt;
+  tcardEl.style.opacity = op.toFixed(3); tcardEl.style.letterSpacing = track.toFixed(3) + "em";
+  tcardKicker.style.opacity = (kickTxt ? op : 0).toFixed(3);
+  tcardWrap.style.transform = low ? `translateY(-23vh) scale(${(sc * 0.64).toFixed(4)})` : `scale(${sc.toFixed(4)})`;
+  trProgEl.style.width = (clamp(t / TR.dur, 0, 1) * 100).toFixed(2) + "%";
+  // crisp cinematic cuts
+  let fade = 0; for (const s of SHOTS) { const d = Math.abs(t - s.t0); if (s.t0 > 0) fade = Math.max(fade, 1 - d / 0.16); }
+  fade = Math.max(fade, 1 - t / 1.1, t > 62.6 ? (t - 62.6) / 2.4 : 0);
   fadeEl.style.opacity = clamp(fade, 0, 1).toFixed(3);
-  let fl = 0; for (const h of HITS) if (t >= h) fl = Math.max(fl, 1 - (t - h) / (h === LOGO_T ? 0.9 : 0.35));
-  flashEl.style.opacity = (clamp(fl, 0, 1) * 0.55).toFixed(3);
-  // logo
-  if (t >= LOGO_T) { const u = clamp((t - LOGO_T) / 0.5, 0, 1); tlogo.style.opacity = Math.min(u, t > 62.8 ? clamp((65.0 - t) / 1.6, 0, 1) : 1).toFixed(3); tlogo.style.transform = `scale(${(1.25 - 0.25 * ease(u) + (t - LOGO_T) * 0.006).toFixed(4)})`; $("tpress").style.opacity = t > 58.9 ? (0.5 + 0.5 * Math.sin(t * 4)).toFixed(2) : 0; $("vig").style.opacity = 0.9; }
-  else { tlogo.style.opacity = 0; $("vig").style.opacity = 0.55; }
+  let fl = 0; for (const h of HITS) if (t >= h) fl = Math.max(fl, 1 - (t - h) / (h === LOGO_T ? 0.85 : 0.28));
+  flashEl.style.opacity = (clamp(fl, 0, 1) * 0.42).toFixed(3);
+  // GTA VI logo slam
+  if (t >= LOGO_T) { const u = clamp((t - LOGO_T) / 0.5, 0, 1); tlogo.style.opacity = Math.min(u, t > 62.8 ? clamp((65.0 - t) / 1.6, 0, 1) : 1).toFixed(3); tlogo.style.transform = `scale(${(1.22 - 0.22 * ease(u) + (t - LOGO_T) * 0.006).toFixed(4)})`; $("tpress").style.opacity = t > 58.9 ? (0.5 + 0.5 * Math.sin(t * 4)).toFixed(2) : 0; $("vig").style.opacity = 0.88; }
+  else { tlogo.style.opacity = 0; $("vig").style.opacity = 0.52; }
   if (t >= TR.dur) endTrailer();
 }
 
