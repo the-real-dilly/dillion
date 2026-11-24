@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261124192721";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261124195650";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -4007,6 +4007,16 @@ function sfxPfft() { const c = AU.ctx; if (!c) return; const t = c.currentTime; 
 function sfxBoing(v) { const c = AU.ctx; if (!c) return; const t = c.currentTime; tone(t, 380, 0.14, "sine", 0.05 * v, 3000, AU.sfx, 760); }
 function sfxBlub() { const c = AU.ctx; if (!c) return; const t = c.currentTime; tone(t, 300, 0.25, "sine", 0.1, 3000, AU.sfx, 900); tone(t + 0.1, 500, 0.2, "sine", 0.06, 3000, AU.sfx, 1200); }
 function sfxFail() { const c = AU.ctx; if (!c) return; const t = c.currentTime; [7, 3, 0].forEach((n, i) => tone(t + i * 0.18, mtof(55 + n), 0.4, "sawtooth", 0.07, 1500, AU.sfx)); }
+function sfxGun(kind) {
+  const c = AU.ctx; if (!c) return; const t = c.currentTime;
+  if (kind === "pistol") { noiseHit(t, 0.11, 0.55, "bandpass", 1800, AU.sfx, 0.8); noiseHit(t, 0.04, 0.65, "highpass", 2400, AU.sfx); tone(t, 165, 0.10, "sine", 0.45, 700, AU.sfx, 48); }
+  else if (kind === "smg") { noiseHit(t, 0.075, 0.42, "bandpass", 2200, AU.sfx, 1.0); noiseHit(t, 0.03, 0.5, "highpass", 3000, AU.sfx); tone(t, 210, 0.065, "sine", 0.3, 800, AU.sfx, 70); }
+  else if (kind === "shotgun") { noiseHit(t, 0.30, 0.9, "lowpass", 1500, AU.sfx); noiseHit(t, 0.08, 0.85, "bandpass", 1200, AU.sfx, 0.6); tone(t, 110, 0.24, "sine", 0.85, 500, AU.sfx, 32); noiseHit(t + 0.22, 0.05, 0.22, "bandpass", 3200, AU.sfx, 4); noiseHit(t + 0.32, 0.05, 0.24, "bandpass", 2600, AU.sfx, 4); }
+  else if (kind === "rifle") { noiseHit(t, 0.13, 0.65, "bandpass", 1900, AU.sfx, 0.7); noiseHit(t, 0.045, 0.75, "highpass", 2800, AU.sfx); tone(t, 145, 0.11, "sine", 0.52, 600, AU.sfx, 44); }
+  else if (kind === "sniper") { noiseHit(t, 0.36, 0.95, "lowpass", 2200, AU.sfx); noiseHit(t, 0.09, 0.95, "highpass", 2200, AU.sfx); tone(t, 95, 0.32, "sine", 0.9, 500, AU.sfx, 26); noiseHit(t + 0.34, 0.05, 0.2, "bandpass", 3800, AU.sfx, 5); }
+}
+function sfxRpg() { const c = AU.ctx; if (!c) return; const t = c.currentTime; noiseHit(t, 0.55, 0.7, "bandpass", 900, AU.sfx, 0.7); tone(t, 130, 0.35, "sawtooth", 0.22, 700, AU.sfx, 60); }
+function sfxBoom(big = 1) { const c = AU.ctx; if (!c) return; const t = c.currentTime; tone(t, 68, 1.4 * big, "sine", 0.95, 340, AU.sfx, 22); noiseHit(t, 1.1 * big, 0.95, "lowpass", 1100, AU.sfx); noiseHit(t + 0.04, 0.75 * big, 0.65, "bandpass", 700, AU.sfx, 0.8); }
 function audioUpdate(dt) {
   const c = AU.ctx; if (!c || !AU.eng1 || RADIO.offline) return;
   const t = c.currentTime, sp = Math.hypot(P.vx, P.vz), inGame = mode === "game";
@@ -4448,6 +4458,13 @@ function updatePeds(dt, t) {
    slapstick only: people tumble, slip, see stars, get up and run
    ===================================================================== */
 const WEAPONS = [
+  { id: "pistol", name: "9mm Combat Pistol", short: "Combat Pistol", color: "#e4e8ee" },
+  { id: "smg", name: "Micro SMG", short: "Micro SMG", color: "#cfd6e0" },
+  { id: "shotgun", name: "Pump Shotgun", short: "Pump Shotgun", color: "#e0b878" },
+  { id: "rifle", name: "Carbine Rifle", short: "Carbine Rifle", color: "#9fb6cc" },
+  { id: "sniper", name: "Heavy Sniper", short: "Heavy Sniper", color: "#88c8ff" },
+  { id: "rpg", name: "RPG-7 Launcher", short: "RPG-7", color: "#ff7a45" },
+  { id: "grenade", name: "Frag Grenade", short: "Frag Grenade", color: "#78b85a" },
   { id: "stick", name: "Lacrosse Stick", color: "#7af0ff" },
   { id: "squirt", name: "Squirt Gun", color: "#58d6ff" },
   { id: "potato", name: "Potato Cannon", color: "#e2b06a" },
@@ -4466,9 +4483,12 @@ const WEAPONS = [
 ];
 const WI = Object.fromEntries(WEAPONS.map((w, i) => [w.id, i]));
 // ammo: [save field, max, start, unit]; cooldowns for the rare ones
-const AMMO = { squirt: ["water", 100, 100, "%"], potato: ["potatoes", 30, 8], pie: ["pies", 20, 6], tennis: ["balls", 200, 80], paint: ["paint", 150, 60], bubble: ["bubbles", 24, 8],
-  blower: ["fuel", 100, 100, "%"], banana: ["bananas", 20, 6], whoopee: ["cushions", 10, 3], glitter: ["glitter", 5, 1], confetti: ["rockets", 6, 2] };
-const WCOOL = { glitter: 12, confetti: 3.5, bubble: 1.1, nuke: 90 };
+const AMMO = {
+  pistol: ["pistol", 240, 120], smg: ["smg", 480, 240], shotgun: ["shells", 96, 48], rifle: ["rifle", 480, 240], sniper: ["sniper", 60, 30], rpg: ["rpg", 20, 10], grenade: ["frags", 25, 12],
+  squirt: ["water", 100, 100, "%"], potato: ["potatoes", 30, 8], pie: ["pies", 20, 6], tennis: ["balls", 200, 80], paint: ["paint", 150, 60], bubble: ["bubbles", 24, 8],
+  blower: ["fuel", 100, 100, "%"], banana: ["bananas", 20, 6], whoopee: ["cushions", 10, 3], glitter: ["glitter", 5, 1], confetti: ["rockets", 6, 2]
+};
+const WCOOL = { rpg: 1.4, glitter: 12, confetti: 3.5, bubble: 1.1, nuke: 90 };
 {
   const def = { water: 100, potatoes: 8, nukes: 0 };
   for (const k in AMMO) def[AMMO[k][0]] = AMMO[k][2];
@@ -4477,6 +4497,13 @@ const WCOOL = { glitter: 12, confetti: 3.5, bubble: 1.1, nuke: 90 };
 }
 const WEP = { cur: -1, swingT: 0, swingHit: false, swingSide: 0, fireCd: 0, trigger: false, pitch: 0, locked: false, wheel: false, wheelVec: new THREE.Vector2(), wheelSel: -1, nukeCd: 0, throwT: 0, waterSnd: 0, blowSnd: 0, cd: {}, combo: 0, lastSwing: -9, autoT: 0, boomOut: false, swingDur: 0.4 };
 const ICONS = {
+  pistol: '<svg viewBox="0 0 40 40"><path d="M7 13 h24 v6 h-13 l-3 12 h-6 l2-12 h-4 z" fill="#e6eaf0"/><rect x="9" y="13" width="22" height="3.2" fill="#fff"/><path d="M18 19 h4 v4 h-4 z" fill="none" stroke="#9aa2ae" stroke-width="1.5"/></svg>',
+  smg: '<svg viewBox="0 0 40 40"><path d="M6 15 h22 v7 h-22 z" fill="#dfe4ec"/><rect x="28" y="17" width="7" height="3" fill="#fff"/><rect x="14" y="22" width="5" height="13" fill="#b8c0cc"/><rect x="8" y="22" width="4" height="8" fill="#9aa2ae"/><rect x="10" y="12" width="12" height="3" fill="#fff"/></svg>',
+  shotgun: '<svg viewBox="0 0 40 40"><path d="M3 22 l8-4 h26 v3.5 h-22 l-8 6 z" fill="#e6eaf0"/><rect x="18" y="21.5" width="12" height="3.5" rx="1" fill="#c98a4a"/><path d="M3 22 l8-4 v5 l-6 4 z" fill="#9a6434"/></svg>',
+  rifle: '<svg viewBox="0 0 40 40"><path d="M3 18 h7 v6 h-7 z M10 16 h18 v6 h-18 z" fill="#e6eaf0"/><rect x="28" y="18" width="9" height="2.6" fill="#fff"/><path d="M18 22 h5 l2 10 h-5 z" fill="#b8c0cc"/><rect x="12" y="22" width="3.5" height="7" fill="#9aa2ae"/><rect x="15" y="12.5" width="7" height="3.5" rx="1" fill="#88c8ff"/></svg>',
+  sniper: '<svg viewBox="0 0 40 40"><path d="M2 20 l7-3 h16 v5 h-16 l-7 4 z" fill="#dfe4ec"/><rect x="25" y="18" width="13" height="2.4" fill="#fff"/><rect x="35" y="17" width="3" height="4.4" fill="#9aa2ae"/><rect x="13" y="12" width="13" height="3.6" rx="1.5" fill="#88c8ff"/><path d="M27 20 l3 8 M25 20 l-2 8" stroke="#9aa2ae" stroke-width="1.6"/></svg>',
+  rpg: '<svg viewBox="0 0 40 40"><rect x="4" y="17" width="24" height="6" rx="1.5" fill="#6f8462"/><path d="M28 15 l9 5 l-9 5 z" fill="#ff7a45"/><path d="M2 16 l4 1 v6 l-4 1 z" fill="#9aa2ae"/><rect x="12" y="23" width="3.5" height="8" fill="#2a2d31"/><rect x="20" y="23" width="3.5" height="7" fill="#2a2d31"/></svg>',
+  grenade: '<svg viewBox="0 0 40 40"><ellipse cx="20" cy="24" rx="9" ry="11" fill="#6a8f4e" stroke="#222" stroke-width="1.5"/><path d="M12 20 h16 M12 25 h16 M13 30 h14 M20 13 v22" stroke="#364c26" stroke-width="1.4"/><rect x="17" y="9" width="6" height="4" fill="#cfd6e0"/><path d="M23 10 q5 -2 6 4" stroke="#cfd6e0" stroke-width="2" fill="none"/><circle cx="14" cy="11" r="2.5" fill="none" stroke="#ffd24a" stroke-width="1.6"/></svg>',
   stick: '<svg viewBox="0 0 40 40"><path d="M6 34 L26 14" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="30" cy="10" rx="7" ry="9" transform="rotate(45 30 10)" fill="none" stroke="#fff" stroke-width="3"/><path d="M26 6 L34 14 M24 10 L30 16 M28 4 L36 12" stroke="#fff" stroke-width="1.2" opacity=".7"/></svg>',
   squirt: '<svg viewBox="0 0 40 40"><rect x="6" y="15" width="24" height="9" rx="4" fill="#ff7a45"/><rect x="29" y="17" width="7" height="4" rx="2" fill="#fff"/><rect x="10" y="22" width="7" height="12" rx="3" fill="#ff7a45"/><circle cx="16" cy="11" r="6" fill="#3ef0ff"/><path d="M37 19 q3 0 3 3" stroke="#58d6ff" stroke-width="2" fill="none"/></svg>',
   potato: '<svg viewBox="0 0 40 40"><rect x="3" y="17" width="30" height="7" rx="3" fill="#cfd4dc" transform="rotate(-18 18 20)"/><ellipse cx="33" cy="10" rx="6" ry="4.5" fill="#c9954f"/><circle cx="31" cy="9" r="1" fill="#7a5a2a"/><circle cx="35" cy="11" r="1" fill="#7a5a2a"/></svg>',
@@ -4510,13 +4537,69 @@ function useAmmo(id, n = 1) { const a = AMMO[id]; if (!a) return true; if (save.
 function selectWeapon(i) {
   if (i < 0 || i >= WEAPONS.length) return;
   if (i === WEP.cur) { WEP.cur = -1; toast("HOLSTERED", "gold"); updateWeaponMesh(); return; }
-  if (i === 3 && save.wep.nukes <= 0) { toast(WEP.nukeCd > 0 ? "PISS NUKE COOLING DOWN" : "NO PISS NUKE: FIND ONE OR FINISH JOBS", "red"); return; }
+  if (WEAPONS[i].id === "nuke" && save.wep.nukes <= 0) { toast(WEP.nukeCd > 0 ? "PISS NUKE COOLING DOWN" : "NO PISS NUKE: FIND ONE OR FINISH JOBS", "red"); return; }
   WEP.cur = i; WEP.combo = 0; toast(WEAPONS[i].name.toUpperCase(), "gold"); updateWeaponMesh(); sfxEquip();
 }
-function cycleWeapon(d) { let i = WEP.cur; for (let k = 0; k < WEAPONS.length; k++) { const M = WEAPONS.length + 1; i = ((i + 1 + d) % M + M) % M - 1; if (i < 0) continue; if (i !== 3 || save.wep.nukes > 0) break; } if (i >= 0 && i !== WEP.cur) selectWeapon(i); }
+function cycleWeapon(d) { let i = WEP.cur; for (let k = 0; k < WEAPONS.length; k++) { const M = WEAPONS.length + 1; i = ((i + 1 + d) % M + M) % M - 1; if (i < 0) continue; if (WEAPONS[i].id !== "nuke" || save.wep.nukes > 0) break; } if (i >= 0 && i !== WEP.cur) selectWeapon(i); }
 /* held weapon models */
 const WMESH = (() => {
   const m = {};
+  const gun = (parts, mz) => { const g = new THREE.Group(); g.add(new THREE.Mesh(merge(parts), detailMat)); if (mz != null) g.userData.muzzle = new THREE.Vector3(0, mz, 0.07); return g; };
+  // Real GTA firearms & heavy weapons (grip at 0, barrel along -Y, sights along +Z)
+  m.pistol = gun([
+    [G.box, MX(0, -0.02, -0.01, -0.22, 0, 0, 0.036, 0.055, 0.12), 0x1a1c20], // polymer grip
+    [G.box, MX(0, -0.14, 0.068, 0, 0, 0, 0.038, 0.24, 0.052), 0x3b4048],     // gunmetal slide
+    [G.box, MX(0, -0.13, 0.044, 0, 0, 0, 0.034, 0.21, 0.024), 0x16181c],     // lower frame
+    [G.cyl, MX(0, -0.27, 0.068, 0, 0, 0, 0.011, 0.03, 0.011), 0x0d0e10]      // barrel crown
+  ], -0.30);
+  m.smg = gun([
+    [G.box, MX(0, -0.02, -0.02, -0.1, 0, 0, 0.042, 0.06, 0.14), 0x1a1c20],   // grip
+    [G.box, MX(0, -0.02, -0.12, -0.1, 0, 0, 0.028, 0.045, 0.16), 0x262930],  // extended stick mag
+    [G.box, MX(0, -0.14, 0.065, 0, 0, 0, 0.052, 0.29, 0.075), 0x22252b],     // receiver
+    [G.cyl, MX(0, -0.33, 0.068, 0, 0, 0, 0.014, 0.11, 0.014), 0x121418],     // barrel
+    [G.box, MX(0, 0.04, 0.065, 0, 0, 0, 0.022, 0.10, 0.045), 0x353942]       // folded stock
+  ], -0.40);
+  m.shotgun = gun([
+    [G.box, MX(0, 0.12, 0.02, 0.22, 0, 0, 0.044, 0.28, 0.075), 0x5c361e],    // walnut stock
+    [G.box, MX(0, -0.08, 0.062, 0, 0, 0, 0.048, 0.22, 0.068), 0x202329],     // steel receiver
+    [G.cyl, MX(0, -0.44, 0.082, 0, 0, 0, 0.016, 0.54, 0.016), 0x1a1d22],     // upper barrel
+    [G.cyl, MX(0, -0.40, 0.048, 0, 0, 0, 0.015, 0.46, 0.015), 0x2b2f36],     // under-barrel mag tube
+    [G.cyl, MX(0, -0.34, 0.048, 0, 0, 0, 0.026, 0.18, 0.026), 0x6b4024]      // pump forend
+  ], -0.73);
+  m.rifle = gun([
+    [G.box, MX(0, 0.14, 0.052, 0, 0, 0, 0.042, 0.24, 0.092), 0x181a1f],      // tactical stock
+    [G.box, MX(0, -0.01, -0.01, -0.25, 0, 0, 0.034, 0.05, 0.11), 0x181a1f],  // pistol grip
+    [G.box, MX(0, -0.14, 0.062, 0, 0, 0, 0.048, 0.34, 0.074), 0x23272e],     // upper/lower receiver
+    [G.box, MX(0, -0.18, -0.045, 0.18, 0, 0, 0.030, 0.065, 0.16), 0x1c1f25], // curved 30-rd mag
+    [G.box, MX(0, -0.38, 0.065, 0, 0, 0, 0.044, 0.26, 0.056), 0x1a1d22],     // railed handguard
+    [G.cyl, MX(0, -0.58, 0.065, 0, 0, 0, 0.013, 0.24, 0.013), 0x14161a],     // barrel + flash hider
+    [G.cyl, MX(0, -0.15, 0.125, 0, 0, 0, 0.020, 0.10, 0.020), 0x2c323b],     // red-dot optic
+    [G.cyl, MX(0, -0.36, 0.015, Math.PI / 2, 0, 0, 0.014, 0.09, 0.014), 0x16181c] // vertical foregrip
+  ], -0.72);
+  m.sniper = gun([
+    [G.box, MX(0, 0.18, 0.048, 0, 0, 0, 0.046, 0.28, 0.095), 0x242830],      // precision stock
+    [G.box, MX(0, -0.01, -0.01, -0.22, 0, 0, 0.034, 0.05, 0.11), 0x181a1f],  // grip
+    [G.box, MX(0, -0.18, 0.065, 0, 0, 0, 0.052, 0.42, 0.076), 0x2b303a],     // heavy receiver
+    [G.box, MX(0, -0.16, -0.025, 0, 0, 0, 0.034, 0.09, 0.11), 0x181a1f],     // box mag
+    [G.cyl, MX(0, -0.64, 0.068, 0, 0, 0, 0.016, 0.56, 0.016), 0x181b20],     // long fluted barrel
+    [G.box, MX(0, -0.92, 0.068, 0, 0, 0, 0.036, 0.07, 0.032), 0x3b414c],     // muzzle brake
+    [G.cyl, MX(0, -0.18, 0.135, 0, 0, 0, 0.026, 0.28, 0.026), 0x15181e],     // sniper scope
+    [G.cyl, MX(0.03, -0.52, -0.03, 0.3, 0, -0.25, 0.008, 0.18, 0.008), 0x202329], // bipod L
+    [G.cyl, MX(-0.03, -0.52, -0.03, 0.3, 0, 0.25, 0.008, 0.18, 0.008), 0x202329]  // bipod R
+  ], -0.97);
+  m.rpg = gun([
+    [G.cyl, MX(0, -0.12, 0.11, 0, 0, 0, 0.042, 1.02, 0.042), 0x4b5c42],      // olive steel launch tube
+    [G.cyl, MX(0, -0.12, 0.11, 0, 0, 0, 0.052, 0.36, 0.052), 0x6b4426],      // wood heat shield
+    [G.cyl, MX(0, 0.42, 0.11, 0, 0, 0, 0.056, 0.12, 0.056), 0x2c3038],       // rear venturi cone
+    [new THREE.ConeGeometry(0.068, 0.28, 10), MX(0, -0.76, 0.11, Math.PI, 0, 0), 0x3d4f35], // PG-7 warhead
+    [G.box, MX(0, -0.04, 0.02, -0.15, 0, 0, 0.032, 0.05, 0.13), 0x1d1f24],   // trigger grip
+    [G.box, MX(0, -0.26, 0.02, 0, 0, 0, 0.032, 0.05, 0.12), 0x1d1f24]        // front grip
+  ], -0.92);
+  m.grenade = gun([
+    [G.sph, MX(0, -0.08, 0.03, 0, 0, 0, 0.055, 0.072, 0.055), 0x4d6b3c],     // olive frag body
+    [G.cyl, MX(0, -0.005, 0.03, 0, 0, 0, 0.020, 0.035, 0.020), 0x9aa2ae],    // fuse assembly
+    [G.box, MX(0.032, -0.05, 0.03, 0, 0, 0.25, 0.012, 0.07, 0.018), 0x364a2a] // safety spoon
+  ]);
   const stick = new THREE.Group();
   stick.add(new THREE.Mesh(merge([[G.cyl, MX(0, -0.32, 0, 0, 0, 0, 0.016, 1.0, 0.016), 0x1c1c22], [G.cyl, MX(0, 0.06, 0, 0, 0, 0, 0.022, 0.12, 0.022), 0xffffff],
     [new THREE.TorusGeometry(0.11, 0.014, 6, 20), MX(0, -0.92, 0, 0, Math.PI / 2, 0, 0.8, 1.35, 1), 0xf4f4f4], [G.box, MX(0, -0.92, 0.01, 0, 0, 0, 0.008, 0.26, 0.16), 0x2a6fe0]]), detailMat));
@@ -4530,7 +4613,6 @@ const WMESH = (() => {
   const nk = new THREE.Group();
   nk.add(new THREE.Mesh(merge([[G.sph, MX(0, -0.12, 0.04, 0, 0, 0, 0.13, 0.13, 0.13), 0xffd21a], [G.box, MX(0, -0.12, 0.04, 0, 0, 0.7, 0.27, 0.035, 0.27), 0x111111], [G.cyl, MX(0, 0.03, 0.04, 0, 0, 0.3, 0.012, 0.09, 0.012), 0x7a5a2a]]), detailMat));
   m.nuke = nk;
-  const gun = (parts, mz) => { const g = new THREE.Group(); g.add(new THREE.Mesh(merge(parts), detailMat)); if (mz != null) g.userData.muzzle = new THREE.Vector3(0, mz, 0.07); return g; };
   m.chucks = gun([[G.cyl, MX(0, -0.04, 0.02, 0, 0, 0, 0.025, 0.1, 0.025), 0x7a7a80], [G.sph, MX(0, -0.24, 0.02, 0, 0, 0, 0.06, 0.2, 0.06), 0xffd84a], [G.sph, MX(0, -0.45, 0.04, 0, 0, 0, 0.05, 0.06, 0.05), 0xffd84a],
     [G.box, MX(0, -0.5, 0.0, 0, 0, 0, 0.012, 0.05, 0.06), 0xff3b2e], [G.box, MX(0, -0.45, 0.1, 0.3, 0, 0, 0.02, 0.02, 0.05), 0xff9a1a]]);
   { const c2 = new THREE.Mesh(merge([[G.cyl, MX(0, -0.1, 0, 0, 0, 0, 0.006, 0.2, 0.006), 0xc0c0c8], [G.sph, MX(0, -0.38, 0, 0, 0, 0, 0.06, 0.2, 0.06), 0xffd84a], [G.sph, MX(0, -0.6, 0.02, 0, 0, 0, 0.05, 0.06, 0.05), 0xffd84a], [G.box, MX(0, -0.65, -0.02, 0, 0, 0, 0.012, 0.05, 0.06), 0xff3b2e]]), detailMat);
@@ -4611,7 +4693,12 @@ function muzzlePos(out) {
 }
 const _mz = new THREE.Vector3();
 /* firing */
-const THROWN = new Set(["nuke", "glitter", "pickle", "whoopee", "banana"]), MELEE = new Set(["stick", "chucks"]), AUTO = { tennis: 0.085, paint: 0.15 };
+const THROWN = new Set(["grenade", "nuke", "glitter", "pickle", "whoopee", "banana"]), MELEE = new Set(["stick", "chucks"]), AUTO = { smg: 0.085, rifle: 0.105, tennis: 0.085, paint: 0.15 };
+function muzzleFlash(o, d, sc = 1) {
+  dynGlow.add(o.x + d.x * 0.14, o.y + d.y * 0.14, o.z + d.z * 0.14, 1.0, 0.82, 0.35, 1.45 * sc, 1);
+  spawnQ(1, o.x + d.x * 0.16, o.y + d.y * 0.16, o.z + d.z * 0.16, d.x * 3, d.y * 3 + 0.5, d.z * 3, 0.08, 0.85 * sc, 1.0, 0.78, 0.3, 0, 8);
+  emitSmoke(o.x + d.x * 0.18, o.y + d.y * 0.18, o.z + d.z * 0.18, 0.16 * sc, 0.45 * sc, 0.25, 0.7);
+}
 function weaponFire(held) {
   if (WEP.cur < 0) { if (!held) toast("PICK A WEAPON: 1-0, SCROLL OR HOLD TAB", "gold"); return; }
   const id = WEAPONS[WEP.cur].id;
@@ -4626,8 +4713,33 @@ function weaponFire(held) {
   if (wcd(id) > 0) { toast((WEAPONS[WEP.cur].short || WEAPONS[WEP.cur].name).toUpperCase() + " RECHARGING", "red"); return; }
   const d = aimDir(), o = muzzlePos(_mz), src = D.onFoot ? D : P, svx = src.vx || 0, svz = src.vz || 0;
   if (window.__voxReady && QUIPS[id] && Math.random() < 0.35) quip(id, 25);
-  for (const q of peds) if (q.state === "walk" && !q.dance && Math.abs(q.x - src.x) + Math.abs(q.z - src.z) < 24 && !q.scareAt) q.scareAt = gameTime + 0.9;
-  if (id === "potato") {
+  for (const q of peds) if (q.state === "walk" && !q.dance && Math.abs(q.x - src.x) + Math.abs(q.z - src.z) < 32 && !q.scareAt) q.scareAt = gameTime + 0.5;
+  if (id === "pistol") {
+    if (!useAmmo("pistol")) return; WEP.fireCd = 0.22;
+    launchProj("bullet", o.x, o.y, o.z, (d.x + rnd(-0.012, 0.012)) * 96 + svx * 0.4, (d.y + rnd(-0.01, 0.01)) * 96, (d.z + rnd(-0.012, 0.012)) * 96 + svz * 0.4).dmg = 1.0;
+    muzzleFlash(o, d, 0.85); sfxGun("pistol"); camState.shake += 0.06;
+  } else if (id === "shotgun") {
+    if (!useAmmo("shotgun")) return; WEP.fireCd = 0.72;
+    for (let k = 0; k < 8; k++) {
+      const pr = launchProj("bullet", o.x, o.y, o.z, (d.x + rnd(-0.08, 0.08)) * 78 + svx * 0.3, (d.y + rnd(-0.05, 0.05)) * 78, (d.z + rnd(-0.08, 0.08)) * 78 + svz * 0.3);
+      pr.dmg = 0.55; pr.fuse = 0.65;
+    }
+    muzzleFlash(o, d, 1.5); sfxGun("shotgun"); camState.shake += 0.22;
+  } else if (id === "sniper") {
+    if (!useAmmo("sniper")) return; WEP.fireCd = 1.05;
+    launchProj("sniper", o.x, o.y, o.z, d.x * 185 + svx * 0.2, d.y * 185, d.z * 185 + svz * 0.2).dmg = 3.2;
+    muzzleFlash(o, d, 1.8); sfxGun("sniper"); camState.shake += 0.32;
+  } else if (id === "rpg") {
+    if (!useAmmo("rpg")) return; WEP.fireCd = 1.25; WEP.cd.rpg = WCOOL.rpg;
+    launchProj("rpg", o.x, o.y, o.z, d.x * 46 + svx * 0.5, d.y * 46 + 0.6, d.z * 46 + svz * 0.5);
+    muzzleFlash(o, d, 2.0);
+    for (let i = 0; i < 10; i++) emitSmoke(o.x - d.x * 0.9, o.y, o.z - d.z * 0.9, 0.45, 1.3, 0.25, 0.9);
+    sfxRpg(); camState.shake += 0.35;
+  } else if (id === "grenade") {
+    if (!useAmmo("grenade")) return; WEP.fireCd = 0.7; WEP.throwT = 0.42;
+    launchProj("frag", o.x, o.y, o.z, d.x * (D.onFoot ? 17 : 22) + svx, 7.5 + d.y * 8, d.z * (D.onFoot ? 17 : 22) + svz);
+    sfxSwing();
+  } else if (id === "potato") {
     if (!useAmmo("potato")) return;
     WEP.fireCd = 0.65;
     launchProj("potato", o.x, o.y, o.z, d.x * 26 + svx, d.y * 26 + 3.2, d.z * 26 + svz);
@@ -4638,7 +4750,7 @@ function weaponFire(held) {
     save.wep.nukes = 0; saveDirty = true; WEP.nukeCd = 90; WEP.fireCd = 1; WEP.throwT = 0.5;
     launchProj("nuke", o.x, o.y, o.z, d.x * (D.onFoot ? 15 : 22) + svx, 9.5, d.z * (D.onFoot ? 15 : 22) + svz);
     toast("FIRE IN THE HOLE!", "gold"); sfxWhistle();
-    setTimeout(() => { if (WEP.cur === 3) { WEP.cur = -1; updateWeaponMesh(); } }, 600);
+    setTimeout(() => { if (WEP.cur === WI.nuke) { WEP.cur = -1; updateWeaponMesh(); } }, 600);
   } else if (id === "pie") {
     if (!useAmmo("pie")) return; WEP.fireCd = 0.55;
     launchProj("pie", o.x, o.y, o.z, d.x * 21 + svx, d.y * 21 + 2.6, d.z * 21 + svz); sfxThunk(); camState.shake += 0.08;
@@ -4670,6 +4782,10 @@ const PAINT_COLS = [0xff2f8e, 0x2fe3ff, 0xffe12f, 0x6dff4a, 0xff7a2f, 0x9d5cff];
 const PGEO = (() => {
   const S = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.5 }, o));
   return {
+    bullet: [new THREE.BoxGeometry(0.035, 0.035, 0.65), new THREE.MeshBasicMaterial({ color: 0xffe07a })],
+    sniper: [new THREE.BoxGeometry(0.05, 0.05, 1.35), new THREE.MeshBasicMaterial({ color: 0xfff6c8 })],
+    rpg: [merge([[G.cyl, MX(0, 0, 0, Math.PI / 2, 0, 0, 0.065, 0.55, 0.065), 0x4b5c42], [new THREE.ConeGeometry(0.095, 0.28, 10), MX(0, 0, 0.38, Math.PI / 2, 0, 0), 0x3b4a33], [G.box, MX(0, 0, -0.24, 0, 0, 0, 0.26, 0.025, 0.10), 0x22252a], [G.box, MX(0, 0, -0.24, 0, 0, 0, 0.025, 0.26, 0.10), 0x22252a]]), detailMat],
+    frag: [merge([[G.sph, MX(0, 0, 0, 0, 0, 0, 0.08, 0.10, 0.08), 0x4d6b3c], [G.cyl, MX(0, 0.095, 0, 0, 0, 0, 0.026, 0.045, 0.026), 0xb8c0cc]]), detailMat],
     pie: [merge([[G.cyl, MX(0, 0, 0, 0, 0, 0, 0.26, 0.07, 0.26), 0xc98a4a], [G.sph, MX(0, 0.05, 0, 0, 0, 0, 0.23, 0.08, 0.23), 0xfff6e4], [G.sph, MX(0, 0.12, 0, 0, 0, 0, 0.05, 0.05, 0.05), 0xff3b5c]]), detailMat],
     ball: [new THREE.SphereGeometry(0.1, 10, 8), S(0xd8ff3a, { roughness: 0.95 })],
     paint: [new THREE.SphereGeometry(0.06, 8, 6), PAINT_COLS.map((c) => S(c, { emissive: c, emissiveIntensity: 0.4 }))],
@@ -4690,12 +4806,47 @@ function launchProj(kind, x, y, z, vx, vy, vz) {
   else if (kind === "potato") mesh = new THREE.Mesh(potatoGeo, potatoMat);
   else if (kind === "bubble") { mesh = bubbleMesh(0.32); }
   else { const g = PGEO[kind]; const col = kind === "paint" ? Math.floor(rnd(0, PAINT_COLS.length)) : 0; mesh = new THREE.Mesh(g[0], Array.isArray(g[1]) ? g[1][col] : g[1]); mesh.userData.col = col; }
-  mesh.castShadow = kind !== "bubble" && kind !== "paint"; if (!mesh.parent) scene.add(mesh);
-  const p = { kind, x, y, z, vx, vy, vz, life: 0, mesh, fuse: kind === "nuke" ? 3.2 : kind === "glitter" ? 1.4 : kind === "ball" ? 2.6 : kind === "pickle" ? 6 : 9, col: mesh.userData.col || 0, px: x, pz: z, bounces: 0 };
+  mesh.castShadow = kind !== "bubble" && kind !== "paint" && kind !== "bullet" && kind !== "sniper"; if (!mesh.parent) scene.add(mesh);
+  const p = { kind, x, y, z, vx, vy, vz, life: 0, mesh, fuse: kind === "bullet" ? 1.4 : kind === "sniper" ? 1.8 : kind === "rpg" ? 5.5 : kind === "frag" ? 2.1 : kind === "nuke" ? 3.2 : kind === "glitter" ? 1.4 : kind === "ball" ? 2.6 : kind === "pickle" ? 6 : 9, col: mesh.userData.col || 0, px: x, pz: z, bounces: 0, dmg: 1 };
   PROJ.push(p); return p;
 }
-const GRAV = { potato: 18, nuke: 16, pie: 12, ball: 15, paint: 7, bubble: 0.5, glitter: 16, rocket: 2.5, pickle: 0, copPie: 11 };
+const GRAV = { bullet: 0.4, sniper: 0.1, rpg: 1.2, frag: 18, potato: 18, nuke: 16, pie: 12, ball: 15, paint: 7, bubble: 0.5, glitter: 16, rocket: 2.5, pickle: 0, copPie: 11 };
 const _pv2 = new THREE.Vector3();
+function bulletHit(p, y, hit, n) {
+  const sp = Math.hypot(p.vx, p.vz) || 1, dx = p.vx / sp, dz = p.vz / sp, big = p.kind === "sniper" ? 2.2 : p.dmg || 1;
+  emitSparks(p.x, y, p.z, p.kind === "sniper" ? 14 : 6);
+  if (hit && hit.look) {
+    if (knockPed(hit, dx * (6 + 5 * big), dz * (6 + 5 * big), 3 + 2.5 * big)) weaponHeat(p.kind === "sniper" ? 14 : 6, p.kind === "sniper" ? "HEADSHOT!" : "SHOTS FIRED!");
+  } else if (hit && hit.mesh) {
+    hit.hp = (hit.hp == null ? 100 : hit.hp) - 18 * big;
+    if (hit.cop) { dizzyCop(hit, 1.5 * big, 0.4 * big); weaponHeat(10, "SHOT A COP CAR!"); }
+    else { knockTraffic(hit, 3.5 * big); hit.vx = (hit.vx || 0) + dx * 4 * big; hit.vz = (hit.vz || 0) + dz * 4 * big; }
+    emitSmoke(p.x, y + 0.3, p.z, 0.28, 0.9, 0.25, 0.85);
+    if (hit.hp <= 0) { hit.hp = 100; realExplosion(hit.x, (hit.y || 0) + 0.8, hit.z, 0.9); }
+  } else {
+    addDecal(p.x, n[1] ? groundH(p.x, p.z) + 0.03 : y, p.z, n, p.kind === "sniper" ? 0.32 : 0.18, 0x16171a);
+    emitSmoke(p.x, y + 0.05, p.z, 0.18, 0.55, 0.4, 0.7);
+  }
+}
+function realExplosion(x, y, z, power = 1) {
+  sfxBoom(power); camState.shake += 0.65 * power;
+  for (let i = 0; i < Math.round(36 * power); i++) {
+    const a = rnd(0, 6.28), s = rnd(2, 13 * power);
+    spawnQ(1, x + rnd(-0.6, 0.6), y + 0.5, z + rnd(-0.6, 0.6), Math.cos(a) * s, rnd(2, 11 * power), Math.sin(a) * s, rnd(0.35, 0.85), rnd(1.2, 2.8) * power, 1.0, rnd(0.32, 0.78), 0.08, 3, 2.2);
+  }
+  for (let i = 0; i < Math.round(18 * power); i++) {
+    const a = rnd(0, 6.28), s = rnd(1, 7 * power);
+    spawnQ(0, x + rnd(-1, 1), y + 0.8, z + rnd(-1, 1), Math.cos(a) * s, rnd(2, 9 * power), Math.sin(a) * s, rnd(1.2, 2.4), rnd(1.4, 3.0) * power, 0.18, 0.18, 0.20, -1.2, 1.1);
+  }
+  emitSparks(x, y + 0.5, z, Math.round(24 * power));
+  addDecal(x, groundH(x, z) + 0.03, z, [0, 1, 0], 3.4 * power, 0x121214);
+  const R = 12 * power;
+  for (const p of peds) { const dx = p.x - x, dz = p.z - z, d = Math.hypot(dx, dz); if (d < R) { const k = 1 - d / R; knockPed(p, dx / (d || 1) * (9 + 12 * k), dz / (d || 1) * (9 + 12 * k), 6 + 8 * k); } }
+  for (const c of traffic) { const dx = c.x - x, dz = c.z - z, d = Math.hypot(dx, dz); if (d < R + 3) { const k = 1 - d / (R + 3); c.vx = (c.vx || 0) + dx / (d || 1) * 16 * k; c.vz = (c.vz || 0) + dz / (d || 1) * 16 * k; c.vy = (c.vy || 0) + 7 * k; knockTraffic(c, 14); } }
+  for (const c of cops) { const dx = c.x - x, dz = c.z - z, d = Math.hypot(dx, dz); if (d < R + 3) { dizzyCop(c, 5.5, 2.2); c.vx = (c.vx || 0) + dx / (d || 1) * 12; c.vz = (c.vz || 0) + dz / (d || 1) * 12; } }
+  for (const pr of PROPS) { const dx = pr.x - x, dz = pr.z - z, d = Math.hypot(dx, dz); if (d < R) hitProp(pr, dx / (d || 1) * 12, 9 + rnd(0, 5), dz / (d || 1) * 12); }
+  if (mode === "game") weaponHeat(24, pick(["EXPLOSION!", "BOOM!", "VEHICLE DESTROYED!"]));
+}
 function updateProj(dt) {
   const cars = traffic.concat(cops), me = D.onFoot ? D : P;
   for (let i = PROJ.length - 1; i >= 0; i--) {
@@ -4705,7 +4856,9 @@ function updateProj(dt) {
     if (p.kind === "bubble") { const k = Math.exp(-dt * 0.7); p.vx *= k; p.vz *= k; p.vy += Math.sin(p.life * 4) * dt * 0.8; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
     const M = p.mesh; M.position.set(p.x, p.y, p.z);
-    if (p.kind === "rocket") { M.lookAt(_pv2.set(p.x + p.vx, p.y + p.vy, p.z + p.vz)); emitSmoke(p.x - p.vx * 0.02, p.y, p.z - p.vz * 0.02, 0.3, 0.8, 0.05, 0.95); dynGlow.add(p.x - p.vx * 0.015, p.y, p.z - p.vz * 0.015, 1, 0.6, 0.9, 1.8, 1); if (Math.random() < 0.6) spawnQ(2, p.x, p.y, p.z, rnd(-2, 2), rnd(-1, 2), rnd(-2, 2), 1.6, 0.16); }
+    if (p.kind === "bullet" || p.kind === "sniper") { M.lookAt(_pv2.set(p.x + p.vx, p.y + p.vy, p.z + p.vz)); dynGlow.add(p.x, p.y, p.z, 1, 0.85, 0.4, p.kind === "sniper" ? 0.85 : 0.38, 0.9); }
+    else if (p.kind === "rpg") { M.lookAt(_pv2.set(p.x + p.vx, p.y + p.vy, p.z + p.vz)); emitSmoke(p.x - p.vx * 0.015, p.y, p.z - p.vz * 0.015, 0.35, 1.1, 0.25, 0.85); dynGlow.add(p.x - p.vx * 0.012, p.y, p.z - p.vz * 0.012, 1, 0.55, 0.15, 2.2, 1); }
+    else if (p.kind === "rocket") { M.lookAt(_pv2.set(p.x + p.vx, p.y + p.vy, p.z + p.vz)); emitSmoke(p.x - p.vx * 0.02, p.y, p.z - p.vz * 0.02, 0.3, 0.8, 0.05, 0.95); dynGlow.add(p.x - p.vx * 0.015, p.y, p.z - p.vz * 0.015, 1, 0.6, 0.9, 1.8, 1); if (Math.random() < 0.6) spawnQ(2, p.x, p.y, p.z, rnd(-2, 2), rnd(-1, 2), rnd(-2, 2), 1.6, 0.16); }
     else if (p.kind === "pie" || p.kind === "copPie") { M.rotation.y += dt * 9; M.rotation.x = 0.25; }
     else if (p.kind === "bubble") { M.scale.setScalar(0.32 + Math.sin(p.life * 7) * 0.02); if ((i & 1) === 0) dynGlow.add(p.x + 0.1, p.y + 0.15, p.z, 0.8, 0.95, 1, 0.25, 0.6); }
     else if (p.kind === "glitter") { M.rotation.x += dt * 10; for (let k = 0; k < 2; k++) starGlow.add(p.x + rnd(-0.3, 0.3), p.y + rnd(-0.3, 0.3), p.z + rnd(-0.3, 0.3), 1, rnd(0.6, 1), 1, rnd(0.2, 0.45), 1); }
@@ -4713,11 +4866,15 @@ function updateProj(dt) {
     else { M.rotation.x += dt * 9; M.rotation.z += dt * 5; }
     if (p.kind === "nuke") { dynGlow.add(p.x, p.y + 0.3, p.z, 1, 0.6, 0.2, 0.9 + Math.random() * 0.6, 1); if (Math.random() < 0.5) emitSmoke(p.x, p.y + 0.3, p.z, 0.25, 0.4, 0.05, 0.8); }
     const g = groundH(p.x, p.z), wall = solidAt(p.x, p.z);
-    // bouncy ones: tennis balls and the glitter grenade
-    if (p.kind === "ball" || p.kind === "glitter") {
+    // bouncy ones: tennis balls, glitter grenade, and frag grenade
+    if (p.kind === "ball" || p.kind === "glitter" || p.kind === "frag") {
       const r = p.kind === "ball" ? 0.1 : 0.12;
-      if (p.y <= g + r) { p.y = g + r; if (p.vy < -1.5 && p.kind === "ball" && p.bounces++ < 3) sfxBoing(0.6); p.vy = Math.abs(p.vy) * (p.kind === "ball" ? 0.68 : 0.4); p.vx *= 0.86; p.vz *= 0.86; }
-      if (wall) { const n = wallN(p); if (n[0]) { p.vx = -p.vx * 0.7; p.x = p.px; } else { p.vz = -p.vz * 0.7; p.z = p.pz; } }
+      if (p.y <= g + r) { p.y = g + r; if (p.vy < -1.5 && p.kind === "ball" && p.bounces++ < 3) sfxBoing(0.6); if (p.vy < -1.8 && p.kind === "frag" && p.bounces++ < 3) sfxEquip(); p.vy = Math.abs(p.vy) * (p.kind === "ball" ? 0.68 : 0.42); p.vx *= 0.82; p.vz *= 0.82; }
+      if (wall) { const n = wallN(p); if (n[0]) { p.vx = -p.vx * 0.65; p.x = p.px; } else { p.vz = -p.vz * 0.65; p.z = p.pz; } }
+      if (p.kind === "frag") {
+        if (p.life > p.fuse) { removeProj(i); realExplosion(p.x, Math.max(p.y, g + 0.3), p.z, 1.0); }
+        continue;
+      }
       if (p.kind === "ball") {
         let hitAny = false;
         for (const q of peds) if (Math.abs(q.x - p.x) < 0.55 && Math.abs(q.z - p.z) < 0.55 && p.y < q.y + 1.9 && p.y > q.y && q.state !== "bubble") {
@@ -4742,7 +4899,7 @@ function updateProj(dt) {
     else {
       const cr = p.kind === "bubble" ? 2.6 : 2.3;
       for (const c of cars) if (Math.abs(c.x - p.x) < cr && Math.abs(c.z - p.z) < cr && p.y < (c.y || 0) + 2) { hit = c; boom = true; break; }
-      if (!boom) for (const q of peds) if (Math.abs(q.x - p.x) < 0.8 && Math.abs(q.z - p.z) < 0.8 && p.y < q.y + 1.9 && q.state !== "tumble" && q.state !== "bubble") { hit = q; boom = true; break; }
+      if (!boom) for (const q of peds) if (Math.abs(q.x - p.x) < 0.85 && Math.abs(q.z - p.z) < 0.85 && p.y < q.y + 1.9 && q.state !== "tumble" && q.state !== "bubble") { hit = q; boom = true; break; }
     }
     if (p.kind === "nuke" && p.life > p.fuse) boom = true;
     if (p.kind === "nuke" && boom && p.y > g + 0.2 && p.life < p.fuse && !hit) boom = false; // let the bomb bounce off walls
@@ -4750,7 +4907,9 @@ function updateProj(dt) {
     if (!boom && p.life < p.fuse) continue;
     const y = Math.max(p.y, g + 0.1); if (!n) n = [0, 1, 0];
     removeProj(i);
-    if (p.kind === "potato") potatoSplat(p.x, y, p.z, hit, p.vx, p.vz);
+    if (p.kind === "bullet" || p.kind === "sniper") bulletHit(p, y, hit, n);
+    else if (p.kind === "rpg") realExplosion(p.x - p.vx * 0.02, y, p.z - p.vz * 0.02, 1.25);
+    else if (p.kind === "potato") potatoSplat(p.x, y, p.z, hit, p.vx, p.vz);
     else if (p.kind === "nuke") pissNuke(p.x, g, p.z);
     else if (p.kind === "pie" || p.kind === "copPie") pieSplat(p, y, hit, n);
     else if (p.kind === "paint") paintSplat(p, y, hit, n);
@@ -4941,9 +5100,18 @@ function updateAutoFire(dt) {
   while (WEP.autoT <= 0) {
     WEP.autoT += AUTO[id];
     if (!WEP.scripted && !useAmmo(id)) { WEP.trigger = false; return; }
-    const d = aimDir(), o = muzzlePos(_mz), src = D.onFoot ? D : P, sp = id === "tennis" ? 28 : 40, j = id === "tennis" ? 0.06 : 0.025, sd = WEP.scriptDir || d;
-    launchProj(id === "tennis" ? "ball" : "paint", o.x, o.y, o.z, (sd.x + rnd(-j, j)) * sp + (src.vx || 0), (sd.y + rnd(-j, j)) * sp + (id === "tennis" ? 2.5 : 1), (sd.z + rnd(-j, j)) * sp + (src.vz || 0));
-    if (id === "tennis") sfxPop(); else sfxPfft();
+    const d = aimDir(), o = muzzlePos(_mz), src = D.onFoot ? D : P, sd = WEP.scriptDir || d;
+    if (id === "smg" || id === "rifle") {
+      const sp = id === "rifle" ? 118 : 88, j = id === "rifle" ? 0.018 : 0.045;
+      const pr = launchProj("bullet", o.x, o.y, o.z, (sd.x + rnd(-j, j)) * sp + (src.vx || 0) * 0.35, (sd.y + rnd(-j, j)) * sp, (sd.z + rnd(-j, j)) * sp + (src.vz || 0) * 0.35);
+      pr.dmg = id === "rifle" ? 1.25 : 0.8;
+      muzzleFlash(o, sd, id === "rifle" ? 1.15 : 0.85); sfxGun(id); camState.shake += id === "rifle" ? 0.05 : 0.035;
+      for (const q of peds) if (q.state === "walk" && !q.dance && Math.abs(q.x - src.x) + Math.abs(q.z - src.z) < 28 && !q.scareAt) q.scareAt = gameTime + 0.4;
+    } else {
+      const sp = id === "tennis" ? 28 : 40, j = id === "tennis" ? 0.06 : 0.025;
+      launchProj(id === "tennis" ? "ball" : "paint", o.x, o.y, o.z, (sd.x + rnd(-j, j)) * sp + (src.vx || 0), (sd.y + rnd(-j, j)) * sp + (id === "tennis" ? 2.5 : 1), (sd.z + rnd(-j, j)) * sp + (src.vz || 0));
+      if (id === "tennis") sfxPop(); else sfxPfft();
+    }
   }
 }
 /* pickle boomerang: flies out, ricochets off walls, comes home */
@@ -5052,7 +5220,7 @@ function updateNukes(dt) {
 }
 /* water stream */
 function updateWater(dt) {
-  const firing = WEP.cur === 1 && (WEP.trigger || keys.f) && mode !== "pause" && (mode === "game" || WEP.scripted);
+  const firing = WEP.cur === WI.squirt && (WEP.trigger || keys.f) && mode !== "pause" && (mode === "game" || WEP.scripted);
   if (firing && save.wep.water > 0) {
     if (!WEP.scripted) { save.wep.water = Math.max(0, save.wep.water - dt * 11); saveDirty = true; }
     const d = aimDir(), o = muzzlePos(_mz), src = D.onFoot ? D : P, sp = WEP.scriptDir || d;
@@ -5136,7 +5304,7 @@ function weaponPose() {
     } else if (THROWN.has(id)) {
       if (WEP.throwT > 0) { const u = 1 - WEP.throwT / 0.5; if (id === "banana" || id === "whoopee") { sh.rotation.set(lerp(-1.2, -0.3, u), 0, 0.15); el.rotation.set(-0.3, 0, 0); A.torso.rotation.x = 0.35 * (1 - u); } else { sh.rotation.set(lerp(0.8, -2.2, u), 0, 0.15); el.rotation.set(-0.4, 0, 0); } }
       else { sh.rotation.set(-0.7, 0, 0.2); el.rotation.set(-1.1, 0, 0); }
-    } else { sh.rotation.set(-1.5 - WEP.pitch, 0, 0.05); el.rotation.set(-0.05, 0, 0); if (id === "potato" || id === "confetti" || id === "blower" || id === "pie") { A.shoulders[1].rotation.set(-1.3 - WEP.pitch, 0, -0.5); A.elbows[1].rotation.set(-0.6, 0, 0); } }
+    } else { sh.rotation.set(-1.5 - WEP.pitch, 0, 0.05); el.rotation.set(-0.05, 0, 0); if (["shotgun", "rifle", "sniper", "rpg", "potato", "confetti", "blower", "pie"].includes(id)) { A.shoulders[1].rotation.set(-1.3 - WEP.pitch, 0, -0.5); A.elbows[1].rotation.set(-0.6, 0, 0); } }
   } else {
     // driver leans out of the left side
     const sh = A.shoulders[1], el = A.elbows[1];
@@ -5144,15 +5312,16 @@ function weaponPose() {
     else if (WEP.trigger || keys.f || WEP.fireCd > 0.3 || WEP.scripted || WEP.throwT > 0) { sh.rotation.set(-1.45, 0.25, 0.5); el.rotation.set(-0.05, 0, 0); A.torso.rotation.z = 0.12; }
   }
 }
-/* pickups: water jugs, potato sacks and one glowing piss nuke */
+/* pickups: military ammo crates, water jugs, potato sacks, party crates and one glowing piss nuke */
 const PICKUPS = [];
 {
   const jug = merge([[G.cyl, MX(0, 0.35, 0, 0, 0, 0, 0.22, 0.6, 0.22), 0x6fd0ff], [G.cyl, MX(0, 0.72, 0, 0, 0, 0, 0.08, 0.14, 0.08), 0x2f6fe0], [G.box, MX(0, 0.35, 0.21, 0, 0, 0, 0.2, 0.2, 0.02), 0xffffff]]);
   const sack = merge([[G.sph, MX(0, 0.32, 0, 0, 0, 0, 0.3, 0.34, 0.26), 0xb08a5a], [G.cyl, MX(0, 0.66, 0, 0, 0, 0, 0.09, 0.1, 0.09), 0x8a6a42], [G.sph, MX(0.12, 0.62, 0.05, 0, 0, 0, 0.09, 0.07, 0.07), 0xc9954f]]);
+  const ammoBox = merge([[G.box, MX(0, 0.34, 0, 0, 0, 0, 0.76, 0.44, 0.48), 0x3b4d32], [G.box, MX(0, 0.56, 0, 0, 0, 0, 0.80, 0.08, 0.52), 0x2d3c26], [G.box, MX(0, 0.34, 0.25, 0, 0, 0, 0.32, 0.10, 0.02), 0xe6b83a]]);
   seed = 9131;
-  for (let k = 0; k < 18; k++) {
+  for (let k = 0; k < 24; k++) {
     const bi = Math.floor(sr(0, N)), bj = Math.floor(sr(0, N)), x = sr(0, 1) < 0.5 ? roadC(bi) + 12 : roadC(bi + 1) - 12, z = roadC(bj) + 12 + sr(0, CELL - 24);
-    const kind = k % 2 ? "potato" : "water", mesh = new THREE.Mesh(kind === "water" ? jug : sack, detailMat); mesh.castShadow = true; mesh.position.set(x, CURB, z); scene.add(mesh);
+    const kind = k % 3 === 0 ? "ammo" : k % 3 === 1 ? "potato" : "water", mesh = new THREE.Mesh(kind === "ammo" ? ammoBox : kind === "water" ? jug : sack, detailMat); mesh.castShadow = true; mesh.position.set(x, CURB, z); scene.add(mesh);
     PICKUPS.push({ kind, x, z, mesh, cd: 0 });
   }
   const crate = merge([[G.box, MX(0, 0.4, 0, 0, 0, 0, 0.7, 0.7, 0.7), 0xff4fa8], [G.box, MX(0, 0.4, 0, 0, 0, 0, 0.72, 0.72, 0.16), 0xffe14d], [G.box, MX(0, 0.4, 0, 0, 0, 0, 0.16, 0.72, 0.72), 0xffe14d], [G.sph, MX(0.12, 0.82, 0, 0, 0, 0.6, 0.14, 0.08, 0.06), 0xffe14d], [G.sph, MX(-0.12, 0.82, 0, 0, 0, -0.6, 0.14, 0.08, 0.06), 0xffe14d]]);
@@ -5172,28 +5341,42 @@ function updatePickups(t, dt) {
     if (p.cd > 0) { p.cd -= dt; p.mesh.visible = false; if (p.cd <= 0 && p.kind === "nuke") placeNukePickup(); continue; }
     p.mesh.visible = true; p.mesh.rotation.y = t * 1.6; p.mesh.position.y = CURB + 0.15 + Math.sin(t * 2.4 + p.x) * 0.12;
     if (p.kind === "nuke") { dynGlow.add(p.x, CURB + 1.6, p.z, 1, 0.85, 0.2, 7, 0.6); for (let k = 0; k < 4; k++) dynGlow.add(p.x, CURB + 4 + k * 4, p.z, 1, 0.8, 0.2, 3, 0.25); }
+    else if (p.kind === "ammo") { dynGlow.add(p.x, CURB + 0.65, p.z, 0.95, 0.78, 0.22, 2.8, 0.5); }
     else if (p.kind === "party") { dynGlow.add(p.x, CURB + 0.7, p.z, 1, 0.4, 0.85, 3.2, 0.5); if (Math.random() < 0.3) spawnQ(2, p.x, CURB + 1.2, p.z, rnd(-1, 1), rnd(1, 3), rnd(-1, 1), 1.2, 0.15); }
     else dynGlow.add(p.x, CURB + 0.6, p.z, p.kind === "water" ? 0.4 : 1, p.kind === "water" ? 0.8 : 0.7, p.kind === "water" ? 1 : 0.35, 2.6, 0.45);
     if (mode === "game" && Math.hypot(me.x - p.x, me.z - p.z) < 2.6) {
       const w = save.wep;
-      if (p.kind === "water") { w.water = Math.min(100, w.water + 50); toast("WATER +50%", "gold"); p.cd = 45; }
+      if (p.kind === "ammo") {
+        for (const id of ["pistol", "smg", "shotgun", "rifle", "sniper", "rpg", "grenade"]) { const a = AMMO[id]; w[a[0]] = Math.min(a[1], w[a[0]] + Math.max(2, Math.round(a[1] * 0.35))); }
+        toast("AMMO CRATE · FIREARMS RESTOCKED", "gold"); p.cd = 45;
+      }
+      else if (p.kind === "water") { w.water = Math.min(100, w.water + 50); toast("WATER +50%", "gold"); p.cd = 45; }
       else if (p.kind === "potato") { w.potatoes = Math.min(30, w.potatoes + 6); toast("POTATOES +6", "gold"); p.cd = 45; }
-      else if (p.kind === "party") { const ids = Object.keys(AMMO).filter((id) => id !== "squirt" && id !== "potato").sort(() => Math.random() - 0.5).slice(0, 3), got = []; for (const id of ids) { const a = AMMO[id], add = Math.max(1, Math.round(a[1] * (id === "glitter" || id === "confetti" ? 0.34 : 0.4))); w[a[0]] = Math.min(a[1], w[a[0]] + add); got.push((WEAPONS[WI[id]].short || WEAPONS[WI[id]].name).toUpperCase()); } toast("PARTY CRATE: " + got.join(" · "), "gold"); p.cd = 50; spawnQ(2, p.x, CURB + 1, p.z, 0, 4, 0, 1.5, 0.2); }
-      else if (w.nukes < 1 && WEP.nukeCd <= 0) { w.nukes = 1; p.cd = 240; splash("PISS NUKE", "press 4 to equip · use responsibly", "nuke", 2.6); sfxStinger(true); }
+      else if (p.kind === "party") { const ids = Object.keys(AMMO).filter((id) => id !== "squirt" && id !== "potato").sort(() => Math.random() - 0.5).slice(0, 3), got = []; for (const id of ids) { const a = AMMO[id], add = Math.max(1, Math.round(a[1] * (id === "glitter" || id === "confetti" || id === "rpg" ? 0.34 : 0.4))); w[a[0]] = Math.min(a[1], w[a[0]] + add); got.push((WEAPONS[WI[id]].short || WEAPONS[WI[id]].name).toUpperCase()); } toast("SUPPLY CRATE: " + got.join(" · "), "gold"); p.cd = 50; spawnQ(2, p.x, CURB + 1, p.z, 0, 4, 0, 1.5, 0.2); }
+      else if (w.nukes < 1 && WEP.nukeCd <= 0) { w.nukes = 1; p.cd = 240; splash("PISS NUKE", "equip from weapon wheel (Tab)", "nuke", 2.6); sfxStinger(true); }
       else continue;
       saveDirty = true; sfxCash();
     }
   }
 }
-/* weapon wheel: two rings (inner 7, outer 8) */
-const RING = [7, 8];
-function wheelSlot(i) { const ring = i < RING[0] ? 0 : 1, k = ring ? i - RING[0] : i, n = RING[ring], a = (k + (ring ? 0.5 : 0)) / n * Math.PI * 2 - Math.PI / 2, r = ring ? 226 : 128; return [Math.cos(a) * r, Math.sin(a) * r]; }
+/* weapon wheel: inner ring = 7 real GTA firearms & explosives, outer ring = 15 classic toys */
+const RING = [7, 15];
+function wheelSlot(i) { const ring = i < RING[0] ? 0 : 1, k = ring ? i - RING[0] : i, n = RING[ring], a = (k + (ring ? 0.5 : 0)) / n * Math.PI * 2 - Math.PI / 2, r = ring ? 228 : 126; return [Math.cos(a) * r, Math.sin(a) * r]; }
 function buildWheel() {
   const w = $("wheel"); let h = '<div class="ring r1"></div><div class="ring r0"></div>';
   WEAPONS.forEach((wp, i) => { const [x, y] = wheelSlot(i); h += '<div class="seg" style="--x:' + x.toFixed(1) + "px;--y:" + y.toFixed(1) + 'px;--c:' + wp.color + '"><span class="ic">' + ICONS[wp.id] + '</span><span class="am"></span><span class="ky">' + (i < 10 ? (i + 1) % 10 : "") + "</span></div>"; });
   h += '<div class="hub"><div class="nm"></div><div class="ds"></div></div>'; w.innerHTML = h;
 }
-const WDESC = { stick: "Bonk. Classic.", squirt: "Soak 'em. Hold to spray.", potato: "Starchy artillery.", nuke: "Everybody slips. One charge.", chucks: "Click fast for a 3-hit combo.", pie: "Cream faces & windshields. Blinds for a bit.", tennis: "Hold for a bouncy barrage.", paint: "Colourful splats that stick around.", bubble: "Traps people and cop cars in a floating bubble.", blower: "Hold to gust people, props and small cars.", banana: "Drop behind you. Pursuers spin out.", whoopee: "Place a cushion. Stink cloud on contact.", glitter: "Dazzles cops and knocks a star off your heat.", confetti: "Big party blast. Knocks everyone flat.", pickle: "Throw it. It ricochets and comes back." };
+const WDESC = {
+  pistol: "Semi-auto 9mm sidearm. Accurate on foot or in drive-bys.",
+  smg: "Full-auto Micro SMG. High fire rate for street sprays & drive-bys.",
+  shotgun: "12-gauge pump action. Devastating close-range buckshot blast.",
+  rifle: "Tactical Carbine Rifle. Accurate full-auto with high-velocity rounds.",
+  sniper: "Armor-piercing Heavy Sniper. Extreme range & vehicle stopping power.",
+  rpg: "Shoulder-fired RPG-7 rocket launcher. Massive anti-vehicle explosion.",
+  grenade: "M67 Frag Grenade. Bounces off walls and detonates on a 2s fuse.",
+  stick: "Bonk. Classic.", squirt: "Soak 'em. Hold to spray.", potato: "Starchy artillery.", nuke: "Everybody slips. One charge.", chucks: "Click fast for a 3-hit combo.", pie: "Cream faces & windshields. Blinds for a bit.", tennis: "Hold for a bouncy barrage.", paint: "Colourful splats that stick around.", bubble: "Traps people and cop cars in a floating bubble.", blower: "Hold to gust people, props and small cars.", banana: "Drop behind you. Pursuers spin out.", whoopee: "Place a cushion. Stink cloud on contact.", glitter: "Dazzles cops and knocks a star off your heat.", confetti: "Big party blast. Knocks everyone flat.", pickle: "Throw it. It ricochets and comes back."
+};
 function wheelOpen(on) {
   WEP.wheel = on; $("wheel").classList.toggle("on", on);
   if (on) { WEP.wheelVec.set(0, 0); WEP.wheelSel = WEP.cur; renderWheel(); }
@@ -5204,7 +5387,7 @@ function renderWheel() {
   segs.forEach((s, i) => { s.classList.toggle("sel", i === WEP.wheelSel); s.classList.toggle("empty", !hasAmmo(i)); s.querySelector(".am").textContent = ammoText(i); });
   const w = WEP.wheelSel >= 0 ? WEAPONS[WEP.wheelSel] : null;
   $("wheel").querySelector(".nm").textContent = w ? w.name : "Unarmed";
-  $("wheel").querySelector(".ds").textContent = w ? WDESC[w.id] : "Pick something silly";
+  $("wheel").querySelector(".ds").textContent = w ? WDESC[w.id] : "Select a weapon";
 }
 function wheelPoint(dx, dy) {
   const v = WEP.wheelVec; v.x += dx; v.y += dy; if (v.length() > 270) v.setLength(270);
@@ -5216,7 +5399,7 @@ function wheelPoint(dx, dy) {
 function updateWeapons(dt) {
   if (WEP.fireCd > 0) WEP.fireCd -= dt; if (WEP.throwT > 0) WEP.throwT -= dt; if (WEP.nukeCd > 0) WEP.nukeCd -= dt;
   for (const k in WEP.cd) if (WEP.cd[k] > 0) WEP.cd[k] = Math.max(0, WEP.cd[k] - dt);
-  if (WEP.cur === 1 && save.wep.water <= 0 && !WEP.scripted) WEP.trigger = false;
+  if (WEP.cur === WI.squirt && save.wep.water <= 0 && !WEP.scripted) WEP.trigger = false;
   for (const c of cops) if (c.scripted && c.dizzy > 0) c.dizzy -= dt;
   updateSwing(dt); updateAutoFire(dt); updateProj(dt); updateWater(dt); updateBlower(dt); updateNukes(dt); updateTrail(dt); updateProps(dt);
   updateMines(dt); updateCarBubbles(dt); updateDecals(dt); updateCarSplats(dt); updateCopPies(dt);
@@ -5861,13 +6044,13 @@ const SHOTS = [
       scriptCar(P, J.x, r.z, Math.PI / 2, J.y, v); P.pitch = J.air ? clamp(-J.vy * 0.03, -0.4, 0.4) : g > 0 ? -0.28 : 0;
       if (J.air && !TR.said) { TR.said = true; subtitle("<span class=n>Dilly:</span> BRINE TIIIIME!", 2.4); }
     }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, P.y + 1.2, P.z), 1 - Math.exp(-dt * 6)); setCam(54, 0.5, roadC(2) - 8.6, TR.look.x, TR.look.y + 0.6, TR.look.z, 60); } },
-  // new toys: potato cannon on foot vs a parked cop car
-  { t0: 38, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(58, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = 2; updateWeaponMesh(); TR.fired = false; },
+  // arsenal: RPG-7 on foot vs a parked VCPD interceptor
+  { t0: 38, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(58, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.rpg; updateWeaponMesh(); TR.fired = false; },
     update(lt) { scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); D.h = -Math.PI / 2; avatarPose("walk", lt, { speed: 0, k: 1 }); weaponPose();
-      if (lt > 0.55 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("potato", o.x, o.y, o.z, -24, 4.2, -0.9); for (let i = 0; i < 6; i++) emitSmoke(o.x, o.y, o.z, 0.4, 0.9, 0.15, 0.9); sfxThunk(); camShakeT = 0.25; } },
+      if (lt > 0.55 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("rpg", o.x, o.y, o.z, -38, 1.4, -1.2); for (let i = 0; i < 8; i++) emitSmoke(o.x + 1, o.y, o.z, 0.45, 1.3, 0.25, 0.9); sfxRpg(); camShakeT = 0.35; } },
     focus() { return TR.cops[0]; }, cam(lt) { setCam(D.x + 3.4 - lt * 0.3, 1.58, D.z + 1.25, 41, 1.0, 84.6, 44); } },
   // drive-by with the squirt gun past Vice City pedestrians
-  { t0: 40.4, enter() { trailerCops(0); avatarInCar(); WEP.cur = 1; updateWeaponMesh(); WEP.scripted = true; WEP.trigger = false; WEP.scriptDir = new THREE.Vector3(0.28, 0.12, -1).normalize(); trailerPeds([[22, 73.6], [27, 73.2], [31, 73.8], [36, 73.4], [40, 73.6], [45, 73.3]]); },
+  { t0: 40.4, enter() { trailerCops(0); avatarInCar(); WEP.cur = WI.squirt; updateWeaponMesh(); WEP.scripted = true; WEP.trigger = false; WEP.scriptDir = new THREE.Vector3(0.28, 0.12, -1).normalize(); trailerPeds([[22, 73.6], [27, 73.2], [31, 73.8], [36, 73.4], [40, 73.6], [45, 73.3]]); },
     update(lt) { scriptCar(P, -6 + 21 * lt, 86.25, Math.PI / 2, 0, 21); WEP.trigger = lt > 0.6; },
     cam(lt) { setCam(P.x + 11.5, 1.65, P.z + 5.2, P.x - 3, 1.0, P.z - 7, 46); } },
   // the piss nuke
@@ -6809,7 +6992,7 @@ window.DGM = {
       const buf = await off.startRendering(); let sum = 0, peak = 0; const L = buf.getChannelData(0); for (let i = 0; i < L.length; i++) { const v = Math.abs(L[i]); sum += v * v; if (v > peak) peak = v; }
       return { si, name: STATIONS[si].name, steps: n, rms: +Math.sqrt(sum / L.length).toFixed(4), peak: +peak.toFixed(3), bpm: tr.bpm, sec: tr.bars[startBar].sec };
     } finally { AU.ctx = save0.ctx; AU.noise = save0.noise; AU.music = save0.music; RADIO.bus = save0.bus; RADIO.lp = save0.lp; RADIO.level = save0.level; RADIO.verb = save0.verb; RADIO.wob = save0.wob; RADIO.wobG = save0.wobG; RADIO.chains = save0.chains; AU.voices = save0.voices; KS.clear(); RADIO.offline = false; }
-  }, ui: { toast: (t, c) => toast(t, c), cash: (n) => addCash(n), sub: (h) => subtitle(h, 6), banner: (a, b, c, d) => splash(a, b, c, d == null ? 3 : d), pause: (t) => openPause(t), close: () => closePause(), phone: (on) => phoneOpen(on), page: (p) => phonePage(p), photo: (on) => photoMode(on), snap: () => snapPhoto(), feed: (k) => { FEEDCD[k] = 0; addFeed(k); }, waypoint: (x, z) => setWaypoint(x, z), state: () => ({ phone: PHONE.open, page: PHONE.page, tab: PAUSE.tab, wp: WAYPOINT, feed: FEED.length, photo: PHOTO.on, set: Object.assign({}, S), log: LOG.length, selfies: save.selfies }) }, _(f) { return f({ cops, traffic, peds, MINES, PROJ, W, WEP, spawnCop, removeCop, D, P, save, launchProj, dropMine, trapCar, creamScreen, glitterBlast, confettiBlast, fartBlast, WI }); }, footAt(x, z, h) { if (!D.onFoot) avatarOnFoot(x, z, h); D.x = x; D.z = z; D.h = h; camState.yaw = h; camState.init = false; }, cam(a) { camOverride = a || null; }, get me2() { return { x: ME.x, z: ME.z, h: D.onFoot ? D.h : P.h }; }, weapon(i) { if (i === 3) save.wep.nukes = 1; WEP.nukeCd = 0; WEP.cur = -1; selectWeapon(i); }, fire(hold) { if (hold === true) { WEP.trigger = true; } else if (hold === false) { WEP.trigger = false; } else weaponFire(false); }, get wep() { return { cur: WEP.cur, water: save.wep.water, potatoes: save.wep.potatoes, nukes: save.wep.nukes, cd: WEP.nukeCd, proj: PROJ.length, water2: WATER.length, nukesLive: NUKES.length, ammo: Object.assign({}, save.wep), cds: Object.assign({}, WEP.cd), mines: MINES.length, decals: DECALS.length, carSplats: CARSPLAT.length, parts: particles.length, boomOut: WEP.boomOut, sel: WEP.wheelSel }; }, pedStates() { const o = {}; peds.forEach((p) => (o[p.state] = (o[p.state] || 0) + 1)); return o; }, step(sec, sub = 1 / 30) { for (let t = 0; t < sec; t += sub) tick(sub, false); }, crowd(n = 10, d0 = 4) { peds.slice(0, n).forEach((p, k) => { const a = (D.onFoot ? D.h : P.h); p.state = "walk"; p.pause = 99; p.x = ME.x + Math.sin(a) * (d0 + (k % 5) * 0.6) + Math.cos(a) * ((k % 3) - 1) * 1.2; p.z = ME.z + Math.cos(a) * (d0 + (k % 5) * 0.6) - Math.sin(a) * ((k % 3) - 1) * 1.2; p.y = groundH(p.x, p.z); }); }, pedLineup() { const z0 = roadC(5) - 11.5; peds.slice(0, 8).forEach((p, k) => { p.bi = 4; p.bj = 4; p.state = "walk"; p.pause = 99; p.flee = 0; p.x = 36 + k * 1.3; p.z = z0 + (k % 2) * 0.8; p.y = CURB; p.s = 0; }); camHold = true; setCam(40.5, 1.6, z0 + 6.5, 40.5, 1.2, z0, 40); }, get peds() { return peds.map((p) => [p.x, p.z, p.state]); }, info() { renderer.info.autoReset = false; renderer.info.reset(); renderer.setRenderTarget(composer.renderTarget1); renderer.render(scene, camera); renderer.setRenderTarget(null); const i = renderer.info.render, o = { calls: i.calls, triangles: i.triangles, pr: Q.pr }; renderer.info.autoReset = true; return o; }, ava: AVA, get postersReady() { return posters.ready; }, quality(l) { Q.locked = true; setQuality(l); }, get q() { return Q.level; }, rain(on) { rain = !!on; rainMesh.visible = rain; applyTOD(0); }, heat(n) { addHeat(n); }, camAt(px, py, pz, lx, ly, lz, fov) { camHold = true; cine.u.dofAmt.value = 0; setCam(px, py, pz, lx, ly, lz, fov); }, get dilly() { return { x: D.x, y: D.y, z: D.z, h: D.h }; }, toggleCar, get onFoot() { return D.onFoot; }, get me() { return { x: ME.x, z: ME.z, v: ME.v }; }, teleport(x, z, h = P.h) { placePlayer(x, z, h); camState.init = false; }, preset(n, snap = true) { setPreset(n, snap); }, trailer: startTrailer, seek(t) { TR.t = t; }, play: startGame,
+  }, ui: { toast: (t, c) => toast(t, c), cash: (n) => addCash(n), sub: (h) => subtitle(h, 6), banner: (a, b, c, d) => splash(a, b, c, d == null ? 3 : d), pause: (t) => openPause(t), close: () => closePause(), phone: (on) => phoneOpen(on), page: (p) => phonePage(p), photo: (on) => photoMode(on), snap: () => snapPhoto(), feed: (k) => { FEEDCD[k] = 0; addFeed(k); }, waypoint: (x, z) => setWaypoint(x, z), state: () => ({ phone: PHONE.open, page: PHONE.page, tab: PAUSE.tab, wp: WAYPOINT, feed: FEED.length, photo: PHOTO.on, set: Object.assign({}, S), log: LOG.length, selfies: save.selfies }) }, _(f) { return f({ cops, traffic, peds, MINES, PROJ, W, WEP, spawnCop, removeCop, D, P, save, launchProj, dropMine, trapCar, creamScreen, glitterBlast, confettiBlast, fartBlast, WI }); }, footAt(x, z, h) { if (!D.onFoot) avatarOnFoot(x, z, h); D.x = x; D.z = z; D.h = h; camState.yaw = h; camState.init = false; }, cam(a) { camOverride = a || null; }, get me2() { return { x: ME.x, z: ME.z, h: D.onFoot ? D.h : P.h }; }, weapon(i) { if (i === WI.nuke) save.wep.nukes = 1; WEP.nukeCd = 0; WEP.cur = -1; selectWeapon(i); }, fire(hold) { if (hold === true) { WEP.trigger = true; } else if (hold === false) { WEP.trigger = false; } else weaponFire(false); }, get wep() { return { cur: WEP.cur, water: save.wep.water, potatoes: save.wep.potatoes, nukes: save.wep.nukes, cd: WEP.nukeCd, proj: PROJ.length, water2: WATER.length, nukesLive: NUKES.length, ammo: Object.assign({}, save.wep), cds: Object.assign({}, WEP.cd), mines: MINES.length, decals: DECALS.length, carSplats: CARSPLAT.length, parts: particles.length, boomOut: WEP.boomOut, sel: WEP.wheelSel }; }, pedStates() { const o = {}; peds.forEach((p) => (o[p.state] = (o[p.state] || 0) + 1)); return o; }, step(sec, sub = 1 / 30) { for (let t = 0; t < sec; t += sub) tick(sub, false); }, crowd(n = 10, d0 = 4) { peds.slice(0, n).forEach((p, k) => { const a = (D.onFoot ? D.h : P.h); p.state = "walk"; p.pause = 99; p.x = ME.x + Math.sin(a) * (d0 + (k % 5) * 0.6) + Math.cos(a) * ((k % 3) - 1) * 1.2; p.z = ME.z + Math.cos(a) * (d0 + (k % 5) * 0.6) - Math.sin(a) * ((k % 3) - 1) * 1.2; p.y = groundH(p.x, p.z); }); }, pedLineup() { const z0 = roadC(5) - 11.5; peds.slice(0, 8).forEach((p, k) => { p.bi = 4; p.bj = 4; p.state = "walk"; p.pause = 99; p.flee = 0; p.x = 36 + k * 1.3; p.z = z0 + (k % 2) * 0.8; p.y = CURB; p.s = 0; }); camHold = true; setCam(40.5, 1.6, z0 + 6.5, 40.5, 1.2, z0, 40); }, get peds() { return peds.map((p) => [p.x, p.z, p.state]); }, info() { renderer.info.autoReset = false; renderer.info.reset(); renderer.setRenderTarget(composer.renderTarget1); renderer.render(scene, camera); renderer.setRenderTarget(null); const i = renderer.info.render, o = { calls: i.calls, triangles: i.triangles, pr: Q.pr }; renderer.info.autoReset = true; return o; }, ava: AVA, get postersReady() { return posters.ready; }, quality(l) { Q.locked = true; setQuality(l); }, get q() { return Q.level; }, rain(on) { rain = !!on; rainMesh.visible = rain; applyTOD(0); }, heat(n) { addHeat(n); }, camAt(px, py, pz, lx, ly, lz, fov) { camHold = true; cine.u.dofAmt.value = 0; setCam(px, py, pz, lx, ly, lz, fov); }, get dilly() { return { x: D.x, y: D.y, z: D.z, h: D.h }; }, toggleCar, get onFoot() { return D.onFoot; }, get me() { return { x: ME.x, z: ME.z, v: ME.v }; }, teleport(x, z, h = P.h) { placePlayer(x, z, h); camState.init = false; }, preset(n, snap = true) { setPreset(n, snap); }, trailer: startTrailer, seek(t) { TR.t = t; }, play: startGame,
   missionNow() { if (!mission) startPickup(); }, endTrailer
 };
 
