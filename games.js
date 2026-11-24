@@ -9,8 +9,8 @@ const bestOf = (H, k) => H.store.get("games", {})[k];
 /* ---------- hub ---------- */
 V.games = H => {
   const g = [
-    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261124204542#play"],
-    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261124204542"],
+    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261124231611#play"],
+    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261124231611"],
     ["crossword", "Mini Crossword", "A 5×5 cosmic crossword. A new grid each day.", "✚"],
     ["scramble", "Orbit Scramble", "Unjumble five space words before the clock runs out.", "🌀"],
     ["rescue", "Rover Rescue", "Guess the word before the rover runs out of oxygen.", "🤖"],
