@@ -232,14 +232,52 @@
       ]
     },
     {
+      id: "act_dilly",
+      num: "ACT VII · DILLY TWIST",
+      title: "Enter The Real Dilly",
+      tagline: "Neon underglow, holiday cash, and a whipped-cream pie for Richard Vance.",
+      img: "assets/story/dilly_cameo.jpg",
+      mood: "joyful",
+      weather: "snow",
+      goalText: "Sell 65 Christmas trees, reach $7,500 cash, or click Watch Movie to preview the Dilly Twist!",
+      unlockCheck: (g) => g && ((g.stats && g.stats.treesSold >= 65) || g.cash >= 7500 || g.year >= 2),
+      rewardCash: 1000,
+      beats: [
+        {
+          who: "NARRATOR",
+          role: "Christmas Eve · Sudden Plot Twist",
+          voice: "narrator",
+          text: "Out of nowhere, a purple-and-gold sports car wrapped in blinding Christmas lights drifts sideways through the snowbank, blasting holiday bass with cyan neon underglow lighting up the entire ridge!",
+          cam: { s0: 1.04, s1: 1.15, x0: -2.4, x1: 1.8, y0: 0.4, y1: -1.0 },
+          dur: 7400
+        },
+        {
+          who: "THE REAL DILLY",
+          role: "Certified Chaos Legend & Holiday VIP",
+          voice: "luke",
+          text: "Yo Clara, Luke—heard some suit named Vance tried to bulldoze the Christmas trees! I just pied his Range Rover in the driveway and brought a stack of cash for the mortgage. Let's get wild!",
+          cam: { s0: 1.14, s1: 1.25, x0: 1.2, x1: -0.6, y0: -1.2, y1: -2.2 },
+          dur: 7800
+        },
+        {
+          who: "CLARA",
+          role: "Owner of Pinecrest Farm",
+          voice: "clara",
+          text: "Wait—did he just save Pinecrest Farm with a neon drift car and a whipped-cream pie?! (+$1,000 Dilly Twist Bonus awarded!)",
+          cam: { s0: 1.12, s1: 1.22, x0: -3.2, x1: -1.4, y0: -1.0, y1: -2.0 },
+          dur: 6800
+        }
+      ]
+    },
+    {
       id: "act7",
-      num: "ACT VII",
+      num: "ACT VIII",
       title: "The Pinecrest Miracle",
       tagline: "One switch lights the entire valley in Christmas gold.",
       img: "assets/story/ch4.jpg",
       mood: "triumph",
       weather: "snow",
-      goalText: "Sell 75 Christmas trees, reach $9,000 cash, or reach Year 2 to unlock Act VII!",
+      goalText: "Sell 75 Christmas trees, reach $9,000 cash, or reach Year 2 to unlock Act VIII!",
       unlockCheck: (g) => g && ((g.stats && g.stats.treesSold >= 75) || g.cash >= 9000 || g.year >= 2),
       rewardCash: 2500,
       beats: [
@@ -533,6 +571,8 @@
           <div class="cr-name">Luke Mercer — Head Carpenter &amp; Tree Grower</div>
           <div class="cr-name">Richard Vance — Vance Luxury Resorts</div>
           <div class="cr-name">The Townsfolk of Pinecrest Valley</div>
+          <div class="cr-role">Special Guest Star (Dilly Twist)</div>
+          <div class="cr-name">THE REAL DILLY — Neon Drift &amp; Pie Chaos</div>
           <div class="cr-role">Filmed On Location</div>
           <div class="cr-name">Pinecrest Ridge · Evergreen Barn · Holiday Market Square</div>
           <div class="cr-role">Original Holiday Score</div>
@@ -586,11 +626,11 @@
   menu.innerHTML = `
     <div id="hm-card">
       <h2>🎬 A Pinecrest Christmas — Full Movie</h2>
-      <p class="hm-sub">An 8-Act Hallmark-style holiday feature film for Pinecrest Tycoon · Created by <strong>King</strong></p>
+      <p class="hm-sub">A 9-Act Hallmark-style holiday feature film (Dilly Twist Edition) · Created by <strong>King</strong></p>
       <div class="hm-hero-play">
         <div>
-          <h3>▶ Watch the Full Feature Movie (All 8 Acts)</h3>
-          <p>Opening Title Card · 8 Cinematic Acts · Voice Narration · Holiday Score · End Credits (~3 min)</p>
+          <h3>▶ Watch the Full Feature Movie (All 9 Acts · Dilly Twist)</h3>
+          <p>Opening Title Card · 9 Cinematic Acts incl. The Real Dilly Cameo · Voice Narration · Score · Credits</p>
         </div>
         <button class="hm-btn gold" id="hm-full-movie" style="padding:10px 16px;font-size:12.5px;">▶ PLAY FULL MOVIE</button>
       </div>
