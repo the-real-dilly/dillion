@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261125014530";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261125020028";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -4740,6 +4740,7 @@ function updateOnFoot(dt) {
   if (D.stumble) AVA.torso.rotation.x = 0.4 * D.stumble;
 }
 function toggleCar() {
+  if (window.__dgmTryInteract && window.__dgmTryInteract()) return;
   if (D.onFoot) {
     const c = findNearestCar(5.4);
     if (c === P) { avatarInCar(); camState.init = false; camState.yaw = P.h; toast("BUCKLED UP", "gold"); }
@@ -7509,24 +7510,27 @@ function tick(dt, doRender) {
   dynGlow.n = 0; starGlow.n = 0; smoke.n = 0; waterGlow.n = 0; confGlow.n = 0; flareGlow.n = 0; CINE.mb = 0; CINE.dof = 0;
   updateTOD(dt);
   if (mode === "game") {
-    if (D.onFoot) updateOnFoot(dt); else updatePlayer(dt);
-    { const o = D.onFoot ? D : P; if ((o.y || 0) < -1.4 && !inCore(o.x, o.z)) { for (let i = 0; i < 30; i++) WATER.push({ x: o.x + rnd(-2, 2), y: 0, z: o.z + rnd(-2, 2), vx: rnd(-4, 4), vy: rnd(4, 10), vz: rnd(-4, 4), life: 0, max: 1.2 }); sfxSplat(); if (D.onFoot) avatarInCar(); resetToRoad("SPLASH! TOWED BACK TO THE ROAD"); camState.init = false; } }
+    const expOn = window.__dgmExpActive && window.__dgmExpActive();
+    if (!expOn) {
+      if (D.onFoot) updateOnFoot(dt); else updatePlayer(dt);
+      { const o = D.onFoot ? D : P; if ((o.y || 0) < -1.4 && !inCore(o.x, o.z)) { for (let i = 0; i < 30; i++) WATER.push({ x: o.x + rnd(-2, 2), y: 0, z: o.z + rnd(-2, 2), vx: rnd(-4, 4), vy: rnd(4, 10), vz: rnd(-4, 4), life: 0, max: 1.2 }); sfxSplat(); if (D.onFoot) avatarInCar(); resetToRoad("SPLASH! TOWED BACK TO THE ROAD"); camState.init = false; } }
+    }
     for (const c of traffic) updateTraffic(c, dt);
     for (const c of [...cops]) updateCop(c, dt);
-    collisionsAll();
+    if (!expOn) collisionsAll();
     updatePeds(dt, gameTime);
     updateMission(dt); updateWanted(dt);
     // near misses with traffic
     const sp = Math.hypot(P.vx, P.vz);
     for (const t of traffic) {
       const d = Math.hypot(t.x - P.x, t.z - P.z);
-      if (!D.onFoot && d < 5.4 && sp > 17 && t.nmCool <= 0 && t.wreck <= 0) { t.nm = 1; }
+      if (!D.onFoot && !expOn && d < 5.4 && sp > 17 && t.nmCool <= 0 && t.wreck <= 0) { t.nm = 1; }
       if (t.nm && d > 9) { t.nm = 0; t.nmCool = 4; if (t.hitT <= 0) addCash(Math.round(sp * 1.2), "NEAR MISS"); }
       if (d > 230 && !t.wreck) spawnTraffic(t, ME.x, ME.z, 90, 200);
       else if (t.wreck <= 0 && d > 120 && !t.g && !isRoad(t.x, t.z)) spawnTraffic(t, ME.x, ME.z, 90, 200);
       else if (!t.g && d > 160 && !(Math.abs(ME.x) < EDGE + 60 && ME.z > -EDGE - 60)) spawnTraffic(t, ME.x, ME.z, 90, 230);
     }
-    if (D.onFoot) updateFootCam(dt); else updateGameCam(dt);
+    if (!expOn) { if (D.onFoot) updateFootCam(dt); else updateGameCam(dt); }
   } else if (mode === "busted") {
     const sdt = dt * 0.32;
     P.vx *= Math.exp(-sdt * 2); P.vz *= Math.exp(-sdt * 2); P.x += P.vx * sdt; P.z += P.vz * sdt;
@@ -7587,6 +7591,7 @@ function tick(dt, doRender) {
   if (mode === "game" || mode === "busted" || mode === "pause") { updateHUD(dt); updateUI(dt); }
   if (saveDirty) { saveTimer -= dt; if (saveTimer <= 0) { saveTimer = 2; persist(); } }
   audioUpdate(dt);
+  if (window.__dgmUpdateExp) window.__dgmUpdateExp(dt);
   if (camOverride) setCam(...camOverride);
   const showPosters = mode === "title" && posters.ready && !$("title").classList.contains("hidden");
   if (!showPosters && doRender && (mode !== "pause" || UIS.dirty3d)) { renderFrame(dt); if (mode === "pause") UIS.dirty3d = false; }
@@ -7612,6 +7617,983 @@ function renderFrame(dt) {
 }
 window.addEventListener("beforeunload", persist);
 document.addEventListener("visibilitychange", () => { if (document.hidden) { persist(); if (mode === "game") pauseGame(); } });
+
+// ============================================================================
+// DILLY GONE MAD EXPANSION: Planes, Helicopters, Boats, Wardrobe & Interiors
+// ============================================================================
+(() => {
+  const EXP = {
+    veh: null,        // active EX_VEHS entry ('heli' | 'plane' | 'boat')
+    interior: null,   // active EX_INTERIORS entry
+    returnPos: null,  // { x, z, h } when exiting an interior
+    wardrobeOpen: false,
+    menuOpen: false,
+    stashClaimed: false,
+    ammoClaimed: false,
+    vehs: {},
+    interiors: {},
+    hatMesh: null,
+    outfit: { fleece: "#27292c", pants: "#3d442e", boot: "#5c4330", hat: "none" }
+  };
+
+  // --- Shared helpers & materials ---
+  const mStd = (col, r = 0.45, m = 0.25, em = 0x000000, ei = 0) =>
+    new THREE.MeshStandardMaterial({ color: col, roughness: r, metalness: m, emissive: em, emissiveIntensity: ei });
+  const mGlass = new THREE.MeshPhysicalMaterial({ color: 0x0d1b2a, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.72, clearcoat: 1 });
+  const mGlow = (col) => new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.78, side: THREE.DoubleSide });
+
+  function makePadRing(color, r = 3.6) {
+    const g = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.28, r, 36), mGlow(color));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.08;
+    g.add(ring);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.16, r * 0.45, 5.5, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
+    beam.position.y = 2.75;
+    g.add(beam);
+    g.userData.ring = ring;
+    g.userData.beam = beam;
+    return g;
+  }
+
+  // ==========================================================================
+  // 1. AIR & SEA VEHICLES (Helicopter, Stunt Plane, Speedboat)
+  // ==========================================================================
+  function buildHeliMesh() {
+    const root = new THREE.Group();
+    const bodyMat = mStd(0x16a34a, 0.3, 0.55);
+    const goldMat = mStd(0xf59e0b, 0.28, 0.7);
+    const darkMat = mStd(0x18181b, 0.55, 0.4);
+
+    // Fuselage
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.55, 4.1), bodyMat);
+    cabin.position.set(0, 1.55, 0.2);
+    root.add(cabin);
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(1.02, 16, 12), mGlass);
+    nose.scale.set(1.0, 0.76, 1.15);
+    nose.position.set(0, 1.58, 2.05);
+    root.add(nose);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.16, 0.24, 3.8), goldMat);
+    stripe.position.set(0, 1.32, 0.25);
+    root.add(stripe);
+
+    // Tail boom & fin
+    const boom = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.48, 4.6), bodyMat);
+    boom.position.set(0, 1.75, -3.7);
+    root.add(boom);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.45, 0.9), goldMat);
+    fin.position.set(0, 2.25, -5.8);
+    root.add(fin);
+
+    // Landing skids
+    for (const sx of [-1.15, 1.15]) {
+      const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.4, 10), darkMat);
+      skid.rotation.x = Math.PI / 2;
+      skid.position.set(sx, 0.25, 0.3);
+      root.add(skid);
+      for (const sz of [-0.9, 1.3]) {
+        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.0, 8), darkMat);
+        strut.position.set(sx * 0.85, 0.72, sz);
+        strut.rotation.z = sx > 0 ? 0.32 : -0.32;
+        root.add(strut);
+      }
+    }
+
+    // Main rotor
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.65, 10), darkMat);
+    mast.position.set(0, 2.55, 0.1);
+    root.add(mast);
+    const mainRotor = new THREE.Group();
+    mainRotor.position.set(0, 2.86, 0.1);
+    for (let i = 0; i < 4; i++) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.05, 4.6), i % 2 ? goldMat : darkMat);
+      blade.position.z = 2.3;
+      const pivot = new THREE.Group();
+      pivot.rotation.y = (i * Math.PI) / 2;
+      pivot.add(blade);
+      mainRotor.add(pivot);
+    }
+    root.add(mainRotor);
+
+    // Tail rotor
+    const tailRotor = new THREE.Group();
+    tailRotor.position.set(0.24, 2.28, -5.85);
+    const tb1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.16), goldMat);
+    const tb2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 1.4), goldMat);
+    tailRotor.add(tb1, tb2);
+    root.add(tailRotor);
+
+    root.userData.mainRotor = mainRotor;
+    root.userData.tailRotor = tailRotor;
+    return root;
+  }
+
+  function buildPlaneMesh() {
+    const root = new THREE.Group();
+    const hullMat = mStd(0xe2e8f0, 0.25, 0.6);
+    const accentMat = mStd(0xdc2626, 0.32, 0.45);
+    const darkMat = mStd(0x18181b, 0.5, 0.4);
+
+    // Fuselage
+    const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.42, 7.2, 14), hullMat);
+    fuse.rotation.x = Math.PI / 2;
+    fuse.position.set(0, 1.35, 0);
+    root.add(fuse);
+    const noseCone = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.3, 14), accentMat);
+    noseCone.rotation.x = Math.PI / 2;
+    noseCone.position.set(0, 1.35, 4.2);
+    root.add(noseCone);
+
+    // Cockpit canopy
+    const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.62, 14, 10), mGlass);
+    canopy.scale.set(0.95, 0.85, 1.9);
+    canopy.position.set(0, 1.88, 0.65);
+    root.add(canopy);
+
+    // Wings
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.18, 1.85), hullMat);
+    wing.position.set(0, 1.25, 0.85);
+    root.add(wing);
+    const wingStripe = new THREE.Mesh(new THREE.BoxGeometry(10.84, 0.2, 0.42), accentMat);
+    wingStripe.position.set(0, 1.26, 1.35);
+    root.add(wingStripe);
+
+    // Tail stabilizers
+    const hStab = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.14, 1.0), accentMat);
+    hStab.position.set(0, 1.42, -3.1);
+    root.add(hStab);
+    const vStab = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.65, 1.25), accentMat);
+    vStab.position.set(0, 2.15, -3.05);
+    root.add(vStab);
+
+    // Landing gear wheels
+    for (const wx of [-1.25, 1.25]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.95, 8), darkMat);
+      leg.position.set(wx, 0.72, 1.1);
+      root.add(leg);
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 12), darkMat);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(wx, 0.32, 1.1);
+      root.add(wheel);
+    }
+
+    // Spinning propeller
+    const prop = new THREE.Group();
+    prop.position.set(0, 1.35, 4.9);
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.3, 0.08), darkMat);
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.18, 0.08), darkMat);
+    prop.add(p1, p2);
+    root.add(prop);
+
+    root.userData.prop = prop;
+    return root;
+  }
+
+  function buildBoatMesh() {
+    const root = new THREE.Group();
+    const hullMat = mStd(0xf8fafc, 0.22, 0.35);
+    const tealMat = mStd(0x0ea5e9, 0.28, 0.45);
+    const deckMat = mStd(0x1e293b, 0.6, 0.2);
+
+    // V-Hull base
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.85, 6.2), hullMat);
+    hull.position.set(0, 0.42, -0.3);
+    root.add(hull);
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(1.88, 2.6, 4), hullMat);
+    bow.rotation.set(Math.PI / 2, 0, Math.PI / 4);
+    bow.scale.set(1.0, 0.44, 1.0);
+    bow.position.set(0, 0.42, 4.0);
+    root.add(bow);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.78, 0.26, 6.0), tealMat);
+    stripe.position.set(0, 0.64, -0.2);
+    root.add(stripe);
+
+    // Cockpit deck & seats
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.22, 3.8), deckMat);
+    deck.position.set(0, 0.82, -0.4);
+    root.add(deck);
+    const shield = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.65, 0.16), mGlass);
+    shield.position.set(0, 1.24, 1.45);
+    shield.rotation.x = -0.45;
+    root.add(shield);
+    for (const sx of [-0.58, 0.58]) {
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.65, 0.72), tealMat);
+      seat.position.set(sx, 1.15, -0.6);
+      root.add(seat);
+    }
+
+    // Outboard motor
+    const motor = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.15, 0.75), deckMat);
+    motor.position.set(0, 0.72, -3.55);
+    root.add(motor);
+    return root;
+  }
+
+  function initVehicles() {
+    const heliY = groundH(24, 22);
+    const heliMesh = buildHeliMesh();
+    heliMesh.position.set(24, heliY, 22);
+    scene.add(heliMesh);
+    const heliPad = makePadRing(0x22c55e, 4.2);
+    heliPad.position.set(24, heliY, 22);
+    scene.add(heliPad);
+
+    const planeY = groundH(-36, 292);
+    const planeMesh = buildPlaneMesh();
+    planeMesh.position.set(-36, planeY, 292);
+    scene.add(planeMesh);
+    const planePad = makePadRing(0xef4444, 4.6);
+    planePad.position.set(-36, planeY, 292);
+    scene.add(planePad);
+
+    const boatZ = SEA + 34;
+    const boatMesh = buildBoatMesh();
+    boatMesh.position.set(10, 0.45, boatZ);
+    scene.add(boatMesh);
+    const boatPad = makePadRing(0x38bdf8, 4.2);
+    boatPad.position.set(10, 0.55, boatZ);
+    scene.add(boatPad);
+
+    EXP.vehs = {
+      heli: {
+        id: "heli", name: "DILLY CHOPPER", icon: "🚁",
+        x: 24, y: heliY, z: 22, h: 0, vx: 0, vy: 0, vz: 0, pitch: 0, roll: 0,
+        mesh: heliMesh, pad: heliPad, home: { x: 24, y: heliY, z: 22, h: 0 }
+      },
+      plane: {
+        id: "plane", name: "STUNT PLANE", icon: "✈️",
+        x: -36, y: planeY, z: 292, h: Math.PI, speed: 0, vy: 0, pitch: 0, roll: 0,
+        mesh: planeMesh, pad: planePad, home: { x: -36, y: planeY, z: 292, h: Math.PI }
+      },
+      boat: {
+        id: "boat", name: "BRINE RUNNER", icon: "🚤",
+        x: 10, y: 0.45, z: boatZ, h: 0, speed: 0, roll: 0,
+        mesh: boatMesh, pad: boatPad, home: { x: 10, y: 0.45, z: boatZ, h: 0 }
+      }
+    };
+  }
+
+  // ==========================================================================
+  // 2. ENTERABLE 3D BUILDING INTERIORS (3 Furnished Rooms at y = 260)
+  // ==========================================================================
+  function buildInteriorRoom(cfg) {
+    const room = new THREE.Group();
+    room.position.set(cfg.rx, cfg.ry, cfg.rz);
+    const W = cfg.w, H = cfg.h, Dp = cfg.d;
+
+    // Floor, Ceiling, Walls
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(W, 0.3, Dp), mStd(cfg.floorCol, 0.45, 0.15));
+    floor.position.y = -0.15;
+    room.add(floor);
+    const ceil = new THREE.Mesh(new THREE.BoxGeometry(W, 0.3, Dp), mStd(cfg.ceilCol, 0.8, 0.05));
+    ceil.position.y = H + 0.15;
+    room.add(ceil);
+
+    const wallMat = mStd(cfg.wallCol, 0.65, 0.1);
+    const backW = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.35), wallMat);
+    backW.position.set(0, H / 2, -Dp / 2);
+    room.add(backW);
+    const frontW = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.35), wallMat);
+    frontW.position.set(0, H / 2, Dp / 2);
+    room.add(frontW);
+    const leftW = new THREE.Mesh(new THREE.BoxGeometry(0.35, H, Dp), wallMat);
+    leftW.position.set(-W / 2, H / 2, 0);
+    room.add(leftW);
+    const rightW = new THREE.Mesh(new THREE.BoxGeometry(0.35, H, Dp), wallMat);
+    rightW.position.set(W / 2, H / 2, 0);
+    room.add(rightW);
+
+    // Warm interior lighting
+    const pl1 = new THREE.PointLight(cfg.lightCol, 2.2, 26);
+    pl1.position.set(0, H - 0.8, 0);
+    room.add(pl1);
+    const pl2 = new THREE.PointLight(cfg.accentCol, 1.4, 18);
+    pl2.position.set(0, H - 1.2, -Dp / 2 + 2.5);
+    room.add(pl2);
+
+    // Glowing Exit Doorway on +Z wall
+    const exitFrame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.2, 0.45), mStd(0x22c55e, 0.3, 0.4, 0x22c55e, 0.55));
+    exitFrame.position.set(0, 1.6, Dp / 2 - 0.12);
+    room.add(exitFrame);
+    const exitMat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.8, 0.5), mGlow(0x4ade80));
+    exitMat.position.set(0, 1.45, Dp / 2 - 0.14);
+    room.add(exitMat);
+
+    // Custom furniture per room
+    if (cfg.id === "boutique") {
+      // Neon accent strip
+      const neon = new THREE.Mesh(new THREE.BoxGeometry(W - 2, 0.18, 0.18), mStd(0xf59e0b, 0.2, 0.2, 0xf59e0b, 1.6));
+      neon.position.set(0, H - 0.5, -Dp / 2 + 0.3);
+      room.add(neon);
+      // Counter & Mirror
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.1, 1.2), mStd(0x18181b, 0.3, 0.5));
+      counter.position.set(0, 0.55, -Dp / 2 + 2.2);
+      room.add(counter);
+      const mirror = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.8, 0.12), mStd(0x93c5fd, 0.08, 0.9, 0x38bdf8, 0.22));
+      mirror.position.set(0, 2.0, -Dp / 2 + 0.28);
+      room.add(mirror);
+      // Clothing racks on left & right
+      const shirtCols = [0xef4444, 0x22c55e, 0x3b82f6, 0xf59e0b, 0xa855f7];
+      for (const sx of [-4.6, 4.6]) {
+        const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 6.2, 8), mStd(0xe2e8f0, 0.2, 0.9));
+        rail.rotation.x = Math.PI / 2;
+        rail.position.set(sx, 1.9, -0.5);
+        room.add(rail);
+        for (let i = 0; i < 5; i++) {
+          const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.95, 0.65), mStd(shirtCols[i], 0.7, 0.1));
+          shirt.position.set(sx, 1.35, -2.8 + i * 1.15);
+          room.add(shirt);
+        }
+      }
+    } else if (cfg.id === "penthouse") {
+      // Luxury rug
+      const rug = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.06, 5.2), mStd(0x14532d, 0.9, 0.05));
+      rug.position.set(0, 0.03, -0.4);
+      room.add(rug);
+      // L-Sofa
+      const sofa1 = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.95, 1.35), mStd(0x1e293b, 0.75, 0.1));
+      sofa1.position.set(-1.2, 0.48, -1.6);
+      room.add(sofa1);
+      const sofa2 = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.95, 3.2), mStd(0x1e293b, 0.75, 0.1));
+      sofa2.position.set(-2.9, 0.48, 0.4);
+      room.add(sofa2);
+      // Coffee table
+      const tbl = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.48, 1.2), mStd(0xf59e0b, 0.25, 0.7));
+      tbl.position.set(-0.6, 0.24, 0.5);
+      room.add(tbl);
+      // Giant TV screen
+      const tv = new THREE.Mesh(new THREE.BoxGeometry(4.8, 2.5, 0.16), mStd(0x0f172a, 0.2, 0.4, 0x38bdf8, 0.55));
+      tv.position.set(0, 2.3, -Dp / 2 + 0.3);
+      room.add(tv);
+      // Gold Cash Vault Safe
+      const safe = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 1.2), mStd(0xf59e0b, 0.25, 0.85, 0xf59e0b, 0.28));
+      safe.position.set(4.5, 0.8, -Dp / 2 + 1.8);
+      room.add(safe);
+    } else if (cfg.id === "gunshop") {
+      // Armored counter
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(6.0, 1.15, 1.3), mStd(0x334155, 0.45, 0.5));
+      counter.position.set(0, 0.58, -Dp / 2 + 2.6);
+      room.add(counter);
+      // Illuminated weapon wall
+      const board = new THREE.Mesh(new THREE.BoxGeometry(7.2, 2.8, 0.2), mStd(0x0f172a, 0.5, 0.4, 0x16a34a, 0.25));
+      board.position.set(0, 2.2, -Dp / 2 + 0.3);
+      room.add(board);
+      for (let i = 0; i < 6; i++) {
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.22, 0.16), mStd(0x94a3b8, 0.3, 0.8));
+        gun.position.set(-2.5 + (i % 3) * 2.5, 1.7 + Math.floor(i / 3) * 1.0, -Dp / 2 + 0.48);
+        room.add(gun);
+      }
+      // Ammo crates
+      for (const cx of [-4.5, 4.5]) {
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.1, 1.5), mStd(0x3f6212, 0.7, 0.2));
+        crate.position.set(cx, 0.55, -2.5);
+        room.add(crate);
+      }
+    }
+
+    scene.add(room);
+    return room;
+  }
+
+  function initInteriors() {
+    const defs = [
+      {
+        id: "boutique", name: "DILLY THREADS BOUTIQUE", icon: "👕", color: 0xf59e0b,
+        dx: -16, dz: 38, rx: -120, ry: 260, rz: 0, w: 13, h: 4.8, d: 13,
+        floorCol: 0x27272a, wallCol: 0x18181b, ceilCol: 0x09090b, lightCol: 0xfff7ed, accentCol: 0xf59e0b,
+        actionLabel: "OPEN WARDROBE [B]"
+      },
+      {
+        id: "penthouse", name: "DILLY'S PENTHOUSE", icon: "🏠", color: 0x22c55e,
+        dx: 36, dz: 112, rx: 0, ry: 260, rz: 0, w: 14, h: 5.0, d: 14,
+        floorCol: 0x1e293b, wallCol: 0x0f172a, ceilCol: 0x020617, lightCol: 0xfef3c7, accentCol: 0x22c55e,
+        actionLabel: "CLAIM $500 STASH & HEAL"
+      },
+      {
+        id: "gunshop", name: "BRINE & BARREL SHOP", icon: "🔫", color: 0x38bdf8,
+        dx: -38, dz: -22, rx: 120, ry: 260, rz: 0, w: 13, h: 4.6, d: 13,
+        floorCol: 0x1f2937, wallCol: 0x111827, ceilCol: 0x030712, lightCol: 0xe0f2fe, accentCol: 0x38bdf8,
+        actionLabel: "REFILL ALL AMMO & HEALTH"
+      }
+    ];
+
+    for (const cfg of defs) {
+      const dy = groundH(cfg.dx, cfg.dz);
+      // Glowing street-side entrance archway
+      const portal = new THREE.Group();
+      portal.position.set(cfg.dx, dy, cfg.dz);
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.16, 10, 24, Math.PI), mStd(cfg.color, 0.25, 0.5, cfg.color, 0.85));
+      arch.position.y = 1.65;
+      portal.add(arch);
+      const ring = makePadRing(cfg.color, 2.2);
+      portal.add(ring);
+      scene.add(portal);
+
+      cfg.dy = dy;
+      cfg.portal = portal;
+      cfg.room = buildInteriorRoom(cfg);
+      EXP.interiors[cfg.id] = cfg;
+    }
+  }
+
+  // ==========================================================================
+  // 3. CHARACTER WARDROBE CUSTOMIZER (Colors + 3D Headwear on AVA.head)
+  // ==========================================================================
+  const WARDROBE_OPTS = {
+    fleece: [
+      { name: "Obsidian", hex: "#27292c" },
+      { name: "Dilly Green", hex: "#166534" },
+      { name: "Crimson", hex: "#991b1b" },
+      { name: "Royal Blue", hex: "#1d4ed8" },
+      { name: "Gold Rush", hex: "#ca8a04" },
+      { name: "Ghost White", hex: "#e5e7eb" },
+      { name: "Sunset", hex: "#ea580c" },
+      { name: "Cyber Violet", hex: "#7e22ce" }
+    ],
+    pants: [
+      { name: "Olive Cargo", hex: "#3d442e" },
+      { name: "Jet Black", hex: "#18181b" },
+      { name: "Denim", hex: "#1e3a8a" },
+      { name: "Khaki", hex: "#a18868" },
+      { name: "Burgundy", hex: "#7f1d1d" },
+      { name: "Snow", hex: "#cbd5e1" }
+    ],
+    boot: [
+      { name: "Trail Brown", hex: "#5c4330" },
+      { name: "Stealth Black", hex: "#111827" },
+      { name: "Timber Gold", hex: "#b45309" },
+      { name: "Red Highs", hex: "#dc2626" },
+      { name: "Crisp White", hex: "#f1f5f9" }
+    ],
+    hat: [
+      { id: "none", name: "None" },
+      { id: "crown", name: "👑 Gold Crown" },
+      { id: "cap", name: "🧢 Street Cap" },
+      { id: "beanie", name: "🧶 Beanie" },
+      { id: "shades", name: "🕶️ Aviators" },
+      { id: "helmet", name: "🪖 Pilot Helmet" }
+    ]
+  };
+
+  function buildHeadwearMesh(id) {
+    const g = new THREE.Group();
+    if (id === "crown") {
+      const gold = mStd(0xfacc15, 0.2, 0.88, 0xca8a04, 0.25);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.1, 0.048, 16), gold);
+      band.position.y = 0.22;
+      g.add(band);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.065, 6), gold);
+        spike.position.set(Math.sin(a) * 0.095, 0.268, Math.cos(a) * 0.095);
+        g.add(spike);
+      }
+    } else if (id === "cap") {
+      const capMat = mStd(0x16a34a, 0.65, 0.1);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.116, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), capMat);
+      dome.position.set(0, 0.165, 0.0);
+      g.add(dome);
+      const brim = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.015, 0.11), mStd(0x14532d, 0.7, 0.1));
+      brim.position.set(0, 0.172, 0.115);
+      brim.rotation.x = 0.12;
+      g.add(brim);
+    } else if (id === "beanie") {
+      const knit = mStd(0xdc2626, 0.88, 0.05);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.118, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), knit);
+      dome.position.set(0, 0.165, -0.005);
+      g.add(dome);
+      const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.022, 8, 20), mStd(0x991b1b, 0.9, 0.05));
+      cuff.rotation.x = Math.PI / 2;
+      cuff.position.set(0, 0.175, -0.005);
+      g.add(cuff);
+    } else if (id === "shades") {
+      const frame = mStd(0xfacc15, 0.2, 0.85);
+      const lens = mStd(0x09090b, 0.08, 0.7);
+      for (const sx of [-0.038, 0.038]) {
+        const l = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.032, 0.014), lens);
+        l.position.set(sx, 0.128, 0.106);
+        g.add(l);
+      }
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.008, 0.012), frame);
+      bridge.position.set(0, 0.138, 0.105);
+      g.add(bridge);
+    } else if (id === "helmet") {
+      const shell = mStd(0x1e293b, 0.25, 0.6);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.132, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.68), shell);
+      dome.position.set(0, 0.155, -0.005);
+      g.add(dome);
+      const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.068, 14, 1, true, -0.9, 1.8), mGlass);
+      visor.position.set(0, 0.135, 0.01);
+      g.add(visor);
+    }
+    return g;
+  }
+
+  function applyOutfit(saveNow = true) {
+    if (HMAT.fleece) HMAT.fleece.color.set(EXP.outfit.fleece);
+    if (HMAT.pants) HMAT.pants.color.set(EXP.outfit.pants);
+    if (HMAT.boot) HMAT.boot.color.set(EXP.outfit.boot);
+    if (EXP.hatMesh && AVA && AVA.head) {
+      AVA.head.remove(EXP.hatMesh);
+      EXP.hatMesh = null;
+    }
+    if (EXP.outfit.hat && EXP.outfit.hat !== "none" && AVA && AVA.head) {
+      EXP.hatMesh = buildHeadwearMesh(EXP.outfit.hat);
+      AVA.head.add(EXP.hatMesh);
+    }
+    if (saveNow) {
+      try { localStorage.setItem("dgm_wardrobe_v1", JSON.stringify(EXP.outfit)); } catch (e) {}
+    }
+    refreshWardrobeUI();
+  }
+
+  function loadOutfit() {
+    try {
+      const raw = localStorage.getItem("dgm_wardrobe_v1");
+      if (raw) Object.assign(EXP.outfit, JSON.parse(raw));
+    } catch (e) {}
+    applyOutfit(false);
+  }
+
+  // ==========================================================================
+  // 4. BOARDING / ENTERING / EXITING LOGIC
+  // ==========================================================================
+  function boardVehicle(id) {
+    const v = EXP.vehs[id];
+    if (!v) return;
+    if (EXP.interior) exitInterior(true);
+    if (EXP.veh && EXP.veh.id !== id) exitVehicle(true);
+    EXP.veh = v;
+    if (!D.onFoot) avatarOnFoot(v.x, v.z, v.h);
+    D.x = v.x; D.y = v.y; D.z = v.z; D.h = v.h; D.vx = 0; D.vy = 0; D.vz = 0;
+    if (AVA && AVA.root) AVA.root.visible = false;
+    toast(`${v.icon} BOARDED ${v.name}`, "gold");
+    toggleMenu(false);
+  }
+
+  function exitVehicle(silent = false) {
+    const v = EXP.veh;
+    if (!v) return;
+    EXP.veh = null;
+    camOverride = null;
+    if (AVA && AVA.root) AVA.root.visible = true;
+    let ex = v.x + Math.cos(v.h) * 3.5;
+    let ez = v.z - Math.sin(v.h) * 3.5;
+    if (v.id === "boat") {
+      // Disembark cleanly onto the beach
+      ex = clamp(v.x, -120, 120);
+      ez = SEA - 6;
+    }
+    const ey = groundH(ex, ez);
+    avatarOnFoot(ex, ez, v.h);
+    D.y = ey; D.vy = 0;
+    camState.init = false;
+    if (!silent) toast(`EXITED ${v.name}`, "gold");
+  }
+
+  function enterInterior(id) {
+    const b = EXP.interiors[id];
+    if (!b) return;
+    if (EXP.veh) exitVehicle(true);
+    EXP.returnPos = { x: b.dx, z: b.dz + 3.2, h: 0 };
+    EXP.interior = b;
+    if (!D.onFoot) avatarOnFoot(b.rx, b.rz + b.d / 2 - 2.2, Math.PI);
+    D.x = b.rx; D.y = b.ry; D.z = b.rz + b.d / 2 - 2.2; D.h = Math.PI; D.vx = 0; D.vy = 0; D.vz = 0;
+    if (AVA && AVA.root) AVA.root.visible = true;
+    toast(`${b.icon} ENTERED ${b.name}`, "gold");
+    if (b.id === "penthouse" && !EXP.stashClaimed) {
+      EXP.stashClaimed = true;
+      addCash(500, "PENTHOUSE STASH");
+      toast("💰 FOUND $500 STASH + FULL HEALTH!", "gold");
+    } else if (b.id === "gunshop") {
+      if (save && save.wep) {
+        save.wep.water = Math.max(save.wep.water || 0, 99);
+        save.wep.potatoes = Math.max(save.wep.potatoes || 0, 40);
+        save.wep.nukes = Math.max(save.wep.nukes || 0, 2);
+      }
+      toast("🔫 AMMO & GEAR REFILLED!", "gold");
+    } else if (b.id === "boutique") {
+      toast("👕 PRESS [B] TO CUSTOMIZE OUTFIT!", "gold");
+    }
+    toggleMenu(false);
+  }
+
+  function exitInterior(silent = false) {
+    const b = EXP.interior;
+    if (!b) return;
+    const ret = EXP.returnPos || { x: b.dx, z: b.dz + 3.2, h: 0 };
+    EXP.interior = null;
+    camOverride = null;
+    avatarOnFoot(ret.x, ret.z, ret.h);
+    D.y = groundH(ret.x, ret.z);
+    camState.init = false;
+    if (!silent) toast(`LEFT ${b.name}`, "gold");
+  }
+
+  // Interact hook called by toggleCar() when pressing E
+  window.__dgmTryInteract = function () {
+    if (EXP.veh) { exitVehicle(); return true; }
+    if (EXP.interior) { exitInterior(); return true; }
+    const px = D.onFoot ? D.x : P.x;
+    const pz = D.onFoot ? D.z : P.z;
+    // Check nearby air/sea vehicles
+    for (const v of Object.values(EXP.vehs)) {
+      if (Math.hypot(px - v.x, pz - v.z) < 7.5) { boardVehicle(v.id); return true; }
+    }
+    // Check nearby enterable building doorways
+    for (const b of Object.values(EXP.interiors)) {
+      if (Math.hypot(px - b.dx, pz - b.dz) < 5.5) { enterInterior(b.id); return true; }
+    }
+    return false;
+  };
+
+  window.__dgmExpActive = function () {
+    return !!(EXP.veh || EXP.interior);
+  };
+
+  // ==========================================================================
+  // 5. PER-FRAME PHYSICS & CAMERA UPDATE
+  // ==========================================================================
+  function updateVehiclesAndInteriors(dt) {
+    // Animate idle rotors & beacons
+    for (const v of Object.values(EXP.vehs)) {
+      if (v.id === "heli" && v.mesh.userData.mainRotor) {
+        const spin = EXP.veh === v ? 22 : 2.2;
+        v.mesh.userData.mainRotor.rotation.y += dt * spin;
+        v.mesh.userData.tailRotor.rotation.x += dt * spin * 1.4;
+      }
+      if (v.id === "plane" && v.mesh.userData.prop) {
+        const spin = EXP.veh === v ? (14 + Math.abs(v.speed) * 0.6) : 1.8;
+        v.mesh.userData.prop.rotation.z += dt * spin;
+      }
+      if (v.pad && v.pad.userData.ring) {
+        v.pad.visible = EXP.veh !== v;
+        v.pad.userData.ring.rotation.z += dt * 0.9;
+      }
+    }
+    for (const b of Object.values(EXP.interiors)) {
+      if (b.portal) b.portal.children[1].rotation.y += dt * 1.1;
+    }
+
+    if (mode !== "game") {
+      if (hudBar) hudBar.style.display = "none";
+      if (promptEl) promptEl.style.display = "none";
+      return;
+    }
+    if (hudBar) hudBar.style.display = "flex";
+
+    const fwd = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0);
+    const turn = (keys.a || keys.arrowleft ? 1 : 0) - (keys.d || keys.arrowright ? 1 : 0);
+    const up = (keys[" "] ? 1 : 0) - (keys.shift ? 1 : 0);
+
+    // --- Active Vehicle Flight / Boat Physics ---
+    if (EXP.veh) {
+      const v = EXP.veh;
+      if (v.id === "heli") {
+        v.h += turn * dt * 2.1;
+        const fx = Math.sin(v.h), fz = Math.cos(v.h);
+        v.vx = lerp(v.vx, fx * fwd * 36, Math.min(1, dt * 3.2));
+        v.vz = lerp(v.vz, fz * fwd * 36, Math.min(1, dt * 3.2));
+        v.vy = lerp(v.vy, up * 18, Math.min(1, dt * 4.5));
+        v.x += v.vx * dt;
+        v.z += v.vz * dt;
+        v.y += v.vy * dt;
+        const gh = groundH(v.x, v.z);
+        if (v.y < gh) { v.y = gh; v.vy = Math.max(0, v.vy); }
+        if (v.y > 140) v.y = 140;
+        v.pitch = lerp(v.pitch, fwd * 0.24, Math.min(1, dt * 6));
+        v.roll = lerp(v.roll, turn * 0.28, Math.min(1, dt * 6));
+        v.mesh.position.set(v.x, v.y, v.z);
+        v.mesh.rotation.set(v.pitch, v.h, v.roll, "YXZ");
+        D.x = v.x; D.y = v.y + 1.2; D.z = v.z; D.h = v.h;
+        camOverride = [
+          v.x - Math.sin(v.h) * 14.5, v.y + 6.2, v.z - Math.cos(v.h) * 14.5,
+          v.x + Math.sin(v.h) * 6, v.y + 1.8, v.z + Math.cos(v.h) * 6, 62
+        ];
+        showPrompt(`🚁 ${v.name} • ALT ${Math.round(v.y)}m • [WASD] Fly • [SPACE/SHIFT] Up/Down • [E] Exit`);
+      } else if (v.id === "plane") {
+        v.h += turn * dt * 1.55;
+        const targetSpd = fwd > 0 ? 54 : (fwd < 0 ? 12 : (v.y > groundH(v.x, v.z) + 2 ? 32 : 0));
+        v.speed = lerp(v.speed, targetSpd, Math.min(1, dt * 2.4));
+        const climb = up !== 0 ? up * 20 : (v.speed > 26 && fwd > 0 && v.y < 14 ? 8 : 0);
+        v.vy = lerp(v.vy, climb, Math.min(1, dt * 3.5));
+        v.x += Math.sin(v.h) * v.speed * dt;
+        v.z += Math.cos(v.h) * v.speed * dt;
+        v.y += v.vy * dt;
+        const gh = groundH(v.x, v.z);
+        if (v.y < gh) { v.y = gh; v.vy = Math.max(0, v.vy); }
+        if (v.y > 165) v.y = 165;
+        v.pitch = lerp(v.pitch, -v.vy * 0.018, Math.min(1, dt * 5));
+        v.roll = lerp(v.roll, -turn * 0.52, Math.min(1, dt * 5));
+        v.mesh.position.set(v.x, v.y, v.z);
+        v.mesh.rotation.set(v.pitch, v.h, v.roll, "YXZ");
+        D.x = v.x; D.y = v.y + 1.2; D.z = v.z; D.h = v.h;
+        camOverride = [
+          v.x - Math.sin(v.h) * 16.5, v.y + 5.6, v.z - Math.cos(v.h) * 16.5,
+          v.x + Math.sin(v.h) * 10, v.y + 1.5, v.z + Math.cos(v.h) * 10, 68
+        ];
+        showPrompt(`✈️ ${v.name} • ${Math.round(v.speed * 2.2)} MPH • ALT ${Math.round(v.y)}m • [W/S] Throttle • [A/D] Bank • [SPACE/SHIFT] Climb/Dive • [E] Exit`);
+      } else if (v.id === "boat") {
+        v.h += turn * dt * 1.9;
+        v.speed = lerp(v.speed, fwd * 30, Math.min(1, dt * 2.8));
+        v.x += Math.sin(v.h) * v.speed * dt;
+        v.z += Math.cos(v.h) * v.speed * dt;
+        // Keep boat in the ocean
+        if (v.z < SEA + 14) { v.z = SEA + 14; v.speed *= 0.4; }
+        v.y = 0.45 + Math.sin(gameTime * 3.2 + v.x * 0.1) * 0.14;
+        v.roll = lerp(v.roll, -turn * 0.22 * clamp(Math.abs(v.speed) / 14, 0, 1), Math.min(1, dt * 6));
+        v.mesh.position.set(v.x, v.y, v.z);
+        v.mesh.rotation.set(-v.speed * 0.006, v.h, v.roll, "YXZ");
+        if (Math.abs(v.speed) > 4 && waterGlow) {
+          waterGlow.add(v.x - Math.sin(v.h) * 3.5, 0.35, v.z - Math.cos(v.h) * 3.5, 0.75, 0.94, 1.0, 2.4, 0.65);
+        }
+        D.x = v.x; D.y = v.y + 0.8; D.z = v.z; D.h = v.h;
+        camOverride = [
+          v.x - Math.sin(v.h) * 12.5, v.y + 4.8, v.z - Math.cos(v.h) * 12.5,
+          v.x + Math.sin(v.h) * 6, v.y + 1.2, v.z + Math.cos(v.h) * 6, 60
+        ];
+        showPrompt(`🚤 ${v.name} • ${Math.round(Math.abs(v.speed) * 2.0)} KTS • [WASD] Sail • [E] Disembark to Beach`);
+      }
+      return;
+    }
+
+    // --- Active Building Interior Walking & Camera ---
+    if (EXP.interior) {
+      const b = EXP.interior;
+      const spd = 6.2;
+      let mx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+      let mz = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
+      const len = Math.hypot(mx, mz);
+      if (len > 0.01) {
+        mx /= len; mz /= len;
+        D.x += mx * spd * dt;
+        D.z += mz * spd * dt;
+        D.h = Math.atan2(mx, mz);
+        D.v = spd;
+        AVA.phase += dt * 11;
+      } else {
+        D.v = 0;
+      }
+      const hw = b.w / 2 - 1.1, hd = b.d / 2 - 1.1;
+      D.x = clamp(D.x, b.rx - hw, b.rx + hw);
+      D.z = clamp(D.z, b.rz - hd, b.rz + hd);
+      D.y = b.ry;
+      avatarPose("walk", gameTime, { speed: D.v, air: 0, k: Math.min(1, dt * 12) });
+      syncAvatar();
+      camOverride = [
+        D.x * 0.55 + b.rx * 0.45, b.ry + 3.4, Math.min(D.z + 5.2, b.rz + b.d / 2 - 0.8),
+        D.x, b.ry + 1.35, D.z - 1.0, 56
+      ];
+      showPrompt(`${b.icon} ${b.name} • [WASD] Walk • ${b.actionLabel} • [E] Exit Building`);
+      return;
+    }
+
+    // --- Proximity Prompts in Open World ---
+    const px = D.onFoot ? D.x : P.x;
+    const pz = D.onFoot ? D.z : P.z;
+    let tip = "";
+    for (const v of Object.values(EXP.vehs)) {
+      if (Math.hypot(px - v.x, pz - v.z) < 8.5) { tip = `[E] Board ${v.icon} ${v.name}`; break; }
+    }
+    if (!tip) {
+      for (const b of Object.values(EXP.interiors)) {
+        if (Math.hypot(px - b.dx, pz - b.dz) < 6.5) { tip = `[E] Enter ${b.icon} ${b.name}`; break; }
+      }
+    }
+    if (tip) showPrompt(tip); else if (promptEl) promptEl.style.display = "none";
+  }
+
+  window.__dgmUpdateExp = updateVehiclesAndInteriors;
+
+  // ==========================================================================
+  // 6. UI: FLOATING EXTRAS BAR, CONTEXT PROMPT & WARDROBE MODAL
+  // ==========================================================================
+  const style = document.createElement("style");
+  style.textContent = `
+    #dgm-exp-bar{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:950;display:none;gap:8px;align-items:center;font-family:system-ui,-apple-system,sans-serif;}
+    .dgm-pill{background:rgba(12,14,18,.86);color:#f8fafc;border:1px solid rgba(250,204,21,.45);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;letter-spacing:.4px;cursor:pointer;backdrop-filter:blur(10px);box-shadow:0 6px 20px rgba(0,0,0,.45);transition:.15s;}
+    .dgm-pill:hover{background:#facc15;color:#09090b;transform:translateY(-1px);}
+    #dgm-exp-menu{position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:960;display:none;background:rgba(12,14,18,.94);border:1px solid rgba(250,204,21,.4);border-radius:16px;padding:12px;width:320px;box-shadow:0 18px 48px rgba(0,0,0,.65);backdrop-filter:blur(14px);color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;}
+    #dgm-exp-menu h4{margin:6px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#facc15;}
+    .dgm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
+    .dgm-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#f8fafc;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;text-align:left;transition:.14s;}
+    .dgm-btn:hover{background:rgba(250,204,21,.22);border-color:#facc15;}
+    #dgm-exp-prompt{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);z-index:940;display:none;background:rgba(9,9,11,.86);border:1px solid rgba(250,204,21,.55);color:#fef08a;padding:8px 18px;border-radius:999px;font:700 13px/1.2 system-ui,-apple-system,sans-serif;letter-spacing:.4px;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none;white-space:nowrap;}
+    #dgm-wardrobe{position:fixed;top:50%;right:22px;transform:translateY(-50%);z-index:970;display:none;width:300px;background:rgba(12,14,18,.95);border:1px solid rgba(250,204,21,.45);border-radius:18px;padding:16px;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 20px 55px rgba(0,0,0,.72);backdrop-filter:blur(16px);}
+    #dgm-wardrobe .hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    #dgm-wardrobe h3{margin:0;font-size:15px;font-weight:800;letter-spacing:.5px;color:#facc15;}
+    #dgm-wardrobe .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin:10px 0 6px;font-weight:700;}
+    .dgm-swatches{display:flex;flex-wrap:wrap;gap:6px;}
+    .dgm-sw{width:26px;height:26px;border-radius:8px;border:2px solid rgba(255,255,255,.22);cursor:pointer;transition:.12s;}
+    .dgm-sw.on{border-color:#facc15;transform:scale(1.14);box-shadow:0 0 0 2px rgba(250,204,21,.35);}
+    .dgm-hats{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+    .dgm-hat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#f8fafc;border-radius:9px;padding:7px 8px;font-size:12px;font-weight:600;cursor:pointer;}
+    .dgm-hat.on{background:rgba(250,204,21,.22);border-color:#facc15;color:#fef08a;}
+  `;
+  document.head.appendChild(style);
+
+  const hudBar = document.createElement("div");
+  hudBar.id = "dgm-exp-bar";
+  hudBar.innerHTML = `
+    <button class="dgm-pill" id="dgm-btn-extras">✨ Vehicles &amp; Interiors</button>
+    <button class="dgm-pill" id="dgm-btn-wardrobe">👕 Wardrobe (B)</button>
+  `;
+  document.body.appendChild(hudBar);
+
+  const expMenu = document.createElement("div");
+  expMenu.id = "dgm-exp-menu";
+  expMenu.innerHTML = `
+    <h4>Air &amp; Sea Vehicles</h4>
+    <div class="dgm-grid">
+      <button class="dgm-btn" data-veh="heli">🚁 Fly Helicopter</button>
+      <button class="dgm-btn" data-veh="plane">✈️ Fly Stunt Plane</button>
+      <button class="dgm-btn" data-veh="boat">🚤 Drive Speedboat</button>
+      <button class="dgm-btn" id="dgm-btn-exit-any">🚶 Exit / On Foot</button>
+    </div>
+    <h4>Enterable Buildings</h4>
+    <div class="dgm-grid">
+      <button class="dgm-btn" data-int="boutique">👕 Dilly Threads</button>
+      <button class="dgm-btn" data-int="penthouse">🏠 Penthouse</button>
+      <button class="dgm-btn" data-int="gunshop">🔫 Tactical Shop</button>
+      <button class="dgm-btn" id="dgm-btn-open-wardrobe2">🎨 Customize Dilly</button>
+    </div>
+  `;
+  document.body.appendChild(expMenu);
+
+  const promptEl = document.createElement("div");
+  promptEl.id = "dgm-exp-prompt";
+  document.body.appendChild(promptEl);
+  function showPrompt(txt) {
+    if (promptEl.textContent !== txt) promptEl.textContent = txt;
+    promptEl.style.display = "block";
+  }
+
+  const wardEl = document.createElement("div");
+  wardEl.id = "dgm-wardrobe";
+  wardEl.innerHTML = `
+    <div class="hdr">
+      <h3>👕 DILLY WARDROBE</h3>
+      <button class="dgm-pill" id="dgm-w-close" style="padding:4px 10px;">✕</button>
+    </div>
+    <div class="lbl">Jacket / Fleece</div>
+    <div class="dgm-swatches" id="dgm-sw-fleece"></div>
+    <div class="lbl">Pants</div>
+    <div class="dgm-swatches" id="dgm-sw-pants"></div>
+    <div class="lbl">Boots</div>
+    <div class="dgm-swatches" id="dgm-sw-boot"></div>
+    <div class="lbl">3D Headwear &amp; Gear</div>
+    <div class="dgm-hats" id="dgm-sw-hat"></div>
+  `;
+  document.body.appendChild(wardEl);
+
+  function renderWardrobeControls() {
+    for (const part of ["fleece", "pants", "boot"]) {
+      const box = document.getElementById("dgm-sw-" + part);
+      box.innerHTML = "";
+      for (const opt of WARDROBE_OPTS[part]) {
+        const b = document.createElement("button");
+        b.className = "dgm-sw";
+        b.title = opt.name;
+        b.style.background = opt.hex;
+        b.dataset.val = opt.hex;
+        b.onclick = (e) => { e.stopPropagation(); EXP.outfit[part] = opt.hex; applyOutfit(true); };
+        box.appendChild(b);
+      }
+    }
+    const hbox = document.getElementById("dgm-sw-hat");
+    hbox.innerHTML = "";
+    for (const opt of WARDROBE_OPTS.hat) {
+      const b = document.createElement("button");
+      b.className = "dgm-hat";
+      b.textContent = opt.name;
+      b.dataset.val = opt.id;
+      b.onclick = (e) => { e.stopPropagation(); EXP.outfit.hat = opt.id; applyOutfit(true); };
+      hbox.appendChild(b);
+    }
+    refreshWardrobeUI();
+  }
+
+  function refreshWardrobeUI() {
+    for (const part of ["fleece", "pants", "boot"]) {
+      const box = document.getElementById("dgm-sw-" + part);
+      if (!box) continue;
+      for (const el of box.children) el.classList.toggle("on", el.dataset.val === EXP.outfit[part]);
+    }
+    const hbox = document.getElementById("dgm-sw-hat");
+    if (hbox) {
+      for (const el of hbox.children) el.classList.toggle("on", el.dataset.val === EXP.outfit.hat);
+    }
+  }
+
+  function toggleMenu(force) {
+    EXP.menuOpen = force != null ? !!force : !EXP.menuOpen;
+    expMenu.style.display = EXP.menuOpen ? "block" : "none";
+  }
+
+  function toggleWardrobe(force) {
+    EXP.wardrobeOpen = force != null ? !!force : !EXP.wardrobeOpen;
+    wardEl.style.display = EXP.wardrobeOpen ? "block" : "none";
+    if (EXP.wardrobeOpen) {
+      toggleMenu(false);
+      if (!D.onFoot && !EXP.veh && !EXP.interior) {
+        const w = localToWorld(P, 2.0, 0, 0.2);
+        avatarOnFoot(w[0], w[2], P.h);
+      }
+      if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    }
+  }
+
+  document.getElementById("dgm-btn-extras").onclick = (e) => { e.stopPropagation(); toggleMenu(); };
+  document.getElementById("dgm-btn-wardrobe").onclick = (e) => { e.stopPropagation(); toggleWardrobe(); };
+  document.getElementById("dgm-w-close").onclick = (e) => { e.stopPropagation(); toggleWardrobe(false); };
+  document.getElementById("dgm-btn-open-wardrobe2").onclick = (e) => { e.stopPropagation(); toggleWardrobe(true); };
+  document.getElementById("dgm-btn-exit-any").onclick = (e) => {
+    e.stopPropagation();
+    if (EXP.veh) exitVehicle();
+    else if (EXP.interior) exitInterior();
+    toggleMenu(false);
+  };
+  expMenu.querySelectorAll("[data-veh]").forEach((btn) => {
+    btn.onclick = (e) => { e.stopPropagation(); boardVehicle(btn.dataset.veh); };
+  });
+  expMenu.querySelectorAll("[data-int]").forEach((btn) => {
+    btn.onclick = (e) => { e.stopPropagation(); enterInterior(btn.dataset.int); };
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (mode !== "game") return;
+    if (e.key.toLowerCase() === "b" && !e.repeat) {
+      e.preventDefault();
+      toggleWardrobe();
+    }
+  });
+
+  // Initialize everything
+  initVehicles();
+  initInteriors();
+  renderWardrobeControls();
+  loadOutfit();
+
+  // Public debug / automation hook
+  window.DGM_EXP = {
+    board: boardVehicle,
+    exitVehicle,
+    enterInterior,
+    exitInterior,
+    toggleWardrobe,
+    toggleMenu,
+    setOutfit(o) { Object.assign(EXP.outfit, o); applyOutfit(true); },
+    get state() {
+      return {
+        veh: EXP.veh ? { id: EXP.veh.id, x: +EXP.veh.x.toFixed(1), y: +EXP.veh.y.toFixed(1), z: +EXP.veh.z.toFixed(1) } : null,
+        interior: EXP.interior ? EXP.interior.id : null,
+        wardrobeOpen: EXP.wardrobeOpen,
+        outfit: Object.assign({}, EXP.outfit)
+      };
+    }
+  };
+})();
 
 // test / debug hook
 window.DGM = {
