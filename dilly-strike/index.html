@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ranked.css"><!-- RANKED -->
   <script type="importmap">{ "imports": { "three": "../vendor/three.module.js" } }</script>
 </head>
 <body>
@@ -149,6 +150,7 @@
           <button class="mm-tab play" data-view="play"><svg><use href="#i-play"/></svg><span>Play</span></button>
           <button class="mm-tab" data-view="loadout"><svg><use href="#i-loadout"/></svg><span>Loadout</span></button>
           <button class="mm-tab" data-view="agents"><svg><use href="#i-agent"/></svg><span>Agents</span></button>
+          <button class="mm-tab" data-view="ranked"><svg><use href="#i-chevrons"/></svg><span>Ranked</span></button><!-- RANKED -->
           <button class="mm-tab" id="btn-settings-lobby"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
           <button class="mm-tab" id="btn-watch-trailer"><svg><use href="#i-film"/></svg><span>Trailer</span></button>
         </nav>
@@ -224,15 +226,16 @@
             </div>
             <span class="mode-go">Connect<svg><use href="#i-play"/></svg></span>
           </button>
-          <div class="mode-card locked" aria-disabled="true">
-            <div class="mode-art ranked"><svg><use href="#i-lock"/></svg></div>
+          <!-- RANKED (src/ranked.js) -->
+          <button class="mode-card" id="btn-play-ranked" data-go="ranked">
+            <div class="mode-art ranked"><svg><use href="#i-chevrons"/></svg></div>
             <div class="mode-body">
-              <div class="mode-tag gray">Coming soon</div>
+              <div class="mode-tag rk-tag">Online · Hub account</div>
               <strong>Ranked</strong>
-              <small>Skill groups, placement matches and seasonal rewards.</small>
+              <small>5v5 first to 13. Five placement matches, then climb from Seedling to Legend.</small>
             </div>
-            <span class="mode-go"><svg><use href="#i-lock"/></svg>Locked</span>
-          </div>
+            <span class="mode-go">Ranked<svg><use href="#i-play"/></svg></span>
+          </button>
         </div>
         <div class="map-strip">
           <div class="map-chip active"><svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg><span>de_dustline</span></div>
@@ -250,6 +253,12 @@
       <section class="mm-view" data-view="agents">
         <div class="view-hd"><div class="view-kicker">Roster</div><h2>Agents</h2></div>
         <div class="ag-roster" id="mm-agents"></div>
+      </section>
+
+      <!-- RANKED (rendered by src/ranked.js) -->
+      <section class="mm-view" data-view="ranked">
+        <div class="view-hd"><div class="view-kicker">Competitive ladder</div><h2>Ranked</h2></div>
+        <div id="rk-root" class="rk-root"><p class="rk-muted">Loading ranked…</p></div>
       </section>
     </div>
   </div>
@@ -442,5 +451,6 @@
   <script type="module" src="src/main.js"></script>
   <script type="module" src="src/trailer.js"></script>
   <script type="module" src="src/ui.js"></script>
+  <script type="module" src="src/ranked.js"></script><!-- RANKED -->
 </body>
 </html>

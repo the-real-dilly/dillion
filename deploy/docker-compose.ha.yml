@@ -50,6 +50,12 @@ services:
     build: ../dilly-strike/server
     environment:
       PORT: "8081"
+      # Ranked: same secret as the hub (export DILLY_SESSION_SECRET=$(openssl rand -hex 32) first).
+      # Empty => ranked disabled, casual still works. See dilly-strike/server/README.md.
+      DILLY_SESSION_SECRET: "${DILLY_SESSION_SECRET:-}"
+      RANKED_TEAM_SIZE: "${RANKED_TEAM_SIZE:-5}"
+      RANKED_ROUNDS_TO_WIN: "${RANKED_ROUNDS_TO_WIN:-13}"
+      RANKED_WINDOW_BASE: "${RANKED_WINDOW_BASE:-100}"
       DATABASE_URL: "postgres://dilly:dilly_dev_password@postgres:5432/dillygaming"
       REDIS_URL: "redis://:dilly_redis_password@redis:6379"
     ports:
@@ -78,6 +84,7 @@ services:
     build: ../dilly-hub/server
     environment:
       PORT: "8083"
+      DILLY_SESSION_SECRET: "${DILLY_SESSION_SECRET:-}"  # signs hub session tokens used by ranked
       DATABASE_URL: "postgres://dilly:dilly_dev_password@postgres:5432/dillygaming"
       REDIS_URL: "redis://:dilly_redis_password@redis:6379"
     ports:
