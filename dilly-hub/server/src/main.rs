@@ -5,6 +5,7 @@
    ========================================================================== */
 
 mod ha;
+mod session;
 
 use ha::{pg_escape, HaContext};
 use std::collections::HashMap;
@@ -16,6 +17,12 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const REDIS_CHANNEL: &str = "dilly:hub:rooms";
+/// Session tokens last 7 days; services verify them with the shared DILLY_SESSION_SECRET.
+const SESSION_TTL_SECS: u64 = 7 * 24 * 3600;
+
+fn session_secret() -> Option<Vec<u8>> {
+    env::var("DILLY_SESSION_SECRET").ok().filter(|s| s.len() >= session::MIN_SECRET_LEN).map(|s| s.into_bytes())
+}
 
 #[derive(Clone)]
 struct Account {
@@ -45,6 +52,8 @@ struct Room {
 struct HubState {
     accounts: HashMap<String, Account>,
     rooms: HashMap<String, Room>,
+    /// Failed PIN attempts per account key (unix secs), for brute-force throttling.
+    login_fails: HashMap<String, Vec<u64>>,
     ha: HaContext,
 }
 
@@ -209,6 +218,7 @@ fn main() {
     let state = Arc::new(Mutex::new(HubState {
         accounts,
         rooms,
+        login_fails: HashMap::new(),
         ha: ha_ctx.clone(),
     }));
 
@@ -296,7 +306,63 @@ fn handle_http(mut stream: TcpStream, state: Arc<Mutex<HubState>>) {
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "Civilian".into());
             let key = callsign.to_lowercase();
+            if pin.is_empty() || pin.chars().count() > 32 || !session::valid_callsign(&callsign) {
+                send_json(&mut stream, 400, "{\"error\":\"invalid callsign or PIN\"}");
+                return;
+            }
             let pin_h = simple_hash(&format!("{}:{}", key, pin));
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+
+            // Accounts created on another replica: hydrate from PostgreSQL before deciding.
+            let known = state.lock().unwrap().accounts.contains_key(&key);
+            if !known {
+                let ha_ctx = state.lock().unwrap().ha.clone();
+                if let Ok(rows) = ha_ctx.pg_query(&format!(
+                    "SELECT callsign, pin_hash, rp_job, xp, strike_kills, strike_hs, mad_cash, verse_blocks FROM dilly_accounts WHERE lower(callsign) = '{}' LIMIT 1;",
+                    pg_escape(&key)
+                )) {
+                    if let Some(r) = rows.first().filter(|r| r.len() >= 8) {
+                        state.lock().unwrap().accounts.entry(key.clone()).or_insert_with(|| Account {
+                            callsign: r[0].clone(),
+                            pin_hash: r[1].clone(),
+                            rp_job: r[2].clone(),
+                            xp: r[3].parse().unwrap_or(100),
+                            strike_kills: r[4].parse().unwrap_or(0),
+                            strike_hs: r[5].parse().unwrap_or(0),
+                            mad_cash: r[6].parse().unwrap_or(250),
+                            verse_blocks: r[7].parse().unwrap_or(0),
+                        });
+                    }
+                }
+            }
+
+            let verdict = {
+                let mut g = state.lock().unwrap();
+                let fails = g.login_fails.entry(key.clone()).or_default();
+                fails.retain(|t| now.saturating_sub(*t) < 600);
+                if fails.len() >= 8 {
+                    Err((429, "{\"error\":\"too many attempts, wait a few minutes\"}"))
+                } else {
+                    match g.accounts.get_mut(&key) {
+                        // studio showcase accounts can't be signed into
+                        Some(a) if a.pin_hash == "seed" => Err((403, "{\"error\":\"callsign reserved\"}")),
+                        // created anonymously via /api/stats: first PIN login claims it
+                        Some(a) if a.pin_hash == "guest" => {
+                            a.pin_hash = pin_h.clone();
+                            Ok(())
+                        }
+                        Some(a) if a.pin_hash != pin_h => Err((401, "{\"error\":\"wrong PIN for this callsign\"}")),
+                        _ => Ok(()),
+                    }
+                }
+            };
+            if let Err((code, msg)) = verdict {
+                if code == 401 {
+                    state.lock().unwrap().login_fails.entry(key.clone()).or_default().push(now);
+                }
+                send_json(&mut stream, code, msg);
+                return;
+            }
 
             let (acc, ha_ctx) = {
                 let mut g = state.lock().unwrap();
@@ -319,12 +385,20 @@ fn handle_http(mut stream: TcpStream, state: Arc<Mutex<HubState>>) {
             ha_ctx.pg_exec_async(format!(
                 "INSERT INTO dilly_accounts (callsign, pin_hash, rp_job, xp, strike_kills, strike_hs, mad_cash, verse_blocks, updated_at) \
                  VALUES ('{}', '{}', '{}', {}, {}, {}, {}, {}, NOW()) \
-                 ON CONFLICT (callsign) DO UPDATE SET rp_job = EXCLUDED.rp_job, updated_at = NOW();",
+                 ON CONFLICT (callsign) DO UPDATE SET rp_job = EXCLUDED.rp_job, pin_hash = EXCLUDED.pin_hash, updated_at = NOW();",
                 pg_escape(&acc.callsign), pg_escape(&acc.pin_hash), pg_escape(&acc.rp_job),
                 acc.xp, acc.strike_kills, acc.strike_hs, acc.mad_cash, acc.verse_blocks
             ));
 
-            send_json(&mut stream, 200, &account_json(&acc));
+            // Signed session token for other Dilly services (e.g. Dilly Strike ranked).
+            let mut body_json = account_json(&acc);
+            if let Some(secret) = session_secret() {
+                let exp = now + SESSION_TTL_SECS;
+                let tok = session::issue_token(&secret, &acc.callsign, exp);
+                body_json.pop();
+                body_json.push_str(&format!(",\"token\":\"{}\",\"token_exp\":{}}}", tok, exp));
+            }
+            send_json(&mut stream, 200, &body_json);
         }
 
         ("GET", "/api/leaderboard") => {
@@ -453,7 +527,10 @@ fn send_json(stream: &mut TcpStream, status: u16, body: &str) {
         200 => "OK",
         204 => "No Content",
         400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
         404 => "Not Found",
+        429 => "Too Many Requests",
         _ => "OK",
     };
     let resp = format!(

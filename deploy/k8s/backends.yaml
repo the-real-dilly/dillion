@@ -152,6 +152,13 @@ spec:
                 secretKeyRef:
                   name: dilly-ha-secrets
                   key: REDIS_URL
+            - name: DILLY_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: DILLY_SESSION_SECRET
+            - name: RANKED_TRUST_PROXY
+              value: "1"
           readinessProbe:
             httpGet:
               path: /readyz
@@ -362,6 +369,11 @@ spec:
                 secretKeyRef:
                   name: dilly-ha-secrets
                   key: REDIS_URL
+            - name: DILLY_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: DILLY_SESSION_SECRET
           readinessProbe:
             httpGet:
               path: /readyz
