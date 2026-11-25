@@ -95,6 +95,7 @@ views.home = () => {
           <p>Competitive 3D tactical shooter on Dustline Citadel. Buy Vandals, Phantoms &amp; scoped Operators, deploy Flashbangs, Smokes &amp; Dashes, and battle Tactical Bots or live players on the Rust backend.</p>
           <div class="dg-actions">
             <a class="btn big" href="dilly-strike/index.html">▶ Play Now</a>
+            <a class="btn ghost" href="dilly-strike/index.html#trailer">🎬 Watch Trailer</a>
           </div>
         </div>
       </article>
