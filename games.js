@@ -10,8 +10,9 @@ const bestOf = (H, k) => H.store.get("games", {})[k];
 V.games = H => {
   const g = [
     ["dillyverse", "DillyVerse", "Build. Explore. Survive. — 3D voxel sandbox survival, crafting, biomes, caves, creatures & multiplayer.", "🧊", "dillyverse/index.html"],
-    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261125012017#play"],
-    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261125012017"],
+    ["dillyfortress", "Dilly Fortress", "Tactical tower defense — 3 maps, 6 upgradeable turrets, commander abilities, boss waves & endless mode.", "🏰", "dilly-fortress/index.html"],
+    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261125012915#play"],
+    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261125012915"],
     ["crossword", "Mini Crossword", "A 5×5 cosmic crossword. A new grid each day.", "✚"],
     ["scramble", "Orbit Scramble", "Unjumble five space words before the clock runs out.", "🌀"],
     ["rescue", "Rover Rescue", "Guess the word before the rover runs out of oxygen.", "🤖"],

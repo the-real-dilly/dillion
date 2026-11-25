@@ -67,7 +67,7 @@ views.home = () => {
       <a class="btn ghost" href="dillyverse/index.html">🧊 Launch DillyVerse</a>
     </div>
     <div class="dg-stats">
-      <div><strong>4</strong><span>Flagship Titles</span></div>
+      <div><strong>5</strong><span>Flagship Titles</span></div>
       <div><strong>0 MB</strong><span>Instant Play</span></div>
       <div><strong>WebGL 2</strong><span>&amp; Rust Powered</span></div>
       <div><strong>100%</strong><span>Free to Play</span></div>
@@ -95,6 +95,21 @@ views.home = () => {
           <p>Build. Explore. Survive. Infinite chunk-based 3D worlds with 5 biomes, 3D caves, ores, 3×3 crafting, furnaces, creatures, IndexedDB saves, and an authoritative Rust WebSocket backend.</p>
           <div class="dg-actions">
             <a class="btn big" href="dillyverse/index.html">▶ Play Now</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="dg-game">
+        <a class="dg-shot" href="dilly-fortress/index.html">
+          <img src="img/dilly-fortress.png" width="1280" height="800" loading="lazy" alt="Dilly Fortress tactical tower defense">
+          <span class="dg-badge gold">NEW · TOWER DEFENSE</span>
+        </a>
+        <div class="dg-body">
+          <div class="dg-meta">Tactical Strategy · 3 Maps · Boss Waves</div>
+          <h3>Dilly Fortress</h3>
+          <p>Command 6 upgradeable turrets including Tesla Arcs, Railguns, and the Dilly Brine Cannon. Call in Airstrikes, Freeze Novas, and Overdrive against 20 waves + Endless Mode.</p>
+          <div class="dg-actions">
+            <a class="btn" href="dilly-fortress/index.html">▶ Play Now</a>
           </div>
         </div>
       </article>

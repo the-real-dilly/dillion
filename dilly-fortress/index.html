@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DILLY FORTRESS — Dilly Gaming Tactical Tower Defense</title>
+  <link rel="icon" href="../img/dilly-gaming-logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header id="top-bar">
+      <a class="brand-mini" href="../index.html" title="Back to Dilly Gaming">
+        <img src="../img/dilly-gaming-logo.png" alt="Dilly Gaming">
+        <span>DILLY <b>FORTRESS</b></span>
+      </a>
+
+      <div class="stats-strip">
+        <div class="stat-pill gold" id="hud-cash">💰 $260</div>
+        <div class="stat-pill hp" id="hud-lives">❤ 20</div>
+        <div class="stat-pill" id="hud-wave">🌊 Wave 0 / 20</div>
+        <div class="stat-pill" id="hud-score">★ 0</div>
+      </div>
+
+      <div class="top-controls">
+        <button class="btn primary" id="btn-next-wave">▶ Start Wave 1</button>
+        <button class="btn" id="btn-auto" title="Auto-start next wave">Auto: OFF</button>
+        <button class="btn active" id="btn-spd-1">1×</button>
+        <button class="btn" id="btn-spd-2">2×</button>
+        <button class="btn" id="btn-spd-3">3×</button>
+        <button class="btn" id="btn-mute">🔊</button>
+        <button class="btn" id="btn-menu">Maps</button>
+      </div>
+    </header>
+
+    <main id="stage-wrap">
+      <canvas id="td-canvas" width="960" height="600"></canvas>
+
+      <div id="boss-bar">
+        <span><b id="boss-name">👑 PICKLE MECH BOSS</b><i id="boss-hp-txt">1350 / 1350</i></span>
+        <div class="b-track"><div class="b-fill" id="boss-fill" style="width:100%"></div></div>
+      </div>
+
+      <aside id="inspector">
+        <div class="insp-head">
+          <strong id="insp-name">Tower</strong>
+          <button class="btn" id="insp-close" style="padding:2px 7px;">✕</button>
+        </div>
+        <div class="insp-stats" id="insp-stats"></div>
+        <button class="btn" id="insp-target">Target: First</button>
+        <button class="btn primary" id="insp-upgrade">⬆ Upgrade</button>
+        <button class="btn danger" id="insp-sell">💰 Sell</button>
+      </aside>
+    </main>
+
+    <footer id="bottom-bar">
+      <div class="tower-dock" id="tower-dock"></div>
+      <div class="ability-dock">
+        <button class="ab-btn" id="ab-airstrike" title="Airstrike Barrage (Key 1)"><span>✈️</span>Airstrike<small id="cd-1">READY</small></button>
+        <button class="ab-btn" id="ab-freeze" title="Global Freeze Nova (Key 2)"><span>❄️</span>Freeze<small id="cd-2">READY</small></button>
+        <button class="ab-btn" id="ab-overdrive" title="2x Tower Fire Rate (Key 3)"><span>⚡</span>Overdrive<small id="cd-3">READY</small></button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- TITLE / MAP SELECT MODAL -->
+  <div class="modal open" id="modal-title">
+    <div class="card">
+      <div class="title-head">
+        <img src="../img/dilly-gaming-logo.png" alt="Dilly Gaming">
+        <h1>DILLY FORTRESS</h1>
+        <p>Tactical Tower Defense · 6 Upgradeable Turrets · Commander Abilities · Boss Waves</p>
+      </div>
+      <div class="map-grid" id="map-grid"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:12.5px;color:var(--muted);" id="best-record">Best Wave: 0 · High Score: 0</span>
+        <div style="display:flex;gap:10px;">
+          <a class="btn" href="../index.html" style="text-decoration:none;">← Dilly Gaming</a>
+          <button class="btn primary" id="btn-deploy" style="padding:10px 24px;font-size:14px;">▶ Deploy Fortress</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VICTORY / GAME OVER MODAL -->
+  <div class="modal" id="modal-end">
+    <div class="card" style="max-width:460px;text-align:center;">
+      <h2 id="end-title" style="margin:0 0 8px;font-size:32px;"></h2>
+      <p id="end-sub" style="color:var(--muted);margin:0 0 20px;"></p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn primary" id="btn-endless" style="display:none;">∞ Continue Endless</button>
+        <button class="btn primary" id="btn-restart">↻ Play Again</button>
+        <button class="btn" id="btn-end-maps">🗺 Change Map</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
