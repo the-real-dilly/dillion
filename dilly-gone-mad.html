@@ -4003,7 +4003,7 @@ function pad(t, notes, dur, v = 0.05, dest) { for (const n of notes) for (const 
 /* ---------- trailer score (punchier custom mix of the synthwave patch) ---------- */
 const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
 function trailerStep(step, t, spb, dest) {
-  const s = step % 16, bar = Math.floor(step / 16) % 4, ch = PROG[bar], big = TR.t > 46.4;
+  const s = step % 16, bar = Math.floor(step / 16) % 4, ch = PROG[bar], big = TR.t > TR_BIG;
   if (s % 4 === 0) { kick(t, 1, dest); tone(t, 55, 0.4, "sine", 0.35, 200, dest, 38); }
   if (s === 4 || s === 12) { snare(t, 0.42, dest); noiseHit(t, 0.09, 0.22, "bandpass", 1800, dest, 1.2); }
   if (s % 2 === 1) hat(t, s % 4 === 3 ? 0.13 : 0.07, dest);
@@ -4271,7 +4271,7 @@ function radioAudibility() {
 function seqTick() {
   const c = AU.ctx; if (!c) return;
   if (mode === "trailer") {
-    if (TR.t < 26.35 || TR.t > 55.3 || TR.themeOn) { seqNext = c.currentTime + 0.05; return; }
+    if (TR.t < TR_DROP - 0.05 || TR.t > LOGO_T - 0.4 || TR.themeOn) { seqNext = c.currentTime + 0.05; return; }
     const spb = 60 / 112 / 4; if (seqNext < c.currentTime) seqNext = c.currentTime + 0.03;
     while (seqNext < c.currentTime + (RADIO.la || 0.16)) { trailerStep(seqStep, seqNext, spb, TR.bus); seqNext += spb; seqStep++; }
   }
@@ -6520,23 +6520,92 @@ function attractCam(t) {
 /* =====================================================================
    trailer
    ===================================================================== */
-const TR = { t: 0, dur: 65.2, shot: -1, bus: null, skid: 0, look: new THREE.Vector3(), cops: [], jump: null, unlocked: false, ending: false };
+const TR = { t: 0, dur: 75.0, shot: -1, bus: null, skid: 0, look: new THREE.Vector3(), cops: [], jump: null, unlocked: false, ending: false };
 const tcardWrap = $("tcard"), tcardKicker = tcardWrap.querySelector(".kicker"), tcardEl = tcardWrap.querySelector(".txt"), tlogo = $("tlogo"), fadeEl = $("fade"), flashEl = $("flash"), trProgEl = $("trProg").firstElementChild;
 const CARDS = [
-  [1.0, 5.0, "DILLION GAMES", 0, "PRESENTS"],
-  [7.0, 10.6, "WELCOME TO LOS PEPINOS", 1, "THE SUNSHINE METROPOLIS"],
-  [11.6, 14.3, "MEET DILLY", 1, "ONE DRIVER"],
-  [19.0, 22.6, "ONE CITY.", 1, "ZERO LIMITS"],
-  [28.8, 31.4, "NO BRAKES.", 0, "FULL THROTTLE"],
-  [38.3, 40.2, "NEW TOYS.", 1, "ARSENAL"],
-  [40.7, 42.6, "SPLASH ZONE.", 1, "BOULEVARD CHAOS"],
-  [44.3, 46.4, "PISS NUKE!", 0, "TOTAL MAYHEM"],
-  [46.8, 48.7, "AFTER DARK.", 1, "VCPD PURSUIT"],
-  [49.0, 51.0, "COPS.", 1, "FIVE-STAR HEAT"],
-  [51.3, 53.3, "CHAOS.", 1, "LOS PEPINOS"]
+  [1.0, 4.3, "DILLION GAMES", 0, "PRESENTS"],
+  [5.6, 8.9, "WELCOME TO LOS PEPINOS", 1, "THE SUNSHINE METROPOLIS"],
+  [9.9, 12.6, "MEET DILLY", 1, "ONE DRIVER"],
+  [16.8, 18.8, "ONE CITY.", 1, "ZERO LIMITS"],
+  [19.6, 23.6, "TAKE TO THE SKIES.", 1, "DILLY CHOPPER"],
+  [29.9, 32.2, "NO BRAKES.", 0, "FULL THROTTLE"],
+  [38.6, 40.6, "THE BIG SCORE.", 1, "BRINE BANK HEIST"],
+  [43.6, 45.7, "THE WAY OUT IS UP.", 1, "CHOPPER EXTRACTION"],
+  [46.3, 48.0, "NEW TOYS.", 1, "ARSENAL"],
+  [48.5, 50.1, "SPLASH ZONE.", 1, "BOULEVARD CHAOS"],
+  [51.6, 53.5, "PISS NUKE!", 0, "TOTAL MAYHEM"],
+  [54.2, 56.0, "OPEN WATER.", 1, "BRINE RUNNER"],
+  [56.6, 58.8, "MAKE WAVES.", 1, "HARBOR PURSUIT"],
+  [59.2, 60.9, "AFTER DARK.", 1, "VCPD PURSUIT"],
+  [61.3, 63.2, "COPS.", 1, "FIVE-STAR HEAT"],
+  [63.6, 65.2, "CHAOS.", 1, "LOS PEPINOS"]
 ];
-const HITS = [1.0, 7.0, 11.6, 19.0, 26.4, 28.8, 38.3, 40.7, 44.3, 46.8, 49.0, 51.3, 55.7];
-const LOGO_T = 55.7;
+const TR_DROP = 27.6, TR_BIG = 53.6, LOGO_T = 67.5; // beat drop mid-drift; busier score from the boat chase on; logo slam
+const HITS = [1.0, 5.6, 9.9, 16.8, 19.6, TR_DROP, 29.9, 38.6, 43.6, 46.3, 48.5, 51.6, 54.2, 56.6, 59.2, 61.3, 63.6, LOGO_T];
+const BIG_HITS = new Set([TR_DROP, 29.9, 38.6, 59.2]);
+/* ---------- trailer helpers for the expansion's air & sea vehicles and the Brine Bank heist ---------- */
+function trVeh(id) { const E = window.DGM_EXP, v = E && E.vehs && E.vehs[id]; if (v) return v; TR.stub = TR.stub || { x: 0, y: 0, z: 0, h: 0, mesh: new THREE.Group(), home: { x: 24, y: 0, z: 22, h: 0 } }; return TR.stub; }
+function trPose(v, x, y, z, h, pitch = 0, roll = 0) { v.x = x; v.y = y; v.z = z; v.h = h; v.pitch = pitch; v.roll = roll; v.mesh.position.set(x, y, z); v.mesh.rotation.set(pitch, h, roll, "YXZ"); }
+const TR_VKEYS = ["x", "y", "z", "h", "pitch", "roll", "vx", "vy", "vz", "speed"];
+function trVehSnap() { const E = window.DGM_EXP; TR.vsnap = Object.values((E && E.vehs) || {}).map((v) => { const s = {}; for (const k of TR_VKEYS) if (k in v) s[k] = v[k]; return [v, s, v.mesh.position.clone(), v.mesh.rotation.clone()]; }); }
+function trVehReset() { // park every air/sea vehicle where the player left it and hide the trailer-only props
+  for (const [v, s, p, r] of TR.vsnap || []) { Object.assign(v, s); v.mesh.position.copy(p); v.mesh.rotation.copy(r); }
+  for (const k of ["blur", "patrol", "vault", "beam"]) if (TR[k]) TR[k].visible = false;
+  if (AVA.root.parent && AVA.root.parent !== P.mesh && AVA.root.parent !== scene) avatarInCar();
+  TR.fx = [];
+}
+function trVehRestore() { trVehReset(); TR.vsnap = null; if (TR.blur && TR.blur.parent) TR.blur.parent.remove(TR.blur); }
+function trBank() { const H = window.DGM_HEIST, p = (H && H.bank) || { x: 16, z: -48 }, cx = roadC(4) + CELL / 2, cz = roadC(3) + CELL / 2; return { x: p.x, z: p.z, wall: cx - 20, vz: p.z + 2.2, roof: { x: cx - 8, y: 106, z: cz - 2 } }; } // Brine Bank: 40 m wide, roof at 74 + 32 m
+function trRotorBlur(v) { const r = v.mesh.userData.mainRotor; if (!r) return; if (!TR.blur) { TR.blur = new THREE.Mesh(new THREE.CircleGeometry(4.7, 40), new THREE.MeshBasicMaterial({ color: 0x15171a, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide })); TR.blur.rotation.x = -Math.PI / 2; } if (TR.blur.parent !== v.mesh) v.mesh.add(TR.blur); TR.blur.position.copy(r.position); TR.blur.visible = true; }
+function trSpin(v, dt) { const u = v.mesh.userData; if (u.mainRotor) u.mainRotor.rotation.y += dt * 47; if (u.tailRotor) u.tailRotor.rotation.x += dt * 61; }
+function trSeat(mesh, x = 0.55, y = 0.95, z = -0.55) { if (D.onFoot) avatarInCar(); mesh.add(AVA.root); AVA.root.position.set(x, y, z); AVA.root.rotation.set(0, 0, 0); }
+const TR_WATER = -0.9, TR_BOAT_Y = -0.62; // ocean surface sits ~0.95 m below the sand datum
+function trFx(x, y, z, vx, vy, vz, max, c, s, g = 9.8) { (TR.fx = TR.fx || []).push({ x, y, z, vx, vy, vz, life: 0, max, c, s, g }); }
+function trFxUpdate(dt) {
+  const L = TR.fx; if (!L) return;
+  for (let i = L.length - 1; i >= 0; i--) {
+    const p = L[i]; p.life += dt; p.vy -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    if (p.life > p.max || (p.g > 0 && p.vy < 0 && p.y < TR_WATER)) { L[i] = L[L.length - 1]; L.pop(); continue; }
+    const u = p.life / p.max;
+    if (p.c === 0) waterGlow.add(p.x, p.y, p.z, 0.88, 0.95, 1, p.s * (1 + u * 0.9), 0.85 * (1 - u));
+    else if (p.c === 1) dynGlow.add(p.x, p.y, p.z, 1, 0.62 - u * 0.3, 0.18, p.s * (1 - u * 0.6), 1 - u);
+    else dynGlow.add(p.x, p.y, p.z, 1, 0.8, 0.3, p.s, 0.6 * (1 - u));
+  }
+}
+function trBoatFx(v, sp) { // bow spray, rooster tail and a spreading foam wake
+  const fx = Math.sin(v.h), fz = Math.cos(v.h), rx = fz, rz = -fx;
+  const w = TR_WATER + 0.25;
+  for (let i = 0; i < 6; i++) { const s = i % 2 ? 1 : -1, o = rnd(3, 6.5); trFx(v.x + fx * rnd(0.8, 2.2) + rx * s * 1.3, w, v.z + fz * rnd(0.8, 2.2) + rz * s * 1.3, rx * s * o + fx * sp * 0.25, rnd(2, 5), rz * s * o + fz * sp * 0.25, rnd(0.4, 0.7), 0, rnd(0.18, 0.4)); }
+  for (let i = 0; i < 5; i++) { const o = rnd(-1.4, 1.4), b = sp * rnd(0.1, 0.3); trFx(v.x - fx * 3.9, w + 0.2, v.z - fz * 3.9, -fx * b + rx * o, rnd(3.5, 8), -fz * b + rz * o, rnd(0.5, 0.95), 0, rnd(0.16, 0.34)); }
+  for (const s of [-1, 1]) trFx(v.x - fx * 3.4 + rx * s * 1.0, TR_WATER + 0.06, v.z - fz * 3.4 + rz * s * 1.0, rx * s * 2.4, 0, rz * s * 2.4, 1.9, 0, 0.9, 0);
+}
+function trBurst(x, z, n, up) { for (let i = 0; i < n; i++) { const a = rnd(0, 6.283), s = rnd(2, 7); trFx(x + Math.cos(a) * 1.5, TR_WATER + 0.3, z + Math.sin(a) * 1.5, Math.cos(a) * s, rnd(3, up), Math.sin(a) * s, rnd(0.6, 1.2), 0, rnd(0.25, 0.6)); } }
+function trPatrol(src) { // a VCPD harbor-patrol twin of the BRINE RUNNER (cloned mesh, own materials)
+  if (!TR.patrol) {
+    const seated = AVA.root.parent === src.mesh; if (seated) src.mesh.remove(AVA.root); if (TR.blur && TR.blur.parent === src.mesh) src.mesh.remove(TR.blur);
+    const m = src.mesh.clone(true); if (seated) src.mesh.add(AVA.root); m.traverse((o) => { if (o.isMesh && o.material.clone) o.material = o.material.clone(); });
+    const k = m.children; [0, 1].forEach((i) => k[i] && k[i].material.color.setHex(0x1e3a8a)); if (k[2]) k[2].material.color.setHex(0xf1f5f9); [5, 6].forEach((i) => k[i] && k[i].material.color.setHex(0x1d4ed8));
+    for (const [sx, col] of [[-0.35, 0xff2a2a], [0.35, 0x2a6bff]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.24), new THREE.MeshBasicMaterial({ color: col })); l.position.set(sx, 1.72, 1.05); m.add(l); }
+    scene.add(m); TR.patrol = m; TR.pq = { x: 0, y: 0, z: 0, h: 0, mesh: m };
+  }
+  TR.patrol.visible = true; return TR.patrol;
+}
+function trVault() { // a round vault door set into the Brine Bank's side wall
+  if (!TR.vault) {
+    const g = new THREE.Group(), steel = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.85, roughness: 0.3 });
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(1.3, 32), new THREE.MeshBasicMaterial({ color: 0x0a0806 })); hole.rotation.y = -Math.PI / 2; g.add(hole);
+    const frame = new THREE.Mesh(new THREE.TorusGeometry(1.38, 0.13, 10, 40), steel); frame.rotation.y = Math.PI / 2; g.add(frame);
+    const hinge = new THREE.Group(); hinge.position.set(0, 0, 1.25); g.add(hinge);
+    const door = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.32, 36), steel); door.rotation.z = Math.PI / 2; door.position.set(-0.18, 0, -1.25); hinge.add(door);
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 8, 24), steel); wheel.rotation.y = Math.PI / 2; wheel.position.set(-0.38, 0, -1.25); hinge.add(wheel);
+    for (let i = 0; i < 3; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.0, 0.08), steel); sp.position.set(-0.38, 0, -1.25); sp.rotation.x = i * Math.PI / 3; hinge.add(sp); }
+    g.userData.hinge = hinge; scene.add(g); TR.vault = g;
+    TR.beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 6, 1, true), new THREE.MeshBasicMaterial({ color: 0xff6a2a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); scene.add(TR.beam);
+  }
+  TR.vault.visible = true; return TR.vault;
+}
+const _trUp = new THREE.Vector3(0, 1, 0), _trA = new THREE.Vector3(), _trB = new THREE.Vector3();
+function trBeam(ax, ay, az, bx, by, bz) { _trA.set(ax, ay, az); _trB.set(bx - ax, by - ay, bz - az); const L = _trB.length(); TR.beam.position.copy(_trA).addScaledVector(_trB, 0.5); TR.beam.quaternion.setFromUnitVectors(_trUp, _trB.normalize()); TR.beam.scale.set(1, L, 1); TR.beam.visible = true; }
 const DRIFT = { x0: roadC(5) - 2.25, z0: -10, zArc: roadC(5) - 12, R: 14.25 };
 function driftPath(s) {
   // straight +z, then a left 90-degree arc, then straight +x
@@ -6561,30 +6630,37 @@ const SHOTS = [
   { t0: 0, enter() { blockRoads([]); trailerCops(0); avatarInCar(); scriptCar(P, 2.25, 300, Math.PI, 0, 0); },
     cam(lt) { const x = -72 + lt * 7.5; setCam(x, 2.4 + lt * 0.28, SEA + 26, x + 32, 28 + lt * 1.6, -120, 44); } },
   // the pier and the Ferris wheel at sunset
-  { t0: 6, cam(lt) { setCam(92 + lt * 3.8, 2.5 + lt * 0.32, SEA + 52 - lt * 1.6, PIER.x, 22, PIER.z1 - 30, 42); } },
+  { t0: 4.8, cam(lt) { setCam(92 + lt * 3.8, 2.5 + lt * 0.32, SEA + 52 - lt * 1.6, PIER.x, 22, PIER.z1 - 30, 42); } },
   // GTA VI hero reveal: low 3/4 dolly across Dilly & the sculpted GT Convertible
-  { t0: 11, enter() { blockRoads(["v4"]); scriptCar(P, 2.25, 150, Math.PI - 0.18, 0, 0); P.yaw = 0; const w = localToWorld(P, 1.65, 0, 0.35); avatarOnFoot(w[0], w[2], 0.25); },
+  { t0: 9.3, enter() { blockRoads(["v4"]); scriptCar(P, 2.25, 150, Math.PI - 0.18, 0, 0); P.yaw = 0; const w = localToWorld(P, 1.65, 0, 0.35); avatarOnFoot(w[0], w[2], 0.25); },
     update(lt) { scriptCar(P, 2.25, 150, Math.PI - 0.18, 0, 0); P.yaw = 0; avatarPose("hero", lt + 2, { k: 1 }); D.h = 0.22 + Math.sin(lt * 0.55) * 0.08; },
     cam(lt) { const e = ease(lt / 3.6); setCam(P.x - 2.6 + e * 1.4, 0.92 + e * 0.28, P.z + 5.2 - e * 1.6, P.x + 0.55, 1.08 + e * 0.12, P.z - 0.15, 38 - e * 4); } },
   // low-angle burnout launch showcasing widebody rear fenders, quad exhausts & gold split-spoke alloys
-  { t0: 14.6, mb: 0.35, enter() { avatarInCar(); },
+  { t0: 12.9, mb: 0.35, enter() { avatarInCar(); },
     update(lt) { scriptCar(P, 2.25, 150 - 5.2 * lt * lt - 11 * lt, Math.PI, 0, 16 + lt * 10); TR.skid = lt < 1.3 ? 1 : 0; if (lt < 1.4 && Math.random() < 0.75) { for (const sx of [-0.85, 0.85]) emitSmoke(P.x + sx, 0.28, P.z + 1.5, 0.38, 1.5, 0.25, 0.85); } },
     cam(lt) { const e = ease(lt / 3.2); setCam(P.x - 2.8 - e * 1.6, 0.72 + e * 0.55, P.z + 3.4 + e * 2.2, P.x, 0.88, P.z - 1.2, 42); } },
   // the LOS PEPINOS sign on the hills at sunset
-  { t0: 18, enter() { TR.skid = 0; blockRoads([]); scriptCar(P, 0, -2000, 0, 0, 0); const cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60, SIGN.y - 2, SIGN.z + 250, cx, SIGN.y, SIGN.z, 50); updateWorld(true); }, cam(lt) { const e = ease(lt / 5), cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60 - e * 30, SIGN.y - 2 + e * 14, SIGN.z + 250 - e * 40, cx - 6, SIGN.y + 4, SIGN.z, 50 - e * 4); } },
-  // scale: aerial over Northgate toward Pickle Ridge and the hills, blimp in frame
-  { t0: 21, enter() { setCam(-320, 190, -520, 500, 10, -1000, 50); updateWorld(true); AMB.t = 140; }, cam(lt) { const e = ease(lt / 2); setCam(-320 + e * 90, 190 + e * 25, -520 - e * 150, 520, 10, -1010, 50 - e * 3); } },
+  { t0: 16.1, enter() { TR.skid = 0; blockRoads([]); scriptCar(P, 0, -2000, 0, 0, 0); const cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60, SIGN.y - 2, SIGN.z + 250, cx, SIGN.y, SIGN.z, 50); updateWorld(true); }, cam(lt) { const e = ease(lt / 5), cx = (SIGN.x0 + SIGN.x1) / 2; setCam(cx + 60 - e * 30, SIGN.y - 2 + e * 14, SIGN.z + 250 - e * 40, cx - 6, SIGN.y + 4, SIGN.z, 50 - e * 4); } },
+  // DILLY CHOPPER reveal: lift-off from its plaza helipad, rotor wash kicking up dust
+  { t0: 19.0, enter() { blockRoads([]); trailerCops(0); avatarInCar(); scriptCar(P, 0, -2000, 0, 0, 0); trRotorBlur(trVeh("heli")); },
+    update(lt, dt) { const H = trVeh("heli"), o = H.home, u = Math.max(0, lt - 0.35), m = Math.max(0, lt - 1.3); trPose(H, o.x, o.y + Math.pow(u, 1.6) * 3.2, o.z + m * m * 2.2, o.h + 0.3 + lt * 0.12, m * 0.16, Math.sin(lt * 1.7) * 0.03); trSpin(H, dt);
+      for (let k = 0; k < 3; k++) { const a = rnd(0, 6.283), r = rnd(3, 7); emitSmoke(o.x + Math.cos(a) * r, o.y + 0.3, o.z + Math.sin(a) * r, 0.36 * clamp(1.4 - u * 0.35, 0, 1), 2.4, 1.4, 0.88); } },
+    focus() { return trVeh("heli"); }, cam(lt) { const H = trVeh("heli"), o = H.home, e = ease(lt / 2.4); setCam(o.x + 12 - e * 1.5, o.y + 1.0 + e * 0.8, o.z + 5 - e * 0.5, H.x, H.y + 2.2, H.z, 44); } },
+  // DILLY CHOPPER threading the canyon between the Dill Tower and the Brine Bank
+  { t0: 21.4, mb: 0.3, enter() { blockRoads([]); trRotorBlur(trVeh("heli")); },
+    update(lt, dt) { const H = trVeh("heli"), z = -132 + lt * 33; trPose(H, Math.sin(lt * 1.1) * 2.2, 38 + Math.sin(lt * 0.9) * 1.5, z, Math.cos(lt * 1.1) * 0.08, 0.18, -Math.cos(lt * 1.1) * 0.1); trSpin(H, dt); },
+    focus() { return trVeh("heli"); }, cam(lt) { const H = trVeh("heli"); setCam(H.x + 2.5, H.y + 2.4, H.z - 14 + lt * 0.6, H.x - 0.5, H.y + 0.3, H.z + 12, 50); } },
   // drift through an intersection with VCPD interceptors in hot pursuit
-  { t0: 23, mb: 0.38, enter() { blockRoads(["v5", "h5"]); trailerCops(2); TR.look.set(roadC(5), 1, 40); }, update(lt, dt) {
+  { t0: 24.2, mb: 0.38, enter() { blockRoads(["v5", "h5"]); trailerCops(2); TR.look.set(roadC(5), 1, 40); }, update(lt, dt) {
       const s = -4 + 24 * lt; const [x, z, ph] = driftPath(s), da = driftAngle(s);
       scriptCar(P, x, z, ph + da, 0, 24); TR.skid = da > 0.15 ? 1 : 0;
       if (da > 0.12) { const fx = Math.sin(P.h), fz = Math.cos(P.h); for (const k of [-1, 1]) emitSmoke(P.x - fx * 1.5 + fz * k * 0.9, 0.35, P.z - fz * 1.5 - fx * k * 0.9, 0.42, 1.8, 0.3, 0.95); }
       TR.cops.forEach((c, i) => { const cs = s - 15 - i * 13, [cx, cz, cph] = driftPath(cs), cda = driftAngle(cs) * 0.8; scriptCar(c, cx + (i ? 2.2 : 0), cz, cph + cda, 0, 24); if (cda > 0.2 && Math.random() < 0.5) emitSmoke(c.x, 0.35, c.z, 0.3, 1.6, 0.6, 0.9); });
     }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, 1.05, P.z), 1 - Math.exp(-dt * 5.5)); setCam(79.0 + lt * 0.25, 1.28, 98.5, TR.look.x, TR.look.y, TR.look.z, 52); } },
   // scale: the elevated Pickle Freeway at sunset, high-speed low tracking shot
-  { t0: 28.3, mb: 0.45, enter() { TR.skid = 0; blockRoads([]); trailerCops(0); avatarInCar(); setCam(-80, 10.5, -691, -40, 9.2, -697, 46); updateWorld(true); }, update(lt) { const x = -70 + 34 * lt; scriptCar(P, x, -697.2, Math.PI / 2, groundH(x, -697.2, 12), 34); }, cam(lt) { setCam(P.x - 11.5 + lt * 2.4, 10.1 + lt * 0.4, P.z + 7.2 - lt * 0.7, P.x + 7, 9.3, P.z - 0.8, 44); } },
+  { t0: 29.4, mb: 0.45, enter() { TR.skid = 0; blockRoads([]); trailerCops(0); avatarInCar(); setCam(-80, 10.5, -691, -40, 9.2, -697, 46); updateWorld(true); }, update(lt) { const x = -70 + 34 * lt; scriptCar(P, x, -697.2, Math.PI / 2, groundH(x, -697.2, 12), 34); }, cam(lt) { setCam(P.x - 11.5 + lt * 2.4, 10.1 + lt * 0.4, P.z + 7.2 - lt * 0.7, P.x + 7, 9.3, P.z - 0.8, 44); } },
   // slow-motion stunt jump
-  { t0: 31.5, enter() { blockRoads(["h2"]); trailerCops(0); TR.jump = { x: -42, y: 0, vy: 0, air: false, done: false }; TR.look.set(-20, 1, roadC(2)); }, update(lt, dt) {
+  { t0: 32.4, enter() { blockRoads(["h2"]); trailerCops(0); avatarInCar(); TR.jump = { x: -34, y: 0, vy: 0, air: false, done: false }; TR.look.set(-20, 1, roadC(2)); }, update(lt, dt) {
       const J = TR.jump, r = RAMPS[0], v = 30; const slow = J.air ? 0.42 : 1; const ddt = dt * slow;
       J.x += v * ddt; const g = rampAt(J.x, r.z) >= 0 ? rampAt(J.x, r.z) : 0;
       if (J.air) { J.vy -= 20 * ddt; J.y += J.vy * ddt; if (J.y <= g) { J.y = g; J.air = false; J.done = true; camShakeT = 0.5; } }
@@ -6592,37 +6668,73 @@ const SHOTS = [
       scriptCar(P, J.x, r.z, Math.PI / 2, J.y, v); P.pitch = J.air ? clamp(-J.vy * 0.03, -0.4, 0.4) : g > 0 ? -0.28 : 0;
       if (J.air && !TR.said) { TR.said = true; subtitle("<span class=n>Dilly:</span> BRINE TIIIIME!", 2.4); }
     }, cam(lt, dt) { TR.look.lerp(_v3.set(P.x, P.y + 1.2, P.z), 1 - Math.exp(-dt * 6)); setCam(54, 0.5, roadC(2) - 8.6, TR.look.x, TR.look.y + 0.6, TR.look.z, 60); } },
+  // BRINE BANK HEIST 1/3: the crew walks up from the getaway car, through the heist beacon
+  { t0: 38.2, enter() { const b = trBank(); blockRoads(["v4"]); trailerCops(0); WEP.cur = -1; updateWeaponMesh(); scriptCar(P, 6.6, b.z + 9, Math.PI + 0.1, 0, 0); avatarOnFoot(b.x - 5.6, b.z + 2.4, Math.PI / 2); trailerPeds([[b.x - 6.6, b.z + 4.0], [b.x - 6.9, b.z + 0.9], [b.x - 7.8, b.z + 2.6]]); },
+    update(lt, dt) { const b = trBank(), w = 1.7 * lt; scriptCar(P, 6.6, b.z + 9, Math.PI + 0.1, 0, 0);
+      D.x = b.x - 5.6 + w; D.z = b.z + 2.4; D.h = Math.PI / 2; D.y = groundH(D.x, D.z); AVA.phase += dt * 5.6; avatarPose("walk", lt, { speed: 1.9, k: 1 });
+      [[-6.6, 4.0], [-6.9, 0.9], [-7.8, 2.6]].forEach(([dx, dz], k) => { const p = peds[k]; p.pause = 0; p.flee = 0; p.walkPh = (p.walkPh || 0) + dt * 5.6; p.x = b.x + dx + w; p.z = b.z + dz; p.y = groundH(p.x, p.z); p.mesh.position.set(p.x, p.y, p.z); p.mesh.rotation.set(0, Math.PI / 2, 0); }); },
+    focus() { return D; }, cam(lt) { const b = trBank(); setCam(b.x + 4.2 - lt * 0.35, 0.55 + lt * 0.05, b.z + 1.2, b.x - 4, 1.35, b.z + 2.6, 38); } },
+  // BRINE BANK HEIST 2/3: laser-drilling the vault door, which swings open on a gold glow
+  { t0: 40.8, enter() { const b = trBank(); blockRoads(["v4"]); trailerCops(0); scriptCar(P, 6.6, b.z + 9, Math.PI + 0.1, 0, 0); avatarOnFoot(b.wall - 2.0, b.vz + 0.15, Math.PI / 2); const V = trVault(); V.position.set(b.wall - 0.05, 1.65, b.vz); V.userData.hinge.rotation.y = 0; TR.popped = false; subtitle("<span class=n>Dilly:</span> Knock knock.", 1.6); },
+    update(lt, dt) { const b = trBank(), cy = 1.65; D.x = b.wall - 2.0; D.z = b.vz + 0.15; D.h = Math.PI / 2; D.y = groundH(D.x, D.z); avatarPose("walk", lt, { speed: 0, k: 1 }); for (let i = 0; i < 2; i++) { AVA.shoulders[i].rotation.x = -1.25; AVA.elbows[i].rotation.x = -0.3; }
+      if (lt < 1.55) { const a = lt * 4.2 + 0.6, px = b.wall - 0.25, py = cy + Math.cos(a) * 1.22, pz = b.vz + Math.sin(a) * 1.22; trBeam(D.x + 0.55, D.y + 1.32, D.z - 0.05, px, py, pz);
+        for (let k = 0; k < 5; k++) trFx(px, py, pz, rnd(-4.5, -1), rnd(0.5, 4.5), rnd(-2.5, 2.5), rnd(0.25, 0.6), 1, rnd(0.12, 0.3), 14);
+        dynGlow.add(px, py, pz, 1, 0.55, 0.2, rnd(0.8, 1.4), 1); if (Math.random() < 0.3) emitSmoke(px - 0.2, py, pz, 0.18, 0.9, 0.2, 0.7); }
+      else { if (TR.beam) TR.beam.visible = false; const u = ease((lt - 1.55) / 0.55); TR.vault.userData.hinge.rotation.y = u * 1.55;
+        if (!TR.popped) { TR.popped = true; camShakeT = 0.3; sfxThunk(); for (let k = 0; k < 10; k++) emitSmoke(b.wall - 0.4, cy + rnd(-1, 1), b.vz + rnd(-1, 1), 0.3, 1.4, 0.5, 0.85); }
+        for (let k = 0; k < 4; k++) dynGlow.add(b.wall - 0.12, cy + rnd(-0.8, 0.6), b.vz + rnd(-0.9, 0.9), 1, 0.78, 0.22, rnd(0.5, 1.1), 0.75 * u); } },
+    focus() { return D; }, cam(lt) { const b = trBank(), e = ease(lt / 2.4); setCam(D.x - 3.9 + e * 0.7, 1.85, D.z - 2.9 + e * 0.5, b.wall - 0.6, 1.45, b.vz + 0.1, 42); } },
+  // BRINE BANK HEIST 3/3: the DILLY CHOPPER lifts off the bank roof as VCPD units swarm the street below
+  { t0: 43.2, mb: 0.25, enter() { avatarInCar(); scriptCar(P, 0, -2000, 0, 0, 0); blockRoads(["v4"]); trailerCops(2); trRotorBlur(trVeh("heli")); },
+    update(lt, dt) { const r = trBank().roof, H = trVeh("heli"), u = Math.max(0, lt - 0.9); trPose(H, r.x - 6 * u * u, r.y + Math.min(lt, 0.9) * 4.2 + u * 2.5, r.z + u * 1.5, -Math.PI / 2 + u * 0.12, Math.min(0.3, u * 0.4), Math.sin(lt * 1.3) * 0.05 - u * 0.06); trSpin(H, dt);
+      TR.cops.forEach((c, i) => scriptCar(c, i ? -2.25 : 2.25, r.z - 70 + lt * 21 - i * 11, 0, 0, 21)); },
+    focus() { return trVeh("heli"); }, cam(lt) { const r = trBank().roof, H = trVeh("heli"); setCam(r.x + 13 - lt * 2, r.y + 2.2 + lt * 2.0, r.z + 8 - lt * 0.5, H.x - 2, H.y + 1.2, H.z, 48); } },
   // arsenal: RPG-7 on foot vs a parked VCPD interceptor
-  { t0: 38, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(58, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.rpg; updateWeaponMesh(); TR.fired = false; },
+  { t0: 46.0, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(58, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.rpg; updateWeaponMesh(); TR.fired = false; },
     update(lt) { scriptCar(TR.cops[0], 41, 84.6, Math.PI / 2 + 0.3, 0, 0); D.h = -Math.PI / 2; avatarPose("walk", lt, { speed: 0, k: 1 }); weaponPose();
       if (lt > 0.55 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("rpg", o.x, o.y, o.z, -38, 1.4, -1.2); for (let i = 0; i < 8; i++) emitSmoke(o.x + 1, o.y, o.z, 0.45, 1.3, 0.25, 0.9); sfxRpg(); camShakeT = 0.35; } },
     focus() { return TR.cops[0]; }, cam(lt) { setCam(D.x + 3.4 - lt * 0.3, 1.58, D.z + 1.25, 41, 1.0, 84.6, 44); } },
   // drive-by with the squirt gun past Vice City pedestrians
-  { t0: 40.4, enter() { trailerCops(0); avatarInCar(); WEP.cur = WI.squirt; updateWeaponMesh(); WEP.scripted = true; WEP.trigger = false; WEP.scriptDir = new THREE.Vector3(0.28, 0.12, -1).normalize(); trailerPeds([[22, 73.6], [27, 73.2], [31, 73.8], [36, 73.4], [40, 73.6], [45, 73.3]]); },
+  { t0: 48.2, enter() { trailerCops(0); avatarInCar(); WEP.cur = WI.squirt; updateWeaponMesh(); WEP.scripted = true; WEP.trigger = false; WEP.scriptDir = new THREE.Vector3(0.28, 0.12, -1).normalize(); trailerPeds([[22, 73.6], [27, 73.2], [31, 73.8], [36, 73.4], [40, 73.6], [45, 73.3]]); },
     update(lt) { scriptCar(P, -6 + 21 * lt, 86.25, Math.PI / 2, 0, 21); WEP.trigger = lt > 0.6; },
     cam(lt) { setCam(P.x + 11.5, 1.65, P.z + 5.2, P.x - 3, 1.0, P.z - 7, 46); } },
   // the piss nuke
-  { t0: 42.8, enter() { WEP.trigger = false; WEP.scripted = false; WEP.cur = -1; updateWeaponMesh(); scriptCar(P, 0, -2000, 0, 0, 0); trailerPeds([[74, 72], [78, 96], [96, 74], [92, 97], [70, 82], [99, 88], [86, 70], [80, 99], [73, 92], [97, 79]]); TR.fired = false; },
+  { t0: 50.4, enter() { WEP.trigger = false; WEP.scripted = false; WEP.cur = -1; updateWeaponMesh(); scriptCar(P, 0, -2000, 0, 0, 0); trailerPeds([[74, 72], [78, 96], [96, 74], [92, 97], [70, 82], [99, 88], [86, 70], [80, 99], [73, 92], [97, 79]]); TR.fired = false; },
     update(lt) { if (lt > 0.1 && !TR.fired) { TR.fired = true; launchProj("nuke", 40, 3, 120, 31.4, 9.3, -25.7); sfxWhistle(); } },
     cam(lt) { setCam(150 - lt * 2, 13 + lt * 0.8, 84.5, 84, 5, 84, 50); } },
+  // BRINE RUNNER speedboat planing past Pepino Pier: bow spray, rooster tail, foam wake
+  { t0: 53.8, mb: 0.3, enter() { blockRoads([]); trailerCops(0); WEP.cur = -1; updateWeaponMesh(); scriptCar(P, 0, -2000, 0, 0, 0); trSeat(trVeh("boat").mesh); },
+    update(lt) { const B = trVeh("boat"), sp = 30; trPose(B, 58 + lt * sp, TR_BOAT_Y + Math.sin(lt * 9) * 0.05, SEA + 75 + Math.sin(lt * 0.9) * 1.5, Math.PI / 2 - Math.cos(lt * 0.9) * 0.05, -0.16 + Math.sin(lt * 6.3) * 0.02, -Math.cos(lt * 0.9) * 0.08); trBoatFx(B, sp); },
+    focus() { return trVeh("boat"); }, cam(lt) { const B = trVeh("boat"); setCam(B.x - 7 + lt * 1.2, TR_WATER + 1.2, B.z + 11, B.x + 2.5, TR_WATER + 1.3, B.z - 0.5, 42); } },
+  // harbor pursuit: a VCPD patrol boat on its tail, the BRINE RUNNER launches off a swell
+  { t0: 56.2, enter() { const B = trVeh("boat"); trailerCops(0); scriptCar(P, 0, -2000, 0, 0, 0); trPatrol(B); trSeat(B.mesh); TR.bj = { x: 40, y: TR_BOAT_Y, vy: 0, air: false, done: false }; TR.qx = 23; TR.look.set(34, 0, SEA + 96); },
+    update(lt, dt) { const B = trVeh("boat"), J = TR.bj, z = SEA + 95, slow = J.air ? 0.62 : 1, v0 = 34;
+      J.x += v0 * dt * slow; TR.qx += v0 * 0.98 * dt * slow;
+      if (!J.air && !J.done && lt > 0.85) { J.air = true; J.vy = 9; trBurst(J.x, z, 40, 9); subtitle("<span class=n>Dilly:</span> Make waves!", 1.8); }
+      if (J.air) { J.vy -= 18 * dt * slow; J.y += J.vy * dt * slow; if (J.y <= TR_BOAT_Y) { J.y = TR_BOAT_Y; J.air = false; J.done = true; camShakeT = 0.4; trBurst(J.x, z, 60, 7); sfxSplat(); } }
+      trPose(B, J.x, J.air ? J.y : TR_BOAT_Y + Math.sin(lt * 9) * 0.05, z, Math.PI / 2, J.air ? clamp(-J.vy * 0.035, -0.35, 0.3) : -0.16, J.air ? 0.06 : -0.03);
+      if (!J.air) trBoatFx(B, v0 * slow);
+      const Q = TR.pq; trPose(Q, TR.qx, TR_BOAT_Y + Math.sin(lt * 8 + 1) * 0.06, z + 3.6 + Math.sin(lt * 1.3) * 0.8, Math.PI / 2 - Math.cos(lt * 1.3) * 0.04, -0.15, -0.04); trBoatFx(Q, v0 * slow);
+      const fl = Math.sin(lt * 22) > 0; dynGlow.add(Q.x + 1.05, Q.y + 1.75, Q.z + (fl ? 0.35 : -0.35), fl ? 0.25 : 1, 0.2, fl ? 1 : 0.2, 2.2, 1); },
+    focus() { return trVeh("boat"); }, cam(lt, dt) { const B = trVeh("boat"); TR.look.lerp(_v3.set(B.x - 4.5, B.y + 0.6, B.z + 1), 1 - Math.exp(-dt * 6)); setCam(B.x - 2 - lt * 0.3, TR_WATER + 1.2, B.z + 18, TR.look.x, TR.look.y, TR.look.z, 46); } },
   // night, rain, neon pursuit
-  { t0: 46.6, night: true, mb: 0.35, enter() { blockRoads(["h" + Math.round(NEON.z / CELL + N / 2)]); TR.said = false; trailerCops(1); }, update(lt) { const x = NEON.x0 + 6 + lt * 22; scriptCar(TR.cops[0], x, NEON.z + 2.25, Math.PI / 2, 0, 22); scriptCar(P, x + 14, NEON.z + 2.25, Math.PI / 2, 0, 22); }, cam(lt) { const z = NEON.z, x0 = NEON.x0; setCam(x0 + lt * 9, 2.2, z - NEON.side * 4.5, x0 + lt * 9 + 22, 4.0, z + NEON.side * 9, 54); } },
+  { t0: 59.0, night: true, mb: 0.35, enter() { blockRoads(["h" + Math.round(NEON.z / CELL + N / 2)]); TR.said = false; trailerCops(1); }, update(lt) { const x = NEON.x0 + 6 + lt * 22; scriptCar(TR.cops[0], x, NEON.z + 2.25, Math.PI / 2, 0, 22); scriptCar(P, x + 14, NEON.z + 2.25, Math.PI / 2, 0, 22); }, cam(lt) { const z = NEON.z, x0 = NEON.x0; setCam(x0 + lt * 9, 2.2, z - NEON.side * 4.5, x0 + lt * 9 + 22, 4.0, z + NEON.side * 9, 54); } },
   // banana-peel spin-out (night chase)
-  { t0: 48.9, night: true, enter() { blockRoads(["h6"]); trailerCops(1); TR.ban = null; TR.spin = -1; const c = TR.cops[0]; c.dizzy = 0; c.slip = 0; WEP.cur = WI.banana; updateWeaponMesh(); },
+  { t0: 61.1, night: true, enter() { blockRoads(["h6"]); trailerCops(1); TR.ban = null; TR.spin = -1; const c = TR.cops[0]; c.dizzy = 0; c.slip = 0; WEP.cur = WI.banana; updateWeaponMesh(); },
     update(lt, dt) { const z = roadC(6) + 2.25, x = -40 + 34 * lt, c = TR.cops[0]; scriptCar(P, x, z, Math.PI / 2, 0, 34);
       if (lt > 0.25 && !TR.ban) { TR.ban = { x: x - 3.4, z }; dropMine("banana", TR.ban.x, z); MINES[MINES.length - 1].arm = 0; WEP.throwT = 0.3; subtitle("<span class=n>Dilly:</span> Slippery when wet!", 1.8); }
       if (TR.spin < 0) { scriptCar(c, x - 12, z, Math.PI / 2, 0, 34); if (TR.ban && c.x > TR.ban.x - 1.2) { TR.spin = lt; TR.sx = c.x; dizzyCop(c, 3, 3); } }
       else { const u = lt - TR.spin, v = 34 * Math.exp(-u * 1.6); TR.sx += v * dt; scriptCar(c, TR.sx, z + Math.min(3, u * 2.4), Math.PI / 2 + u * 7.5, 0, v); c.vx = 34 * Math.exp(-u * 1.6); camShakeT = Math.max(camShakeT, u < 0.2 ? 0.2 : 0); if (Math.random() < 0.6) emitSmoke(c.x, 0.4, c.z, 0.35, 1.6, 0.6, 0.85); }
     }, focus() { return TR.cops[0]; }, cam(lt) { const z = roadC(6); setCam(-4 - lt * 1.2, 1.1, z + 9, -22, 0.9, z + 1.2, 46); } },
   // scale: thunderstorm over downtown from the freeway viaduct
-  { t0: 51.2, night: true, enter() { trailerCops(0); WEP.cur = -1; updateWeaponMesh(); while (MINES.length) removeMine(0); scriptCar(P, 0, -2000, 0, 0, 0); rain = true; rainMesh.visible = true; applyTOD(0); setCam(520, 14, 352, 100, 40, 0, 52); updateWorld(true); TR.bolts = 0; }, update(lt) { if ((lt > 0.25 && TR.bolts === 0) || (lt > 1.35 && TR.bolts === 1)) { TR.bolts++; lightning(60 + TR.bolts * 70, -160 - TR.bolts * 40); } }, cam(lt) { setCam(520 - lt * 6, 14 + lt * 1.5, 352, 100, 40, 0, 52); } },
+  { t0: 63.4, night: true, enter() { trailerCops(0); WEP.cur = -1; updateWeaponMesh(); while (MINES.length) removeMine(0); scriptCar(P, 0, -2000, 0, 0, 0); rain = true; rainMesh.visible = true; applyTOD(0); setCam(520, 14, 352, 100, 40, 0, 52); updateWorld(true); TR.bolts = 0; }, update(lt) { if ((lt > 0.25 && TR.bolts === 0) || (lt > 1.35 && TR.bolts === 1)) { TR.bolts++; lightning(60 + TR.bolts * 70, -160 - TR.bolts * 40); } }, cam(lt) { setCam(520 - lt * 6, 14 + lt * 1.5, 352, 100, 40, 0, 52); } },
   // confetti bazooka at a night block party
-  { t0: 53.5, night: true, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(60, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.confetti; updateWeaponMesh(); TR.fired = false; trailerPeds([[42, 88.5], [44, 80.5], [41, 79.6], [45.5, 89], [38, 89.5], [47, 82]]); },
+  { t0: 65.3, night: true, enter() { blockRoads(["h5"]); trailerCops(1); scriptCar(P, 0, -2000, 0, 0, 0); avatarOnFoot(60, 86.25, -Math.PI / 2); scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); TR.cops[0].dizzy = 0; WEP.cur = WI.confetti; updateWeaponMesh(); TR.fired = false; trailerPeds([[42, 88.5], [44, 80.5], [41, 79.6], [45.5, 89], [38, 89.5], [47, 82]]); },
     update(lt) { scriptCar(TR.cops[0], 39, 83.8, Math.PI / 2 + 0.4, 0, 0); D.h = -Math.PI / 2; avatarPose("walk", lt, { speed: 0, k: 1 }); weaponPose();
       if (lt > 0.35 && !TR.fired) { TR.fired = true; const o = muzzlePos(_mz); launchProj("rocket", o.x, o.y, o.z, -36, 0.6, -0.9); subtitle("<span class=n>Dilly:</span> Surprise party!", 1.6); for (let i = 0; i < 8; i++) emitSmoke(o.x + 1, o.y, o.z, 0.45, 1.4, 0.3, 0.95); sfxThunk(); sfxHorn(0.6); camShakeT = 0.3; } },
     focus() { return TR.cops[0]; }, cam(lt) { setCam(67 - lt * 0.8, 1.8 + lt * 0.4, 91.5, 47, 2 + lt * 0.6, 84.8, 50); } },
   // GTA VI palm-sunset skyline logo reveal
-  { t0: 55.7, enter() { rain = false; rainMesh.visible = false; applyTOD(0); }, cam(lt) { setCam(-80 + lt * 4, 6 + lt * 1.2, SEA + 30, -20, 40 + lt, -150, 44); } }
+  { t0: LOGO_T, enter() { rain = false; rainMesh.visible = false; applyTOD(0); }, cam(lt) { setCam(-80 + lt * 4, 6 + lt * 1.2, SEA + 30, -20, 40 + lt, -150, 44); } }
 ];
 let camShakeT = 0;
 const NEON = { z: 0, x0: 0, side: 1 };
@@ -6640,6 +6752,8 @@ function startTrailer() {
   $("title").classList.add("hidden"); $("pause").classList.add("hidden"); hud.classList.remove("on");
   document.body.classList.add("cine"); marker.visible = false; $("sub").classList.remove("on"); subT = 0;
   releaseMouse(); WEP.cur = -1; updateWeaponMesh();
+  if (window.DGM_EXP) { try { DGM_EXP.exitVehicle(true); DGM_EXP.exitInterior(true); } catch (e) { /* expansion unavailable */ } }
+  camOverride = null; if (!TR.vsnap) trVehSnap(); TR.fx = [];
   W.stars = 0; W.heat = 0; for (const c of [...cops]) removeCop(c); TR.cops = [];
   crateMesh.visible = false; TR.rainWas = rain; rain = false; rainMesh.visible = false; wetT = 0; applyTOD(0);
   for (const t of traffic) spawnTraffic(t);
@@ -6660,23 +6774,27 @@ function startTrailerAudio() {
       const o = c.createOscillator(), g = c.createGain(), fl = c.createBiquadFilter(), lfo = c.createOscillator(), lg = c.createGain();
       o.type = type; o.frequency.value = f; o.detune.value = rnd(-8, 8); fl.type = "lowpass"; fl.frequency.value = 260; lfo.frequency.value = 0.15; lg.gain.value = 140; lfo.connect(lg); lg.connect(fl.frequency);
       o.connect(fl); fl.connect(g); g.connect(B); const st = Math.max(c.currentTime, t0);
-      g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(0.09, t0 + 3); g.gain.setValueAtTime(0.09, t0 + 24.8); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 26.4);
-      o.start(st); lfo.start(st); o.stop(t0 + 26.6); lfo.stop(t0 + 26.6);
+      g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(0.09, t0 + 3); g.gain.setValueAtTime(0.09, t0 + TR_DROP - 1.6); g.gain.exponentialRampToValueAtTime(0.0001, t0 + TR_DROP);
+      o.start(st); lfo.start(st); o.stop(t0 + TR_DROP + 0.2); lfo.stop(t0 + TR_DROP + 0.2);
     }
     const riser = (t, dur) => { if (t < c.currentTime) return; const s = c.createBufferSource(), g = c.createGain(), fl = c.createBiquadFilter(); s.buffer = AU.noise; s.loop = true; fl.type = "bandpass"; fl.Q.value = 4; fl.frequency.setValueAtTime(300, t); fl.frequency.exponentialRampToValueAtTime(6000, t + dur); s.connect(fl); fl.connect(g); g.connect(B); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + dur); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08); s.start(t); s.stop(t + dur + 0.1); tone(t, 110, dur, "sawtooth", 0.06, 2000, B, 440); };
     const impact = (t, big) => { if (t < c.currentTime) return; tone(t, 70, big ? 2.2 : 1.2, "sine", 0.8, 500, B, 30); noiseHit(t, big ? 1.4 : 0.6, 0.5, "lowpass", 1200, B); tone(t, 55, big ? 3 : 1.6, "sawtooth", 0.12, 300, B); };
-    [[5.4, 1.6], [10.4, 1.6], [17.4, 1.6], [23.4, 3.0], [54.2, 1.5]].forEach(([s, d]) => riser(t0 + s, d));
-    HITS.forEach((h, i) => impact(t0 + h, i === HITS.length - 1 || i === 4 || i === 5 || i === 8));
-    for (const h of [3.0, 4.6, 8.6, 9.6, 15.6, 16.6, 20.6, 21.6]) if (t0 + h > c.currentTime) kick(t0 + h, 0.6, B);
-    if (!TR.themeOn) for (let k = 0; k < 6; k++) { const tt = t0 + 1 + k * 3.2; if (tt > c.currentTime) pad(tt, [[57, 64, 69], [53, 60, 65], [55, 62, 67], [52, 59, 64]][k % 4], 3.4, 0.022, B); }
+    [[4.0, 1.6], [8.3, 1.6], [15.2, 1.6], [18.0, 1.6], [TR_DROP - 3, 3.0], [36.8, 1.8], [52.4, 1.8], [LOGO_T - 1.5, 1.5]].forEach(([s, d]) => riser(t0 + s, d));
+    HITS.forEach((h) => impact(t0 + h, h === LOGO_T || BIG_HITS.has(h)));
+    for (const h of [2.6, 3.6, 7.4, 8.2, 13.8, 14.8, 21.4, 22.2, 23.0, 23.6]) if (t0 + h > c.currentTime) kick(t0 + h, 0.6, B);
+    // chopper rotor thump (lift-off, canyon run, rooftop extraction), vault drill whine, speedboat engine
+    for (const [a, b] of [[19.0, 24.2], [43.2, 46.0]]) for (let h = a; h < b; h += 0.115) if (t0 + h > c.currentTime) noiseHit(t0 + h, 0.06, 0.13, "lowpass", 240, B);
+    if (t0 + 40.9 > c.currentTime) { tone(t0 + 40.9, 1500, 1.45, "square", 0.016, 5200, B, 2300); noiseHit(t0 + 40.9, 1.45, 0.07, "highpass", 4200, B); }
+    if (t0 + 53.8 > c.currentTime) { tone(t0 + 53.8, 64, 5.2, "sawtooth", 0.05, 520, B, 118); tone(t0 + 53.8, 128, 5.2, "square", 0.012, 900, B, 236); }
+    if (!TR.themeOn) for (let k = 0; k < 8; k++) { const tt = t0 + 1 + k * 3.2; if (tt > c.currentTime) pad(tt, [[57, 64, 69], [53, 60, 65], [55, 62, 67], [52, 59, 64]][k % 4], 3.4, 0.022, B); }
     if (t0 + LOGO_T > c.currentTime) { pad(t0 + LOGO_T, [45, 52, 57, 61, 64], 8.5, 0.05, B); [0, 7, 12, 16, 19, 24].forEach((n, i) => tone(t0 + LOGO_T + 0.3 + i * 0.12, mtof(69 + n), 0.9, "square", 0.035, 3000, B)); }
-    seqStep = 0; seqNext = t0 + 26.4;
+    seqStep = 0; seqNext = t0 + TR_DROP;
   } catch (e) { /* ignore */ }
 }
 function endTrailer() {
   if (mode !== "trailer") return;
   if (TR.bus && AU.ctx) { const b = TR.bus; b.gain.setTargetAtTime(0, AU.ctx.currentTime, 0.15); setTimeout(() => { try { b.disconnect(); } catch (e) { /* ignore */ } }, 900); TR.bus = null; }
-  TR.skid = 0; trailerCops(0); blockRoads([]); while (MINES.length) removeMine(0); for (let i = PROJ.length - 1; i >= 0; i--) removeProj(i); WEP.boomOut = false; camera.up.set(0, 1, 0); P.scripted = false; WEP.scripted = false; WEP.trigger = false; updateWeaponMesh(); for (const q of TR.peds || []) placePed(q); TR.peds = []; WEP.scriptDir = null; WEP.cur = -1; avatarInCar();
+  TR.skid = 0; trailerCops(0); blockRoads([]); trVehRestore(); camOverride = null; while (MINES.length) removeMine(0); for (let i = PROJ.length - 1; i >= 0; i--) removeProj(i); WEP.boomOut = false; camera.up.set(0, 1, 0); P.scripted = false; WEP.scripted = false; WEP.trigger = false; updateWeaponMesh(); for (const q of TR.peds || []) placePed(q); TR.peds = []; WEP.scriptDir = null; WEP.cur = -1; avatarInCar();
   document.body.classList.remove("cine"); tcardEl.style.opacity = 0; tcardKicker.style.opacity = 0; tlogo.style.opacity = 0; fadeEl.style.opacity = 0; flashEl.style.opacity = 0; trProgEl.style.width = "0%"; $("sub").classList.remove("on");
   rain = !!TR.rainWas; rainMesh.visible = rain; wetT = rain ? 1 : 0;
   placePlayer(SPAWN.x, SPAWN.z, SPAWN.h); cycleTarget(CLOCK.h); setPreset("cycle", true); for (const t of traffic) spawnTraffic(t);
@@ -6687,9 +6805,10 @@ function updateTrailer(dt) {
   TR.t += dt; const t = TR.t;
   if (subT > 0) { subT -= dt; if (subT <= 0) $("sub").classList.remove("on"); }
   let si = 0; for (let i = 0; i < SHOTS.length; i++) if (t >= SHOTS[i].t0) si = i;
-  if (si !== TR.shot) { TR.shot = si; const want = SHOTS[si].night ? "night" : "dusk"; if (todTarget !== want) setPreset(want, true); if (rain !== !!SHOTS[si].night) { rain = !!SHOTS[si].night; rainMesh.visible = rain; wetT = rain ? 1 : 0; applyTOD(0); } SHOTS[si].enter && SHOTS[si].enter(); }
+  if (si !== TR.shot) { TR.shot = si; const want = SHOTS[si].night ? "night" : "dusk"; if (todTarget !== want) setPreset(want, true); if (rain !== !!SHOTS[si].night) { rain = !!SHOTS[si].night; rainMesh.visible = rain; wetT = rain ? 1 : 0; applyTOD(0); } trVehReset(); SHOTS[si].enter && SHOTS[si].enter(); }
   const S = SHOTS[si], lt = t - S.t0;
   if (S.update) S.update(lt, dt);
+  trFxUpdate(dt);
   S.cam(lt, dt);
   { const tgt = SHOTS[si].focus ? SHOTS[si].focus() : (D.onFoot ? D : P), fd = camera.position.distanceTo(_v3.set(tgt.x, (tgt.y || 0) + 1.2, tgt.z)); if (fd < 45 && Math.abs(tgt.z) < 1000) { CINE.dof = 0.45; CINE.focus = fd; } if (SHOTS[si].mb) CINE.mb = SHOTS[si].mb; }
   if (camShakeT > 0) { camShakeT -= dt; camera.position.y += rnd(-0.2, 0.2) * camShakeT; }
@@ -6704,12 +6823,12 @@ function updateTrailer(dt) {
   trProgEl.style.width = (clamp(t / TR.dur, 0, 1) * 100).toFixed(2) + "%";
   // crisp cinematic cuts
   let fade = 0; for (const s of SHOTS) { const d = Math.abs(t - s.t0); if (s.t0 > 0) fade = Math.max(fade, 1 - d / 0.16); }
-  fade = Math.max(fade, 1 - t / 1.1, t > 62.6 ? (t - 62.6) / 2.4 : 0);
+  fade = Math.max(fade, 1 - t / 1.1, t > LOGO_T + 5.0 ? (t - LOGO_T - 5.0) / 2.4 : 0);
   fadeEl.style.opacity = clamp(fade, 0, 1).toFixed(3);
   let fl = 0; for (const h of HITS) if (t >= h) fl = Math.max(fl, 1 - (t - h) / (h === LOGO_T ? 0.85 : 0.28));
   flashEl.style.opacity = (clamp(fl, 0, 1) * 0.42).toFixed(3);
   // GTA VI logo slam
-  if (t >= LOGO_T) { const u = clamp((t - LOGO_T) / 0.5, 0, 1); tlogo.style.opacity = Math.min(u, t > 62.8 ? clamp((65.0 - t) / 1.6, 0, 1) : 1).toFixed(3); tlogo.style.transform = `scale(${(1.22 - 0.22 * ease(u) + (t - LOGO_T) * 0.006).toFixed(4)})`; $("tpress").style.opacity = t > 58.9 ? (0.5 + 0.5 * Math.sin(t * 4)).toFixed(2) : 0; $("vig").style.opacity = 0.88; }
+  if (t >= LOGO_T) { const u = clamp((t - LOGO_T) / 0.5, 0, 1); tlogo.style.opacity = Math.min(u, t > LOGO_T + 5.3 ? clamp((TR.dur - 0.2 - t) / 1.6, 0, 1) : 1).toFixed(3); tlogo.style.transform = `scale(${(1.22 - 0.22 * ease(u) + (t - LOGO_T) * 0.006).toFixed(4)})`; $("tpress").style.opacity = t > LOGO_T + 2.4 ? (0.5 + 0.5 * Math.sin(t * 4)).toFixed(2) : 0; $("vig").style.opacity = 0.88; }
   else { tlogo.style.opacity = 0; $("vig").style.opacity = 0.52; }
   if (t >= TR.dur) endTrailer();
 }
@@ -9174,6 +9293,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
 
   // Public debug / automation hooks
   window.DGM_EXP = {
+    get vehs() { return EXP.vehs; }, // read by the in-engine trailer
     board: boardVehicle,
     exitVehicle,
     enterInterior,
@@ -9200,6 +9320,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
     }
   };
   window.DGM_HEIST = {
+    get bank() { return { x: BANK_POS.x, z: BANK_POS.z }; }, // read by the in-engine trailer
     start: startBankHeist,
     advance: advanceHeistStage,
     openModShop: () => toggleModShop(true),
