@@ -39,3 +39,27 @@ CREATE TABLE IF NOT EXISTS dilly_mad_chat (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_dilly_mad_chat_created ON dilly_mad_chat (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS dilly_accounts (
+    callsign TEXT PRIMARY KEY,
+    pin_hash TEXT NOT NULL,
+    rp_job TEXT DEFAULT 'Civilian',
+    xp BIGINT DEFAULT 100,
+    strike_kills INTEGER DEFAULT 0,
+    strike_hs INTEGER DEFAULT 0,
+    mad_cash BIGINT DEFAULT 250,
+    verse_blocks BIGINT DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS dilly_rooms (
+    code TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    game TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    host TEXT NOT NULL,
+    is_private BOOLEAN DEFAULT FALSE,
+    is_rp BOOLEAN DEFAULT FALSE,
+    max_players INTEGER DEFAULT 16,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);

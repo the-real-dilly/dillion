@@ -74,5 +74,19 @@ services:
       redis:
         condition: service_healthy
 
+  dilly-hub-server:
+    build: ../dilly-hub/server
+    environment:
+      PORT: "8083"
+      DATABASE_URL: "postgres://dilly:dilly_dev_password@postgres:5432/dillygaming"
+      REDIS_URL: "redis://:dilly_redis_password@redis:6379"
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   pg_data:

@@ -319,3 +319,108 @@ spec:
   selector:
     matchLabels:
       app: dilly-gone-mad-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dilly-hub-server
+  namespace: dilly-gaming
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dilly-hub-server
+  template:
+    metadata:
+      labels:
+        app: dilly-hub-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: dilly-hub-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: dilly-hub-server
+          image: ghcr.io/the-real-dilly/dilly-hub-server:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: PORT
+              value: "8083"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: REDIS_URL
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8083
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dilly-hub-server
+  namespace: dilly-gaming
+spec:
+  selector:
+    app: dilly-hub-server
+  ports:
+    - port: 8083
+      targetPort: 8083
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dilly-hub-server-hpa
+  namespace: dilly-gaming
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dilly-hub-server
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dilly-hub-server-pdb
+  namespace: dilly-gaming
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: dilly-hub-server

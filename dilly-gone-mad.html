@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261125023736";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261125024648";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -8570,18 +8570,22 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
   });
 
   // ==========================================================================
-  // 7. OPTIONAL MULTIPLAYER (HA Rust WebSocket: wss://apibuild.dillonmay.com/mad)
+  // 7. OPTIONAL MULTIPLAYER + ROLEPLAY SERVERS + PRIVATE ROOM CODES
   // ==========================================================================
   const MP_DEFAULT_URL = "wss://apibuild.dillonmay.com/mad";
+  const _qp = new URLSearchParams(location.search);
+  const _acct = (() => { try { return JSON.parse(localStorage.getItem("dilly_account_v1") || "null"); } catch (_) { return null; } })();
   const MP = {
     ws: null,
     connected: false,
     id: null,
     pod: null,
-    name: localStorage.getItem("dgm_mp_name") || "DillyDriver",
+    room: (_qp.get("room") || "PUBLIC").toUpperCase(),
+    job: _qp.get("job") || (_acct && _acct.rp_job) || localStorage.getItem("dgm_mp_job") || "Civilian",
+    name: _qp.get("name") || (_acct && _acct.callsign) || localStorage.getItem("dgm_mp_name") || "DillyDriver",
     url: MP_DEFAULT_URL,
     panelOpen: false,
-    remotes: new Map(), // id -> { id, name, mode, mesh, targetX, targetY, targetZ, targetH }
+    remotes: new Map(),
     lastSend: 0
   };
 
@@ -8593,27 +8597,49 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
 
   const mpPanel = document.createElement("div");
   mpPanel.id = "dgm-mp-panel";
-  mpPanel.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:965;display:none;width:340px;background:rgba(12,14,18,.95);border:1px solid rgba(56,189,248,.5);border-radius:16px;padding:14px;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 20px 55px rgba(0,0,0,.75);backdrop-filter:blur(14px);";
+  mpPanel.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:965;display:none;width:368px;background:rgba(12,14,18,.95);border:1px solid rgba(56,189,248,.5);border-radius:16px;padding:14px;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 20px 55px rgba(0,0,0,.75);backdrop-filter:blur(14px);";
   mpPanel.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <strong style="color:#38bdf8;font-size:14px;letter-spacing:.5px;">🌐 LOS PEPINOS ONLINE</strong>
+      <strong style="color:#38bdf8;font-size:14px;letter-spacing:.5px;">🌐 LOS PEPINOS ONLINE &amp; RP</strong>
       <button class="dgm-pill" id="dgm-mp-close" style="padding:3px 9px;">✕</button>
     </div>
-    <div id="dgm-mp-status" style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">Mode: Solo (Offline) · Server: ${MP_DEFAULT_URL}</div>
-    <input id="dgm-mp-name" type="text" maxlength="16" value="${MP.name}" placeholder="Your Callsign" style="width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.45);color:#fff;font-size:12.5px;margin-bottom:8px;outline:none;">
+    <div id="dgm-mp-status" style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">Mode: Solo · Room: ${MP.room}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+      <input id="dgm-mp-name" type="text" maxlength="16" value="${MP.name}" placeholder="Callsign" style="padding:7px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.45);color:#fff;font-size:12px;outline:none;">
+      <select id="dgm-mp-job" style="padding:7px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.65);color:#fff;font-size:12px;outline:none;">
+        <option value="Civilian">👤 Civilian</option>
+        <option value="LPPD Officer">🚔 LPPD Officer</option>
+        <option value="EMS Medic">🚑 EMS Medic</option>
+        <option value="Mechanic">🔧 Mechanic</option>
+        <option value="Crime Boss">💼 Crime Boss</option>
+        <option value="Street Racer">🏎️ Street Racer</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <input id="dgm-mp-room" type="text" maxlength="16" value="${MP.room}" placeholder="Room / RP Code (e.g. RP-CITY)" style="flex:1;padding:7px 9px;border-radius:8px;border:1px solid rgba(250,204,21,.35);background:rgba(0,0,0,.45);color:#fde047;font-size:12px;font-family:monospace;text-transform:uppercase;outline:none;">
+      <button class="dgm-btn" id="dgm-mp-host" title="Generate Private Shareable Code" style="padding:6px 10px;white-space:nowrap;">🔒 Host Code</button>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+      <button class="dgm-btn" data-preset="PUBLIC" style="padding:4px 8px;font-size:11px;">🌍 Public</button>
+      <button class="dgm-btn" data-preset="RP-CITY" style="padding:4px 8px;font-size:11px;">🚔 Serious RP</button>
+      <button class="dgm-btn" data-preset="RP-DRFT" style="padding:4px 8px;font-size:11px;">🏎️ Drift RP</button>
+      <button class="dgm-btn" id="dgm-mp-copyinvite" style="padding:4px 8px;font-size:11px;margin-left:auto;">🔗 Copy Invite</button>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
-      <button class="dgm-btn" id="dgm-mp-connect" style="text-align:center;background:rgba(34,197,94,.22);border-color:#22c55e;color:#bbf7d0;">▶ Join Online</button>
+      <button class="dgm-btn" id="dgm-mp-connect" style="text-align:center;background:rgba(34,197,94,.22);border-color:#22c55e;color:#bbf7d0;">▶ Join Server</button>
       <button class="dgm-btn" id="dgm-mp-disconnect" style="text-align:center;">⏹ Play Solo</button>
     </div>
-    <div id="dgm-mp-chatlog" style="max-height:110px;overflow-y:auto;font-size:11.5px;color:#e2e8f0;background:rgba(0,0,0,.35);border-radius:8px;padding:6px 8px;margin-bottom:6px;display:flex;flex-direction:column;gap:3px;">
-      <div style="color:#94a3b8;">Optional multiplayer powered by HA Rust + Redis + Postgres.</div>
+    <div id="dgm-mp-chatlog" style="max-height:100px;overflow-y:auto;font-size:11.5px;color:#e2e8f0;background:rgba(0,0,0,.35);border-radius:8px;padding:6px 8px;margin-bottom:6px;display:flex;flex-direction:column;gap:3px;">
+      <div style="color:#94a3b8;">Join an RP server or host a private code to play with friends.</div>
     </div>
     <div style="display:flex;gap:6px;">
-      <input id="dgm-mp-chatinp" type="text" maxlength="120" placeholder="Chat to Los Pepinos..." style="flex:1;padding:6px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.45);color:#fff;font-size:12px;outline:none;">
+      <input id="dgm-mp-chatinp" type="text" maxlength="120" placeholder="RP / Room chat..." style="flex:1;padding:6px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.45);color:#fff;font-size:12px;outline:none;">
       <button class="dgm-btn" id="dgm-mp-send" style="padding:6px 10px;">Send</button>
     </div>
   `;
   document.body.appendChild(mpPanel);
+  const jobSel = document.getElementById("dgm-mp-job");
+  if (jobSel) jobSel.value = MP.job;
 
   function addMpChat(who, txt) {
     const log = document.getElementById("dgm-mp-chatlog");
@@ -8682,13 +8708,13 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
 
   function syncMpBadge() {
     if (MP.connected) {
-      mpBtn.textContent = `🌐 Online (${MP.remotes.size + 1})`;
+      mpBtn.textContent = `🌐 ${MP.room} (${MP.remotes.size + 1})`;
       mpBtn.style.borderColor = "#22c55e";
-      document.getElementById("dgm-mp-status").textContent = `Connected (${MP.remotes.size + 1} online) · Pod: ${MP.pod || "ha"}`;
+      document.getElementById("dgm-mp-status").textContent = `Online · Room: ${MP.room} (${MP.remotes.size + 1}) · Role: ${MP.job}`;
     } else {
       mpBtn.textContent = "🌐 Multiplayer: Solo";
       mpBtn.style.borderColor = "rgba(250,204,21,.45)";
-      document.getElementById("dgm-mp-status").textContent = `Mode: Solo (Offline) · Server: ${MP.url}`;
+      document.getElementById("dgm-mp-status").textContent = `Mode: Solo · Selected Room: ${MP.room}`;
     }
   }
 
@@ -8700,20 +8726,28 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
     if (!silent) toast("SWITCHED TO SOLO MODE", "gold");
   }
 
-  function mpConnect(url = MP_DEFAULT_URL, customName = null) {
+  function mpConnect(url = MP_DEFAULT_URL, customName = null, customRoom = null) {
     mpDisconnect(true);
     const inp = document.getElementById("dgm-mp-name");
+    const rInp = document.getElementById("dgm-mp-room");
+    const jSel = document.getElementById("dgm-mp-job");
     MP.name = (customName || (inp && inp.value) || "DillyDriver").trim().slice(0, 16) || "DillyDriver";
+    MP.room = (customRoom || (rInp && rInp.value) || "PUBLIC").trim().toUpperCase().slice(0, 16) || "PUBLIC";
+    MP.job = (jSel && jSel.value) || MP.job || "Civilian";
     MP.url = url || MP_DEFAULT_URL;
-    try { localStorage.setItem("dgm_mp_name", MP.name); } catch (_) {}
-    document.getElementById("dgm-mp-status").textContent = `Connecting to ${MP.url}...`;
+    if (rInp) rInp.value = MP.room;
+    try {
+      localStorage.setItem("dgm_mp_name", MP.name);
+      localStorage.setItem("dgm_mp_job", MP.job);
+    } catch (_) {}
+    document.getElementById("dgm-mp-status").textContent = `Connecting to ${MP.room}...`;
     try {
       const ws = new WebSocket(MP.url);
       MP.ws = ws;
       ws.onopen = () => {
         const curMode = EXP.veh ? EXP.veh.id : (D.onFoot ? "foot" : "car");
         const px = D.onFoot ? D.x : P.x, py = D.onFoot ? D.y : (P.y || 0), pz = D.onFoot ? D.z : P.z, ph = D.onFoot ? D.h : P.h;
-        ws.send(JSON.stringify({ type: "join", name: MP.name, mode: curMode, x: +px.toFixed(2), y: +py.toFixed(2), z: +pz.toFixed(2), h: +ph.toFixed(3) }));
+        ws.send(JSON.stringify({ type: "join", name: MP.name, room: MP.room, job: MP.job, mode: curMode, x: +px.toFixed(2), y: +py.toFixed(2), z: +pz.toFixed(2), h: +ph.toFixed(3) }));
       };
       ws.onmessage = (ev) => {
         let m; try { m = JSON.parse(ev.data); } catch (_) { return; }
@@ -8721,21 +8755,23 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
           MP.connected = true;
           MP.id = m.id;
           MP.pod = m.pod || "ha";
+          if (m.room) MP.room = m.room;
           for (const p of (m.players || [])) upsertRemote(p);
           syncMpBadge();
-          toast(`🌐 JOINED LOS PEPINOS ONLINE (${MP.remotes.size + 1})`, "gold");
-          addMpChat("SYSTEM", `Connected as ${MP.name} (pod ${MP.pod}).`);
+          toast(`🌐 JOINED ${MP.room} (${MP.remotes.size + 1})`, "gold");
+          addMpChat("SYSTEM", `Joined ${MP.room} as [${MP.job}] ${MP.name}.`);
         } else if (m.type === "player_join" && m.player) {
           upsertRemote(m.player);
-          toast(`🌐 ${m.player.name} JOINED`, "gold");
-          addMpChat("SYSTEM", `${m.player.name} joined Los Pepinos.`);
+          toast(`🌐 ${m.player.name} JOINED ${MP.room}`, "gold");
+          addMpChat("SYSTEM", `[${m.player.job || "Civilian"}] ${m.player.name} joined.`);
         } else if (m.type === "state") {
           upsertRemote(m);
         } else if (m.type === "leave") {
           const r = MP.remotes.get(m.id);
           if (r) { scene.remove(r.mesh); MP.remotes.delete(m.id); syncMpBadge(); }
         } else if (m.type === "chat") {
-          addMpChat(m.name || "Driver", m.text || "");
+          const prefix = m.job ? `[${m.job}] ${m.name || "Driver"}` : (m.name || "Driver");
+          addMpChat(prefix, m.text || "");
         }
       };
       ws.onerror = () => {
@@ -8755,7 +8791,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
     if (MP.ws && MP.ws.readyState === 1) {
       MP.ws.send(JSON.stringify({ type: "chat", text: clean }));
     } else {
-      addMpChat(MP.name + " (Solo)", clean);
+      addMpChat(`[${MP.job}] ${MP.name}`, clean);
     }
   }
 
@@ -8769,6 +8805,32 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
   document.getElementById("dgm-mp-close").onclick = (e) => { e.stopPropagation(); toggleMpPanel(false); };
   document.getElementById("dgm-mp-connect").onclick = (e) => { e.stopPropagation(); mpConnect(); };
   document.getElementById("dgm-mp-disconnect").onclick = (e) => { e.stopPropagation(); mpDisconnect(); };
+  document.getElementById("dgm-mp-host").onclick = (e) => {
+    e.stopPropagation();
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "DL-";
+    for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    document.getElementById("dgm-mp-room").value = code;
+    MP.room = code;
+    toast(`🔒 PRIVATE CODE READY: ${code}`, "gold");
+    addMpChat("SYSTEM", `Created private room ${code}. Click Copy Invite or Join Server!`);
+    syncMpBadge();
+  };
+  document.getElementById("dgm-mp-copyinvite").onclick = (e) => {
+    e.stopPropagation();
+    const code = (document.getElementById("dgm-mp-room").value || MP.room || "PUBLIC").trim().toUpperCase();
+    const inv = new URL(`dilly-gone-mad.html?room=${encodeURIComponent(code)}&rp=1#play`, location.href).href;
+    navigator.clipboard?.writeText(inv).catch(() => {});
+    toast(`🔗 COPIED INVITE FOR ${code}`, "gold");
+  };
+  mpPanel.querySelectorAll("[data-preset]").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      MP.room = btn.dataset.preset;
+      document.getElementById("dgm-mp-room").value = MP.room;
+      syncMpBadge();
+    };
+  });
   document.getElementById("dgm-mp-send").onclick = (e) => {
     e.stopPropagation();
     const inp = document.getElementById("dgm-mp-chatinp");
@@ -8779,6 +8841,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
     if (e.key === "Enter") { mpSendChat(e.target.value); e.target.value = ""; }
   });
   document.getElementById("dgm-mp-name").addEventListener("keydown", (e) => e.stopPropagation());
+  document.getElementById("dgm-mp-room").addEventListener("keydown", (e) => e.stopPropagation());
 
   // Wrap per-frame updater to sync MP state & interpolate 3D remote players
   const _baseExpUpdate = window.__dgmUpdateExp;
@@ -8793,7 +8856,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
         const py = EXP.veh ? EXP.veh.y : (D.onFoot ? D.y : (P.y || 0));
         const pz = EXP.veh ? EXP.veh.z : (D.onFoot ? D.z : P.z);
         const ph = EXP.veh ? EXP.veh.h : (D.onFoot ? D.h : P.h);
-        MP.ws.send(JSON.stringify({ type: "state", mode: curMode, x: +px.toFixed(2), y: +py.toFixed(2), z: +pz.toFixed(2), h: +ph.toFixed(3) }));
+        MP.ws.send(JSON.stringify({ type: "state", room: MP.room, job: MP.job, mode: curMode, x: +px.toFixed(2), y: +py.toFixed(2), z: +pz.toFixed(2), h: +ph.toFixed(3) }));
       }
       for (const r of MP.remotes.values()) {
         const k = Math.min(1, dt * 10);

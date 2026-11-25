@@ -21,6 +21,13 @@ spec:
     - host: apibuild.dillonmay.com
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: dilly-hub-server
+                port:
+                  number: 8083
           - path: /strike
             pathType: Prefix
             backend:

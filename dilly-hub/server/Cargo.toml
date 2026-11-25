@@ -1,0 +1,10 @@
+[package]
+name = "dilly-hub-server"
+version = "1.0.0"
+edition = "2021"
+description = "HA Rust REST API for Dilly Gaming Accounts, Global Leaderboards, Roleplay Servers, and Private Shareable Rooms"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true

@@ -19,6 +19,8 @@ const REDIS_CHANNEL: &str = "dilly:mad:events";
 struct Player {
     id: String,
     name: String,
+    room: String, // "public" | "RP-CITY" | "RP-DRFT" | "DL-XXXX"
+    job: String,  // "Civilian" | "LPPD Officer" | "EMS Medic" | "Mechanic" | "Crime Boss"
     mode: String, // "car" | "foot" | "heli" | "plane" | "boat"
     stream: TcpStream,
     x: f64,
@@ -66,12 +68,13 @@ fn main() {
         players: HashMap::new(),
     }));
 
-    // Subscribe to Redis Pub/Sub for cross-pod HA fanout
+    // Subscribe to Redis Pub/Sub for cross-pod HA fanout (room-isolated)
     {
         let st = Arc::clone(&state);
         ha_ctx.spawn_subscriber(REDIS_CHANNEL.to_string(), move |payload| {
+            let room = json_str(payload, "room").unwrap_or_else(|| "public".into());
             let mut g = st.lock().unwrap();
-            broadcast_local(&mut g, None, payload);
+            broadcast_room(&mut g, &room, None, payload);
         });
     }
 
@@ -142,6 +145,8 @@ fn handle_client(mut stream: TcpStream, state: Arc<Mutex<WorldState>>, ha_ctx: H
             Player {
                 id: id.clone(),
                 name: "Driver".to_string(),
+                room: "public".to_string(),
+                job: "Civilian".to_string(),
                 mode: "car".to_string(),
                 stream: write_stream,
                 x: 0.0,
@@ -157,14 +162,20 @@ fn handle_client(mut stream: TcpStream, state: Arc<Mutex<WorldState>>, ha_ctx: H
         process_message(&pid, &msg, &state, &ha_ctx);
     }
 
-    // Disconnect cleanup
-    let leave_msg = format!("{{\"type\":\"leave\",\"id\":\"{}\"}}", pid);
-    {
+    // Disconnect cleanup (room-scoped)
+    let leave_msg = {
         let mut g = state.lock().unwrap();
-        g.players.remove(&pid);
-        broadcast_local(&mut g, None, &leave_msg);
+        if let Some(p) = g.players.remove(&pid) {
+            let m = format!("{{\"type\":\"leave\",\"id\":\"{}\",\"room\":\"{}\"}}", pid, escape_json(&p.room));
+            broadcast_room(&mut g, &p.room, None, &m);
+            Some(m)
+        } else {
+            None
+        }
+    };
+    if let Some(m) = leave_msg {
+        ha_ctx.publish(REDIS_CHANNEL, &m);
     }
-    ha_ctx.publish(REDIS_CHANNEL, &leave_msg);
 }
 
 fn process_message(pid: &str, raw: &str, state: &Arc<Mutex<WorldState>>, ha_ctx: &HaContext) {
@@ -175,50 +186,54 @@ fn process_message(pid: &str, raw: &str, state: &Arc<Mutex<WorldState>>, ha_ctx:
                 .map(|s| sanitize(&s, 18))
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "Driver".to_string());
+            let room = json_str(raw, "room")
+                .map(|s| sanitize(&s, 20).to_ascii_uppercase())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "PUBLIC".to_string());
+            let job = json_str(raw, "job")
+                .map(|s| sanitize(&s, 20))
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "Civilian".to_string());
             let mode = json_str(raw, "mode").unwrap_or_else(|| "car".to_string());
             let x = json_num(raw, "x").unwrap_or(0.0);
             let y = json_num(raw, "y").unwrap_or(0.0);
             let z = json_num(raw, "z").unwrap_or(0.0);
             let h = json_num(raw, "h").unwrap_or(0.0);
 
-            let (welcome, join_ev) = {
+            let join_ev = {
                 let mut g = state.lock().unwrap();
                 if let Some(p) = g.players.get_mut(pid) {
                     p.name = name.clone();
+                    p.room = room.clone();
+                    p.job = job.clone();
                     p.mode = mode.clone();
-                    p.x = x;
-                    p.y = y;
-                    p.z = z;
-                    p.h = h;
+                    p.x = x; p.y = y; p.z = z; p.h = h;
                 }
                 let list: Vec<String> = g
                     .players
                     .values()
-                    .filter(|p| p.id != pid)
+                    .filter(|p| p.id != pid && p.room == room)
                     .map(|p| {
                         format!(
-                            "{{\"id\":\"{}\",\"name\":\"{}\",\"mode\":\"{}\",\"x\":{:.2},\"y\":{:.2},\"z\":{:.2},\"h\":{:.3}}}",
-                            p.id, escape_json(&p.name), escape_json(&p.mode), p.x, p.y, p.z, p.h
+                            "{{\"id\":\"{}\",\"name\":\"{}\",\"job\":\"{}\",\"mode\":\"{}\",\"x\":{:.2},\"y\":{:.2},\"z\":{:.2},\"h\":{:.3}}}",
+                            p.id, escape_json(&p.name), escape_json(&p.job), escape_json(&p.mode), p.x, p.y, p.z, p.h
                         )
                     })
                     .collect();
                 let welcome = format!(
-                    "{{\"type\":\"welcome\",\"id\":\"{}\",\"pod\":\"{}\",\"players\":[{}]}}",
-                    pid,
-                    escape_json(&ha_ctx.pod_id),
-                    list.join(",")
+                    "{{\"type\":\"welcome\",\"id\":\"{}\",\"pod\":\"{}\",\"room\":\"{}\",\"players\":[{}]}}",
+                    pid, escape_json(&ha_ctx.pod_id), escape_json(&room), list.join(",")
                 );
                 let join_ev = format!(
-                    "{{\"type\":\"player_join\",\"player\":{{\"id\":\"{}\",\"name\":\"{}\",\"mode\":\"{}\",\"x\":{:.2},\"y\":{:.2},\"z\":{:.2},\"h\":{:.3}}}}}",
-                    pid, escape_json(&name), escape_json(&mode), x, y, z, h
+                    "{{\"type\":\"player_join\",\"room\":\"{}\",\"player\":{{\"id\":\"{}\",\"name\":\"{}\",\"job\":\"{}\",\"mode\":\"{}\",\"x\":{:.2},\"y\":{:.2},\"z\":{:.2},\"h\":{:.3}}}}}",
+                    escape_json(&room), pid, escape_json(&name), escape_json(&job), escape_json(&mode), x, y, z, h
                 );
                 if let Some(p) = g.players.get_mut(pid) {
                     let _ = send_ws_text(&mut p.stream, &welcome);
                 }
-                broadcast_local(&mut g, Some(pid), &join_ev);
-                (welcome, join_ev)
+                broadcast_room(&mut g, &room, Some(pid), &join_ev);
+                join_ev
             };
-            let _ = welcome;
             ha_ctx.publish(REDIS_CHANNEL, &join_ev);
             ha_ctx.pg_exec_async(format!(
                 "INSERT INTO dilly_mad_players (callsign, last_x, last_y, last_z, mode, updated_at) \
@@ -233,33 +248,37 @@ fn process_message(pid: &str, raw: &str, state: &Arc<Mutex<WorldState>>, ha_ctx:
             let z = json_num(raw, "z").unwrap_or(0.0);
             let h = json_num(raw, "h").unwrap_or(0.0);
             let mode = json_str(raw, "mode").unwrap_or_else(|| "car".to_string());
-            let name = {
+            let job_in = json_str(raw, "job");
+            let ev = {
                 let mut g = state.lock().unwrap();
-                let mut nm = "Driver".to_string();
+                let (mut nm, mut rm, mut jb) = ("Driver".to_string(), "PUBLIC".to_string(), "Civilian".to_string());
                 if let Some(p) = g.players.get_mut(pid) {
                     p.x = x; p.y = y; p.z = z; p.h = h; p.mode = mode.clone();
-                    nm = p.name.clone();
+                    if let Some(j) = job_in { p.job = sanitize(&j, 20); }
+                    nm = p.name.clone(); rm = p.room.clone(); jb = p.job.clone();
                 }
                 let ev = format!(
-                    "{{\"type\":\"state\",\"id\":\"{}\",\"name\":\"{}\",\"mode\":\"{}\",\"x\":{:.2},\"y\":{:.2},\"z\":{:.2},\"h\":{:.3}}}",
-                    pid, escape_json(&nm), escape_json(&mode), x, y, z, h
+                    "{{\"type\":\"state\",\"room\":\"{}\",\"id\":\"{}\",\"name\":\"{}\",\"job\":\"{}\",\"mode\":\"{}\",\"x\":{:.2},\"y\":{:.2},\"z\":{:.2},\"h\":{:.3}}}",
+                    escape_json(&rm), pid, escape_json(&nm), escape_json(&jb), escape_json(&mode), x, y, z, h
                 );
-                broadcast_local(&mut g, Some(pid), &ev);
+                broadcast_room(&mut g, &rm, Some(pid), &ev);
                 ev
             };
-            ha_ctx.publish(REDIS_CHANNEL, &name);
+            ha_ctx.publish(REDIS_CHANNEL, &ev);
         }
         "chat" => {
             let text = json_str(raw, "text").map(|s| sanitize(&s, 140)).unwrap_or_default();
             if text.is_empty() { return; }
             let (sender, ev) = {
                 let mut g = state.lock().unwrap();
-                let sender = g.players.get(pid).map(|p| p.name.clone()).unwrap_or_else(|| "Driver".to_string());
+                let (sender, rm, jb) = g.players.get(pid)
+                    .map(|p| (p.name.clone(), p.room.clone(), p.job.clone()))
+                    .unwrap_or_else(|| ("Driver".into(), "PUBLIC".into(), "Civilian".into()));
                 let ev = format!(
-                    "{{\"type\":\"chat\",\"name\":\"{}\",\"text\":\"{}\"}}",
-                    escape_json(&sender), escape_json(&text)
+                    "{{\"type\":\"chat\",\"room\":\"{}\",\"name\":\"{}\",\"job\":\"{}\",\"text\":\"{}\"}}",
+                    escape_json(&rm), escape_json(&sender), escape_json(&jb), escape_json(&text)
                 );
-                broadcast_local(&mut g, None, &ev);
+                broadcast_room(&mut g, &rm, None, &ev);
                 (sender, ev)
             };
             ha_ctx.publish(REDIS_CHANNEL, &ev);
@@ -272,10 +291,10 @@ fn process_message(pid: &str, raw: &str, state: &Arc<Mutex<WorldState>>, ha_ctx:
     }
 }
 
-fn broadcast_local(g: &mut WorldState, exclude: Option<&str>, msg: &str) {
+fn broadcast_room(g: &mut WorldState, room: &str, exclude: Option<&str>, msg: &str) {
     let mut dead = Vec::new();
     for (id, p) in g.players.iter_mut() {
-        if exclude == Some(id.as_str()) { continue; }
+        if p.room != room || exclude == Some(id.as_str()) { continue; }
         if send_ws_text(&mut p.stream, msg).is_err() {
             dead.push(id.clone());
         }
