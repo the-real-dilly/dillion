@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Pinecrest Tycoon — Christmas Tree Farm</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="game-shell">
+    <!-- Main 2.5D Isometric Viewport -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Top Classic RCT Toolbar -->
+    <header id="top-toolbar" class="rct-bar">
+      <div class="toolbar-group">
+        <button id="btn-pause" class="rct-icon-btn" title="Pause (Space)">⏸</button>
+        <button id="btn-speed-1" class="rct-icon-btn active" title="Normal Speed (1)">▶</button>
+        <button id="btn-speed-2" class="rct-icon-btn" title="Fast Speed (2)">▶▶</button>
+        <button id="btn-speed-3" class="rct-icon-btn" title="Ultra Speed (3)">⏩</button>
+      </div>
+
+      <div class="toolbar-sep"></div>
+
+      <div class="toolbar-group">
+        <button id="btn-zoom-out" class="rct-icon-btn" title="Zoom Out (-)">🔍-</button>
+        <button id="btn-zoom-in" class="rct-icon-btn" title="Zoom In (+)">🔍+</button>
+        <button id="btn-rot-ccw" class="rct-icon-btn" title="Rotate View Left (Q)">↺</button>
+        <button id="btn-rot-cw" class="rct-icon-btn" title="Rotate View Right (E)">↻</button>
+        <button id="btn-center" class="rct-icon-btn" title="Center Camera (C)">⌖</button>
+      </div>
+
+      <div class="toolbar-sep"></div>
+
+      <div class="toolbar-group">
+        <button id="btn-win-trees" class="rct-tool-btn theme-green" data-window="trees" title="Plant Crops &amp; Christmas Trees (T)">
+          <span class="btn-glyph">🌱</span><span class="btn-label">Plants</span>
+        </button>
+        <button id="btn-win-plots" class="rct-tool-btn theme-olive" data-window="plots" title="Crop &amp; Tree Plot Management (Z)">
+          <span class="btn-glyph">🗺</span><span class="btn-label">Plots</span>
+        </button>
+        <button id="btn-win-stalls" class="rct-tool-btn theme-red" data-window="stalls" title="Buildings &amp; Stalls (B)">
+          <span class="btn-glyph">🏠</span><span class="btn-label">Stalls</span>
+        </button>
+        <button id="btn-win-decor" class="rct-tool-btn theme-wood" data-window="decor" title="Paths &amp; Scenery (P)">
+          <span class="btn-glyph">🛤</span><span class="btn-label">Paths &amp; Decor</span>
+        </button>
+        <button id="btn-tool-land" class="rct-tool-btn theme-gold" title="Buy Land / Expand Farm (L)">
+          <span class="btn-glyph">🚩</span><span class="btn-label">Buy Land</span>
+        </button>
+        <button id="btn-win-terraform" class="rct-tool-btn theme-wood" data-window="terraform" title="Terrain &amp; Water Tools (G)">
+          <span class="btn-glyph">⛰️</span><span class="btn-label">Terrain</span>
+        </button>
+        <button id="btn-tool-harvest" class="rct-tool-btn theme-amber" title="Manual Harvest Mature Tree (H)">
+          <span class="btn-glyph">🪓</span><span class="btn-label">Harvest</span>
+        </button>
+        <button id="btn-tool-bulldoze" class="rct-tool-btn theme-slate" title="Clear / Demolish (X)">
+          <span class="btn-glyph">💣</span><span class="btn-label">Clear</span>
+        </button>
+      </div>
+
+      <div class="toolbar-sep"></div>
+
+      <div class="toolbar-group">
+        <button id="btn-win-tractor" class="rct-tool-btn theme-amber" data-window="tractor" title="Tractor Wagon Ride &amp; Stops (R)">
+          <span class="btn-glyph">🚜</span><span class="btn-label">Tractor</span>
+        </button>
+        <button id="btn-win-boats" class="rct-tool-btn theme-teal" data-window="boats" title="Pond Boat Rentals (O)">
+          <span class="btn-glyph">🚣</span><span class="btn-label">Boats</span>
+        </button>
+        <button id="btn-win-staff" class="rct-tool-btn theme-blue" data-window="staff" title="Hire &amp; Manage Staff (M)">
+          <span class="btn-glyph">👷</span><span class="btn-label">Staff</span>
+        </button>
+        <button id="btn-win-finances" class="rct-tool-btn theme-teal" data-window="finances" title="Finances &amp; Goals (F)">
+          <span class="btn-glyph">💰</span><span class="btn-label">Farm Info</span>
+        </button>
+      </div>
+
+      <div class="toolbar-spacer"></div>
+
+      <div class="toolbar-group">
+        <button id="btn-music" class="rct-icon-btn active" title="Toggle Ambient Music (N)">🎵</button>
+        <button id="btn-sound" class="rct-icon-btn active" title="Toggle Sound Effects">🔊</button>
+        <button id="btn-save" class="rct-icon-btn" title="Save Farm">💾</button>
+        <button id="btn-help" class="rct-icon-btn" title="How to Play">?</button>
+      </div>
+    </header>
+
+    <!-- Active Tool Status Banner (shown when placing/buying land) -->
+    <div id="tool-banner" class="hidden">
+      <span id="tool-banner-text">Select a tile...</span>
+      <button id="tool-banner-paint" class="rct-mini-btn paint-toggle touch-only hidden" title="Switch between 1-finger pan and drag-to-paint">✋ Pan Mode</button>
+      <button id="tool-banner-cancel" class="rct-mini-btn">Done (Esc)</button>
+    </div>
+
+    <!-- Floating RCT Windows Container -->
+    <div id="windows-layer">
+      <!-- PLANTS & TREES WINDOW -->
+      <section id="win-trees" class="rct-window theme-green hidden" style="left: 16px; top: 62px; width: 340px;">
+        <div class="rct-titlebar" data-drag="win-trees">
+          <span class="title-text">🌱 Plants, Crops &amp; Trees</span>
+          <button class="rct-close-btn" data-close="win-trees">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <p class="window-hint">Grow seasonal favorites year-round—Spring tulips, Summer strawberries, blueberries, sunflowers &amp; apples, Autumn pumpkins, and Winter Christmas trees! In-season harvests earn <strong>+25%</strong>.</p>
+          <div class="season-filter-row" id="trees-season-filters">
+            <button class="rct-btn small active" data-tree-filter="all">All</button>
+            <button class="rct-btn small" data-tree-filter="spring">🌷 Spr</button>
+            <button class="rct-btn small" data-tree-filter="summer">☀️ Sum</button>
+            <button class="rct-btn small" data-tree-filter="autumn">🎃 Fall</button>
+            <button class="rct-btn small" data-tree-filter="winter">❄️ Win</button>
+          </div>
+          <div id="trees-catalog" class="catalog-list"></div>
+        </div>
+      </section>
+
+      <!-- CROP & TREE PLOTS WINDOW -->
+      <section id="win-plots" class="rct-window theme-olive hidden" style="left: 28px; top: 62px; width: 350px;">
+        <div class="rct-titlebar" data-drag="win-plots">
+          <span class="title-text">🗺 Crop &amp; Tree Plots</span>
+          <button class="rct-close-btn" data-close="win-plots">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <p class="window-hint">Paint zones for any tree or seasonal crop on your owned land. <strong>Foresters</strong> auto-plant open tiles—and click any plot square on the map to select the whole plot and mark it as a <strong>Management Plot</strong> for Forester auto-harvesting!</p>
+          <div class="plot-toolbar-row">
+            <div class="land-actions" style="flex:1;">
+              <button id="btn-plot-1" class="rct-btn active">1×1</button>
+              <button id="btn-plot-2" class="rct-btn">2×2</button>
+              <button id="btn-plot-3" class="rct-btn">3×3</button>
+            </div>
+            <button id="btn-plot-overlay" class="rct-btn" title="Keep plot borders visible even when this window is closed">👁 Always Show</button>
+          </div>
+          <div class="season-filter-row" id="plots-season-filters">
+            <button class="rct-btn small active" data-plot-filter="all">All</button>
+            <button class="rct-btn small" data-plot-filter="spring">🌷 Spr</button>
+            <button class="rct-btn small" data-plot-filter="summer">☀️ Sum</button>
+            <button class="rct-btn small" data-plot-filter="autumn">🎃 Fall</button>
+            <button class="rct-btn small" data-plot-filter="winter">❄️ Win</button>
+          </div>
+          <div id="plots-catalog" class="catalog-list"></div>
+          <div class="plot-erase-row">
+            <button id="btn-plot-erase" class="rct-btn danger" style="width:100%;">🧹 Erase Plot Designation</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- STALLS & BUILDINGS WINDOW -->
+      <section id="win-stalls" class="rct-window theme-red hidden" style="left: 40px; top: 62px; width: 340px;">
+        <div class="rct-titlebar" data-drag="win-stalls">
+          <span class="title-text">🏠 Farm Buildings &amp; Stalls</span>
+          <button class="rct-close-btn" data-close="win-stalls">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <p class="window-hint">Place stalls beside paths to warm guests, sell festive treats, and process Christmas tree checkouts.</p>
+          <div id="stalls-catalog" class="catalog-list"></div>
+        </div>
+      </section>
+
+      <!-- PATHS & DECOR WINDOW -->
+      <section id="win-decor" class="rct-window theme-wood hidden" style="left: 64px; top: 62px; width: 320px;">
+        <div class="rct-titlebar" data-drag="win-decor">
+          <span class="title-text">🛤 Paths &amp; Festive Scenery</span>
+          <button class="rct-close-btn" data-close="win-decor">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <p class="window-hint">Connect stalls &amp; tree groves with paths. Scenery boosts Farm Appeal and guest happiness!</p>
+          <div id="decor-catalog" class="catalog-list"></div>
+        </div>
+      </section>
+
+      <!-- TRACTOR WAGON RIDE WINDOW -->
+      <section id="win-tractor" class="rct-window theme-red hidden" style="left: 110px; top: 62px; width: 355px;">
+        <div class="rct-titlebar" data-drag="win-tractor">
+          <span class="title-text">🚜 Tractor Wagon Ride</span>
+          <button class="rct-close-btn" data-close="win-tractor">✕</button>
+        </div>
+        <div class="rct-window-body" id="tractor-body"></div>
+      </section>
+
+      <!-- POND BOAT RENTALS WINDOW -->
+      <section id="win-boats" class="rct-window theme-teal hidden" style="left: 118px; top: 62px; width: 355px;">
+        <div class="rct-titlebar" data-drag="win-boats">
+          <span class="title-text">🚣 Pond Boat Rentals</span>
+          <button class="rct-close-btn" data-close="win-boats">✕</button>
+        </div>
+        <div class="rct-window-body" id="boats-body"></div>
+      </section>
+
+      <!-- STAFF WINDOW -->
+      <section id="win-staff" class="rct-window theme-blue hidden" style="left: 96px; top: 62px; width: 410px;">
+        <div class="rct-titlebar" data-drag="win-staff">
+          <span class="title-text">👷 Farm Staff Management</span>
+          <button class="rct-close-btn" data-close="win-staff">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <div class="rct-tabs staff-tabs" id="staff-tabs">
+            <button class="rct-tab active" data-staff-tab="all">All (<span id="staff-tab-cnt-all">0</span>)</button>
+            <button class="rct-tab" data-staff-tab="forester">🌲 Foresters (<span id="staff-tab-cnt-forester">0</span>)</button>
+            <button class="rct-tab" data-staff-tab="handyman">🧹 Handymen (<span id="staff-tab-cnt-handyman">0</span>)</button>
+            <button class="rct-tab" data-staff-tab="lumberjack">🪓 Lumber (<span id="staff-tab-cnt-lumberjack">0</span>)</button>
+            <button class="rct-tab" data-staff-tab="dog">🐕 Dogs (<span id="staff-tab-cnt-dog">0</span>)</button>
+          </div>
+          <div id="staff-role-header"></div>
+          <div class="staff-hire-grid" id="staff-hire-buttons"></div>
+          <div class="section-divider" id="staff-roster-heading">Active Crew (<span id="staff-count-label">0</span>)</div>
+          <div id="staff-roster" class="roster-list"></div>
+        </div>
+      </section>
+
+      <!-- FINANCES & GOALS WINDOW -->
+      <section id="win-finances" class="rct-window theme-teal hidden" style="left: 120px; top: 62px; width: 420px;">
+        <div class="rct-titlebar" data-drag="win-finances">
+          <span class="title-text">💰 Pinecrest Farm Overview</span>
+          <button class="rct-close-btn" data-close="win-finances">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <div class="rct-tabs">
+            <button class="rct-tab active" data-tab="overview">Overview</button>
+            <button class="rct-tab" data-tab="unlocks">🔓 Unlocks</button>
+            <button class="rct-tab" data-tab="finances">Finances</button>
+            <button class="rct-tab" data-tab="goals">Milestones</button>
+          </div>
+          <div id="tab-overview" class="tab-panel"></div>
+          <div id="tab-unlocks" class="tab-panel hidden"></div>
+          <div id="tab-finances" class="tab-panel hidden"></div>
+          <div id="tab-goals" class="tab-panel hidden"></div>
+          <div class="window-footer-actions">
+            <button id="btn-reset-farm" class="rct-btn danger">New Farm</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TERRAIN MANIPULATION WINDOW -->
+      <section id="win-terraform" class="rct-window theme-wood hidden" style="right: 16px; top: 62px; width: 315px;">
+        <div class="rct-titlebar" data-drag="win-terraform">
+          <span class="title-text">⛰️ Terrain &amp; Water Tools</span>
+          <button class="rct-close-btn" data-close="win-terraform">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <p class="window-hint">Raise or lower owned tiles (levels 0–3) to build hills &amp; terraces, or dig/fill ponds with water for Wooden Bridges and Boat/Skate docks!</p>
+          <div class="plot-toolbar-row">
+            <div class="land-actions" style="flex:1;">
+              <button id="btn-terr-1" class="rct-btn active">1×1</button>
+              <button id="btn-terr-2" class="rct-btn">2×2</button>
+              <button id="btn-terr-3" class="rct-btn">3×3</button>
+            </div>
+          </div>
+          <div class="catalog-list">
+            <button class="catalog-item" data-mode="terrain" data-id="raise">
+              <div class="catalog-preview" style="font-size:22px;">⬆️</div>
+              <div class="catalog-meta">
+                <div class="catalog-top"><span class="catalog-name">Raise Terrain</span><span class="catalog-cost">$15/tile</span></div>
+                <div class="catalog-desc">Lift owned ground up one elevation level (max level 3).</div>
+              </div>
+            </button>
+            <button class="catalog-item" data-mode="terrain" data-id="lower">
+              <div class="catalog-preview" style="font-size:22px;">⬇️</div>
+              <div class="catalog-meta">
+                <div class="catalog-top"><span class="catalog-name">Lower Terrain</span><span class="catalog-cost">$15/tile</span></div>
+                <div class="catalog-desc">Lower owned ground down one elevation level (min level 0).</div>
+              </div>
+            </button>
+            <button class="catalog-item" data-mode="terrain" data-id="water">
+              <div class="catalog-preview" style="font-size:22px;">💧</div>
+              <div class="catalog-meta">
+                <div class="catalog-top"><span class="catalog-name">Fill with Water</span><span class="catalog-cost">$20/tile</span></div>
+                <div class="catalog-desc">Create or expand scenic ponds &amp; streams on open owned tiles.</div>
+              </div>
+            </button>
+            <button class="catalog-item" data-mode="terrain" data-id="dry">
+              <div class="catalog-preview" style="font-size:22px;">🌱</div>
+              <div class="catalog-meta">
+                <div class="catalog-top"><span class="catalog-name">Drain Water to Grass</span><span class="catalog-cost">$15/tile</span></div>
+                <div class="catalog-desc">Reclaim owned water tiles back into dry grassland.</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- LAND EXPANSION WINDOW -->
+      <section id="win-land" class="rct-window theme-gold hidden" style="right: 16px; top: 62px; width: 290px;">
+        <div class="rct-titlebar" data-drag="win-land">
+          <span class="title-text">🚩 Expand Farm Land</span>
+          <button class="rct-close-btn" data-close="win-land">✕</button>
+        </div>
+        <div class="rct-window-body">
+          <p class="window-hint">Click any highlighted <strong>FOR SALE</strong> tile adjacent to your farm to buy it and expand your tile grid!</p>
+          <div class="land-stats" id="land-stats-box"></div>
+          <div class="land-actions">
+            <button id="btn-land-single" class="rct-btn active">1 Tile</button>
+            <button id="btn-land-patch" class="rct-btn">2×2 Patch</button>
+            <button id="btn-land-large" class="rct-btn">3×3 Plot</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- INSPECTOR WINDOW (Guest / Tree / Building / Staff) -->
+      <section id="win-inspector" class="rct-window theme-slate hidden" style="right: 16px; bottom: 54px; width: 300px;">
+        <div class="rct-titlebar" data-drag="win-inspector">
+          <span class="title-text" id="inspector-title">Inspector</span>
+          <button class="rct-close-btn" data-close="win-inspector">✕</button>
+        </div>
+        <div class="rct-window-body" id="inspector-body"></div>
+      </section>
+
+      <!-- HELP WINDOW -->
+      <section id="win-help" class="rct-window theme-green hidden" style="left: 50%; top: 50%; transform: translate(-50%, -50%); width: 420px;">
+        <div class="rct-titlebar" data-drag="win-help">
+          <span class="title-text">🎄 Welcome to Pinecrest Tree Farm!</span>
+          <button class="rct-close-btn" data-close="win-help">✕</button>
+        </div>
+        <div class="rct-window-body help-body">
+          <p><strong>Run your own 2.5D isometric Christmas tree farm!</strong></p>
+          <ul>
+            <li><strong>All-Season Crops &amp; Trees:</strong> Open <em>Plants</em> to grow Spring tulips, Summer strawberries, blueberries, sunflowers &amp; apples, Autumn pumpkins, and Winter Christmas trees—or zone automated fields in <em>Plots</em>!</li>
+            <li><strong>Festive Peak Season:</strong> In Nov–Jan, snow falls and families visit to pick mature trees, sip Hot Cocoa, warm up by Fire Pits, and visit Santa!</li>
+            <li><strong>Checkout, Tractor &amp; Boats:</strong> Guests pay at <em>Saw &amp; Checkout Sheds</em>. Open <em>Tractor</em> (🚜) to run a hayride between stops, or <em>Boats</em> (🚣) to place a dock on any pond edge for guest rowboat rentals!</li>
+            <li><strong>Expand, Sculpt &amp; Bridges:</strong> Every new farm generates random hills, streams, &amp; ponds! Use <em>Buy Land</em> (🚩) to expand, <em>Terrain</em> (⛰️) to raise/lower land or fill ponds with water, and <strong>Wooden Bridges</strong> from <em>Paths &amp; Decor</em> to cross water.</li>
+            <li><strong>Desktop Controls:</strong> Drag with Right-Click or Middle-Click (or Arrow/WASD keys) to pan • Mouse wheel to zoom • <strong>Q / E</strong> to rotate camera 90° • Click any tree, stall, guest, or staff to inspect.</li>
+            <li><strong>Touch Controls:</strong> Drag with 1 finger to pan • Pinch with 2 fingers to zoom &amp; pan • Tap any tile, guest, or staff to inspect or place • Use the <em>Pan / Paint</em> toggle in the tool bar to drag-paint paths, trees, or plots.</li>
+          </ul>
+          <div class="help-actions">
+            <button id="btn-help-close" class="rct-btn primary">Let's Farm! 🌲</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bottom Classic RCT Status Bar -->
+    <footer id="bottom-statusbar" class="rct-bar">
+      <div class="status-cell status-cash" id="stat-cash" title="Available Cash">$1,250</div>
+      <div class="status-cell status-date" id="stat-date" title="Current Date &amp; Season">Nov 18, Year 1</div>
+      <div class="status-cell status-weather" id="stat-weather" title="Weather &amp; Temperature">🍂 Crisp 44°F</div>
+      <div class="status-ticker" id="stat-ticker">Welcome to Pinecrest Tree Farm! Plant saplings, build stalls, and expand your land!</div>
+      <div class="status-cell status-guests" id="stat-guests" title="Guests on Farm">👥 0</div>
+      <div class="status-cell status-trees" id="stat-trees" title="Growing / Mature Trees">🌲 0/0</div>
+      <div class="status-cell status-rating" id="stat-rating" title="Farm Rating (0–999)">★ 650</div>
+    </footer>
+  </div>
+
+  <!-- Ordered Classic Scripts (works over both file:// and http://) -->
+  <script src="src/constants.js"></script>
+  <script src="src/audio.js"></script>
+  <script src="src/sprites.js"></script>
+  <script src="src/map.js"></script>
+  <script src="src/entities.js"></script>
+  <script src="src/game.js"></script>
+  <script src="src/renderer.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
