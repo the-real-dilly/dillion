@@ -81,7 +81,9 @@ function fmtKey(code) {
 
 // ---------- Procedural Web Audio SFX ----------
 let actx = null;
+let sfxMuted = false;
 function sfxTone(freq, dur, type = 'sawtooth', vol = 0.09, endF = null) {
+  if (sfxMuted) return;
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === 'suspended') actx.resume();
@@ -94,6 +96,7 @@ function sfxTone(freq, dur, type = 'sawtooth', vol = 0.09, endF = null) {
   } catch (_) {}
 }
 function sfxNoise(dur, freq, vol) {
+  if (sfxMuted) return;
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === 'suspended') actx.resume();
@@ -1142,8 +1145,18 @@ function syncHud() {
 
   // Top Alive Player Avatar Slots
   const ctBox = $('av-ct'), tBox = $('av-t');
-  ctBox.innerHTML = `<div class="av-slot">CT<div class="av-hp"><i style="width:${me.hp}%"></i></div></div>`;
-  const foes = isMP ? Array.from(remotes.values()).filter(r => r.team !== me.team) : bots;
+  const allies = isMP
+    ? Array.from(remotes.values()).filter(r => r.team === me.team)
+    : bots.filter(b => b.team === me.team);
+  const ctSlots = [{ hp: me.hp }, ...allies].slice(0, 5);
+  ctBox.innerHTML = ctSlots.map(a => {
+    const alive = a.hp === undefined || a.hp > 0;
+    const hpPct = a.hp === undefined ? 100 : Math.max(0, a.hp);
+    return `<div class="av-slot${alive ? '' : ' dead'}">${alive ? 'CT' : '✕'}<div class="av-hp"><i style="width:${hpPct}%"></i></div></div>`;
+  }).join('');
+  const foes = isMP
+    ? Array.from(remotes.values()).filter(r => r.team !== me.team)
+    : bots.filter(b => b.team !== me.team);
   tBox.innerHTML = foes.slice(0, 5).map(e => {
     const alive = e.hp === undefined || e.hp > 0;
     const hpPct = e.hp === undefined ? 100 : Math.max(0, e.hp);
@@ -1245,6 +1258,7 @@ function renderScoreboard() {
 
 // ---------- Match Start & Controls ----------
 function enterMatch(mpMode) {
+  if (typeof stopTrailerMode === 'function' && tr.active) stopTrailerMode(true);
   isMP = mpMode;
   me.name = $('agent-name').value.trim() || 'DillyAgent';
   me.kills = 0; me.deaths = 0; me.cash = 1200; roundTime = 115;
@@ -1437,6 +1451,602 @@ window.addEventListener('keyup', (e) => {
   if (e.code === BINDS.scoreboard) { sbOpen = false; $('modal-sb').classList.remove('open'); }
 });
 
+// ---------- Live In-Engine Trailer Director ----------
+const tr = {
+  active: false,
+  scene: null,
+  t: 0,
+  timeScale: 1,
+  fired: new Set(),
+  sparks: [],
+  crossfireCd: 0
+};
+
+function lerpAng(a, b, k) {
+  let d = (b - a + Math.PI) % (Math.PI * 2);
+  if (d < 0) d += Math.PI * 2;
+  d -= Math.PI;
+  return a + d * k;
+}
+
+function spawnImpactSparks(pt, color = 0xffd166, count = 8) {
+  for (let i = 0; i < count; i++) {
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(0.055, 0.055, 0.055),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 })
+    );
+    m.position.copy(pt);
+    scene.add(m);
+    tr.sparks.push({
+      mesh: m,
+      vel: new THREE.Vector3((Math.random() - 0.5) * 6, 1.2 + Math.random() * 4.2, (Math.random() - 0.5) * 6),
+      life: 0.28 + Math.random() * 0.14
+    });
+  }
+}
+
+function clearTrailerSceneObjects() {
+  for (const b of bots) scene.remove(b.model.group);
+  bots = [];
+  for (const s of tr.sparks) { scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.material.dispose(); }
+  tr.sparks = [];
+  for (const t of tracers) { scene.remove(t.line); t.line.geometry.dispose(); }
+  tracers.length = 0;
+  for (const sm of smokes) scene.remove(sm.mesh);
+  smokes.length = 0;
+  buyOpen = false; $('modal-buy').classList.remove('open');
+  sbOpen = false; $('modal-sb').classList.remove('open');
+  setScoped(false);
+  $('flash-fx').style.opacity = '0';
+  $('hurt-fx').style.opacity = '0';
+  $('hitmarker').style.opacity = '0';
+  $('hs-banner').style.opacity = '0';
+  $('hs-banner').textContent = 'HEADSHOT';
+  camera.rotation.z = 0;
+  me.crouching = false;
+  me.recoilKick = 0;
+  me.reloadTimer = 0;
+  me.inspectTimer = 0;
+  mfMat.opacity = 0;
+  abCd.q = 0; abCd.e = 0; abCd.c = 0;
+  for (const k of ['q', 'e', 'c']) {
+    $(`cd-${k}`).textContent = 'READY';
+    $(`ab-${k}`).classList.add('ready');
+  }
+}
+
+function spawnTrActor(cfg) {
+  const model = createAgentModel(cfg.name, cfg.team);
+  model.group.position.set(cfg.x, 0, cfg.z);
+  if (cfg.hp === 0) model.group.visible = false;
+  scene.add(model.group);
+  const actor = {
+    id: 'tr_' + bots.length,
+    name: cfg.name,
+    team: cfg.team,
+    model,
+    pos: new THREE.Vector3(cfg.x, 0, cfg.z),
+    goal: new THREE.Vector3(cfg.tx ?? cfg.x, 0, cfg.tz ?? cfg.z),
+    speed: cfg.speed ?? 4.1,
+    hp: cfg.hp ?? 100,
+    kills: cfg.kills ?? 0,
+    deaths: cfg.deaths ?? 0,
+    cash: cfg.cash ?? 2600,
+    stride: Math.random() * 6,
+    fall: 0,
+    lookAt: cfg.lookAt || null
+  };
+  bots.push(actor);
+  return actor;
+}
+
+function trOnce(key, time, fn) {
+  if (tr.t >= time && !tr.fired.has(key)) {
+    tr.fired.add(key);
+    fn();
+  }
+}
+
+function trShoot({ actor, dmg = 38, head = false, wallPt = null }) {
+  const w = WEAPONS[me.weaponId];
+  if (!w.melee && me.ammo[w.id][0] > 0) me.ammo[w.id][0]--;
+  me.inspectTimer = 0;
+  me.recoilKick = Math.min(0.16, me.recoilKick + (w.recoil || 0.02) * 1.35);
+  me.pitch = Math.min(1.2, me.pitch + (w.recoil || 0.015) * 0.55);
+  mfMat.opacity = w.melee || w.id === 'phantom' ? 0 : 0.95;
+  muzzleFlash.rotation.z = Math.random() * Math.PI;
+  playShot(w.id);
+
+  const startPt = camera.position.clone().add(new THREE.Vector3(0.20, -0.14, -0.55).applyEuler(camera.rotation));
+  let endPt = wallPt ? wallPt.clone() : camera.position.clone().add(new THREE.Vector3(0, 0, -18).applyEuler(camera.rotation));
+
+  if (actor && actor.hp > 0) {
+    endPt = new THREE.Vector3(actor.pos.x, head ? 1.74 : 1.18, actor.pos.z);
+    spawnImpactSparks(endPt, head ? 0xff4757 : 0xffd166, head ? 12 : 6);
+    showHitmarker(head);
+    if (head) playHeadshot();
+    actor.hp = Math.max(0, actor.hp - dmg);
+    if (actor.hp <= 0) {
+      actor.deaths++;
+      me.kills++;
+      me.cash = Math.min(16000, me.cash + (w.melee ? 1500 : 300));
+      scoreAlpha++;
+      addKillfeed(me.name, actor.name, w.name, head, 'alpha', 'omega', true);
+    }
+  } else if (wallPt) {
+    raycaster.set(camera.position, wallPt.clone().sub(camera.position).normalize());
+    raycaster.far = 90;
+    const wh = raycaster.intersectObjects(mapMeshes, false);
+    if (wh.length > 0) { endPt.copy(wh[0].point); spawnBulletDecal(wh[0]); }
+  }
+
+  if (!w.melee) {
+    spawnTracer(startPt, endPt, w.id === 'operator' ? 0xf87171 : 0xffe88a);
+  }
+  syncHud();
+}
+
+function applyTrailerChipDamage(dmg) {
+  const absorb = Math.min(me.shield, Math.floor(dmg * 0.5));
+  me.shield -= absorb;
+  me.hp = Math.max(18, me.hp - (dmg - absorb));
+  $('hurt-fx').style.opacity = '0.85';
+  setTimeout(() => { $('hurt-fx').style.opacity = '0'; }, 150);
+  syncHud();
+}
+
+function startTrailerMode() {
+  if (inMatch) return;
+  tr.active = true;
+  $('modal-lobby').classList.remove('open');
+  $('modal-settings').classList.remove('open');
+  $('killfeed').innerHTML = '';
+}
+
+function stopTrailerMode(skipLobby = false) {
+  tr.active = false;
+  tr.scene = null;
+  tr.timeScale = 1;
+  clearTrailerSceneObjects();
+  $('hud').classList.remove('active');
+  $('killfeed').innerHTML = '';
+  vmRoot.visible = false;
+  camera.fov = 76;
+  camera.updateProjectionMatrix();
+  // Restore clean default player state
+  me.hp = 100; me.shield = 100; me.cash = 1200; me.kills = 0; me.deaths = 0;
+  me.owned = new Set(['vandal', 'sheriff', 'knife']);
+  me.ammo = { vandal: [30, 90], phantom: [25, 100], operator: [5, 30], sheriff: [7, 35], knife: [0, 0] };
+  scoreAlpha = 0; scoreOmega = 0; roundTime = 115;
+  if (!inMatch && !skipLobby) $('modal-lobby').classList.add('open');
+}
+
+function playTrailerScene(sceneName) {
+  if (!tr.active) startTrailerMode();
+  clearTrailerSceneObjects();
+  tr.scene = sceneName;
+  tr.t = 0;
+  tr.timeScale = 1;
+  tr.fired.clear();
+  tr.crossfireCd = 0.12;
+  $('killfeed').innerHTML = '';
+
+  if (sceneName === 'drone_breach') {
+    $('hud').classList.remove('active');
+    vmRoot.visible = false;
+    camera.fov = 70; camera.updateProjectionMatrix();
+    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -24, z: 8.5, tx: -6.5, tz: 3.2, speed: 4.6 });
+    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -26, z: 5.2, tx: -8.2, tz: 1.4, speed: 4.4 });
+    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -22, z: 11.8, tx: -6.2, tz: 7.8, speed: 4.3 });
+    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -19, z: -13.5, tx: -5.5, tz: -14.8, speed: 4.5 });
+    spawnTrActor({ name: 'OMEGA-Phoenix', team: 'omega', x: 15.5, z: -2.8, tx: 5.4, tz: -2.4, speed: 3.8 });
+    spawnTrActor({ name: 'OMEGA-Viper', team: 'omega', x: 17.5, z: 3.8, tx: 6.4, tz: 3.0, speed: 3.9 });
+    spawnTrActor({ name: 'OMEGA-Reaper', team: 'omega', x: 14.0, z: -14.0, tx: 2.8, tz: -15.2, speed: 3.7 });
+    spawnTrActor({ name: 'OMEGA-Kodiak', team: 'omega', x: 18.5, z: -8.5, tx: 8.2, tz: -7.8, speed: 3.6 });
+    spawnTrActor({ name: 'OMEGA-Ghost', team: 'omega', x: 11.5, z: -20.5, tx: -1.0, tz: -20.5, speed: 3.8 });
+  } else if (sceneName === 'ak_entry') {
+    scoreAlpha = 6; scoreOmega = 6; roundTime = 104;
+    me.name = 'DillyAgent'; me.team = 'alpha';
+    me.hp = 100; me.shield = 65; me.cash = 4950; me.kills = 8; me.deaths = 4;
+    me.owned = new Set(['vandal', 'sheriff', 'knife']);
+    me.ammo.vandal = [30, 90];
+    me.pos.set(-24.5, 0, -21.2); me.vel.set(0, 0, 0);
+    me.yaw = -Math.PI / 2; me.pitch = -0.02;
+    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -16, z: 3.5, tx: -5.5, tz: 2.5, speed: 3.8, kills: 6, deaths: 5 });
+    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -19, z: 12, tx: -7, tz: 14, speed: 3.6, kills: 5, deaths: 5 });
+    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -22, z: -12, tx: -12, tz: -14, speed: 3.9, kills: 4, deaths: 6 });
+    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -14, z: -4, tx: -6, tz: -4, speed: 3.7, kills: 4, deaths: 6 });
+    spawnTrActor({ name: 'BOT-Phoenix', team: 'omega', x: 3.2, z: -21.2, tx: -0.6, tz: -20.8, speed: 2.2, kills: 7, deaths: 5 });
+    spawnTrActor({ name: 'BOT-Viper', team: 'omega', x: 3.6, z: -14.2, tx: -1.8, tz: -13.8, speed: 2.5, kills: 6, deaths: 6 });
+    spawnTrActor({ name: 'BOT-Reaper', team: 'omega', x: 7.2, z: 3.5, tx: 4.5, tz: 2.5, speed: 3.0, kills: 5, deaths: 6 });
+    spawnTrActor({ name: 'BOT-Kodiak', team: 'omega', x: 6.0, z: 19.5, tx: 1.5, tz: 20.0, speed: 2.8, kills: 4, deaths: 6 });
+    spawnTrActor({ name: 'BOT-Ghost', team: 'omega', x: 15.0, z: -8.0, tx: 8.5, tz: -6.5, speed: 3.1, kills: 4, deaths: 6 });
+    equipWeapon('vandal');
+    $('sc-mode').textContent = 'DE_DUSTLINE';
+    $('hud').classList.add('active');
+    vmRoot.visible = true;
+    syncHud(); drawRadar();
+  } else if (sceneName === 'utility_breach') {
+    scoreAlpha = 9; scoreOmega = 8; roundTime = 78;
+    me.name = 'DillyAgent'; me.team = 'alpha';
+    me.hp = 100; me.shield = 100; me.cash = 3600; me.kills = 12; me.deaths = 5;
+    me.owned = new Set(['vandal', 'phantom', 'sheriff', 'knife']);
+    me.ammo.phantom = [25, 100]; me.ammo.sheriff = [7, 35];
+    me.pos.set(-12.2, 0, 2.8); me.vel.set(0, 0, 0);
+    me.yaw = -1.45; me.pitch = -0.02;
+    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -10, z: 8, tx: -6.5, tz: 16, speed: 4.2, kills: 9, deaths: 6 });
+    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -14, z: -18, tx: -4, tz: -19, speed: 3.8, kills: 7, deaths: 7 });
+    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -8, z: -5, tx: -5, tz: -3, speed: 3.4, kills: 6, deaths: 7 });
+    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -20, z: 4, tx: -20, tz: 4, hp: 0, kills: 5, deaths: 8 });
+    spawnTrActor({ name: 'BOT-Reaper', team: 'omega', x: -1.6, z: 13.4, tx: -2.5, tz: 12.6, speed: 1.8, kills: 8, deaths: 8 });
+    spawnTrActor({ name: 'BOT-Kodiak', team: 'omega', x: 5.2, z: 20.6, tx: 1.8, tz: 20.4, speed: 2.0, kills: 7, deaths: 8 });
+    spawnTrActor({ name: 'BOT-Ghost', team: 'omega', x: 5.5, z: 1.8, tx: 4.2, tz: 2.0, speed: 2.2, kills: 7, deaths: 8 });
+    spawnTrActor({ name: 'BOT-Phoenix', team: 'omega', x: 12, z: -18, tx: 6, tz: -18, speed: 2.8, kills: 6, deaths: 9 });
+    spawnTrActor({ name: 'BOT-Viper', team: 'omega', x: 18, z: 12, tx: 18, tz: 12, hp: 0, kills: 5, deaths: 9 });
+    equipWeapon('phantom');
+    $('sc-mode').textContent = 'DE_DUSTLINE';
+    $('hud').classList.add('active');
+    vmRoot.visible = true;
+    syncHud(); drawRadar();
+  } else if (sceneName === 'awp_karambit_ace') {
+    scoreAlpha = 12; scoreOmega = 11; roundTime = 34;
+    me.name = 'DillyAgent'; me.team = 'alpha';
+    me.hp = 78; me.shield = 90; me.cash = 3950; me.kills = 17; me.deaths = 6;
+    me.owned = new Set(['vandal', 'operator', 'sheriff', 'knife']);
+    me.ammo.operator = [5, 30];
+    me.pos.set(-7.2, 0, -5.5); me.vel.set(0, 0, 0);
+    me.yaw = -1.32; me.pitch = 0.0;
+    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -16, z: -19, tx: -8, tz: -20, speed: 3.2, kills: 13, deaths: 9, cash: 3100 });
+    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -14, z: 15, tx: -9, tz: 16, speed: 3.0, kills: 11, deaths: 10, cash: 2800 });
+    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -22, z: 0, tx: -22, tz: 0, hp: 0, kills: 9, deaths: 11, cash: 1900 });
+    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -24, z: 4, tx: -24, tz: 4, hp: 0, kills: 8, deaths: 12, cash: 2100 });
+    // 3 already eliminated in the Ace round + 2 alive finalists
+    spawnTrActor({ name: 'BOT-Phoenix', team: 'omega', x: 18, z: -18, hp: 0, kills: 12, deaths: 13, cash: 2400 });
+    spawnTrActor({ name: 'BOT-Viper', team: 'omega', x: 18, z: -14, hp: 0, kills: 11, deaths: 13, cash: 2200 });
+    spawnTrActor({ name: 'BOT-Reaper', team: 'omega', x: 18, z: -10, hp: 0, kills: 10, deaths: 14, cash: 1800 });
+    spawnTrActor({ name: 'BOT-Ghost', team: 'omega', x: 6.8, z: -2.1, tx: 1.8, tz: -3.2, speed: 3.5, kills: 10, deaths: 12, cash: 3400 });
+    spawnTrActor({ name: 'OMEGA-Boss', team: 'omega', x: -5.6, z: 0.4, tx: -6.5, tz: -3.0, speed: 1.65, kills: 14, deaths: 11, cash: 4100 });
+    addKillfeed('DillyAgent', 'BOT-Phoenix', 'Dill-47', true, 'alpha', 'omega', true);
+    addKillfeed('DillyAgent', 'BOT-Viper', 'Viper-S', true, 'alpha', 'omega', true);
+    addKillfeed('DillyAgent', 'BOT-Reaper', 'Kodiak .50', true, 'alpha', 'omega', true);
+    equipWeapon('operator');
+    $('sc-mode').textContent = 'MATCH POINT · DE_DUSTLINE';
+    $('hud').classList.add('active');
+    vmRoot.visible = true;
+    syncHud(); drawRadar();
+  } else if (sceneName === 'finale_orbit' || sceneName === 'end_bg') {
+    $('hud').classList.remove('active');
+    vmRoot.visible = false;
+    camera.fov = 68; camera.updateProjectionMatrix();
+    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -13, z: -21, tx: -4.5, tz: -20.5, speed: 3.6 });
+    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -11, z: -15, tx: -3.2, tz: -15.5, speed: 3.8 });
+    spawnTrActor({ name: 'DillyAgent', team: 'alpha', x: -9.5, z: -18.5, tx: -1.8, tz: -18.8, speed: 4.0 });
+    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -15, z: -23, tx: -7.0, tz: -22.5, speed: 3.5 });
+    spawnTrActor({ name: 'OMEGA-Boss', team: 'omega', x: 9.5, z: -21.5, tx: 2.2, tz: -21.2, speed: 3.4 });
+    spawnTrActor({ name: 'OMEGA-Viper', team: 'omega', x: 8.5, z: -14.2, tx: 2.5, tz: -14.5, speed: 3.6 });
+    spawnTrActor({ name: 'OMEGA-Reaper', team: 'omega', x: 11.5, z: -18.5, tx: 5.5, tz: -19.8, speed: 3.3 });
+    spawnTrActor({ name: 'OMEGA-Ghost', team: 'omega', x: 6.5, z: -24.0, tx: 0.8, tz: -23.2, speed: 3.5 });
+    spawnSmoke(2.4, 1.9, -15.2);
+  }
+}
+
+function updateTrailerActors(dt) {
+  for (const a of bots) {
+    if (!a.model.group.visible) continue;
+    if (a.hp <= 0) {
+      if (a.fall < 1) {
+        a.fall = Math.min(1, a.fall + dt * 4.2);
+        a.model.group.rotation.x = -a.fall * (Math.PI * 0.48);
+        a.model.group.position.y = -a.fall * 0.08;
+      }
+      continue;
+    }
+    const dx = a.goal.x - a.pos.x, dz = a.goal.z - a.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d > 0.15) {
+      const step = Math.min(d, a.speed * dt);
+      a.pos.x += (dx / d) * step;
+      a.pos.z += (dz / d) * step;
+      a.stride += dt * (a.speed * 2.3);
+      a.model.legL.rotation.x = Math.sin(a.stride) * 0.48;
+      a.model.legR.rotation.x = -Math.sin(a.stride) * 0.48;
+    } else {
+      a.model.legL.rotation.x *= 0.85;
+      a.model.legR.rotation.x *= 0.85;
+    }
+    a.model.group.position.set(a.pos.x, 0, a.pos.z);
+    if (a.lookAt) {
+      a.model.group.rotation.y = Math.atan2(a.lookAt.x - a.pos.x, a.lookAt.z - a.pos.z);
+    } else if (tr.scene === 'drone_breach' || tr.scene === 'finale_orbit' || tr.scene === 'end_bg') {
+      const faceX = a.team === 'alpha' ? 12 : -12;
+      a.model.group.rotation.y = Math.atan2(faceX - a.pos.x, -10 - a.pos.z);
+    } else {
+      a.model.group.rotation.y = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
+    }
+  }
+
+  for (let i = tr.sparks.length - 1; i >= 0; i--) {
+    const s = tr.sparks[i];
+    s.life -= dt;
+    s.vel.y -= 14 * dt;
+    s.mesh.position.addScaledVector(s.vel, dt);
+    s.mesh.material.opacity = Math.max(0, s.life * 3.2);
+    if (s.life <= 0) {
+      scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.material.dispose();
+      tr.sparks.splice(i, 1);
+    }
+  }
+}
+
+function drivePovFrame(dt, moveGoal, lookPt, moveSpd = 5.8, aimRate = 12) {
+  const dx = moveGoal.x - me.pos.x, dz = moveGoal.z - me.pos.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist > 0.08) {
+    const step = Math.min(dist, moveSpd * dt);
+    me.vel.set((dx / dist) * moveSpd, 0, (dz / dist) * moveSpd);
+    me.pos.x += (dx / dist) * step;
+    me.pos.z += (dz / dist) * step;
+  } else {
+    me.vel.multiplyScalar(Math.max(0, 1 - dt * 12));
+  }
+
+  const eyeY = me.crouching ? 1.18 : 1.62;
+  camera.position.set(me.pos.x, eyeY, me.pos.z);
+
+  const ldx = lookPt.x - camera.position.x;
+  const ldy = lookPt.y - camera.position.y;
+  const ldz = lookPt.z - camera.position.z;
+  const targetYaw = Math.atan2(-ldx, -ldz);
+  const targetPitch = Math.atan2(ldy, Math.hypot(ldx, ldz));
+  const k = Math.min(1, dt * aimRate);
+  me.yaw = lerpAng(me.yaw, targetYaw, k);
+  me.pitch = THREE.MathUtils.lerp(me.pitch, targetPitch, k);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.set(me.pitch, me.yaw, 0);
+
+  const speed2D = Math.hypot(me.vel.x, me.vel.z);
+  const gap = Math.round(4 + (speed2D > 0.6 ? 5 : 0) + me.recoilKick * 88 - (me.crouching ? 2 : 0));
+  $('xhair').style.setProperty('--gap', Math.max(2, gap) + 'px');
+
+  if (me.reloadTimer > 0) {
+    me.reloadTimer -= dt;
+    if (me.reloadTimer <= 0) {
+      const w = WEAPONS[me.weaponId];
+      me.ammo[w.id][0] = w.mag;
+      syncHud();
+    }
+  }
+  if (me.inspectTimer > 0) me.inspectTimer = Math.max(0, me.inspectTimer - dt);
+  if (speed2D > 0.4) me.walkPhase += dt * (speed2D * 1.65);
+  const bobX = Math.cos(me.walkPhase) * 0.009 * Math.min(1, speed2D / 5);
+  const bobY = Math.abs(Math.sin(me.walkPhase)) * 0.011 * Math.min(1, speed2D / 5);
+
+  me.recoilKick = Math.max(0, me.recoilKick - dt * 0.95);
+  mfMat.opacity = Math.max(0, mfMat.opacity - dt * 22);
+
+  const inspT = me.inspectTimer > 0 ? Math.sin((me.inspectTimer / 1.6) * Math.PI) : 0;
+  vmRoot.visible = !me.scoped;
+  vmRoot.position.set(
+    0.24 + bobX - inspT * 0.08,
+    -0.22 - bobY - (me.reloadTimer > 0 ? 0.14 : 0) + inspT * 0.04,
+    -0.44 + me.recoilKick
+  );
+  vmRoot.rotation.set(me.recoilKick * 1.5 + inspT * 0.24, inspT * 0.88, inspT * 0.34);
+
+  drawRadar();
+  roundTime = Math.max(1, roundTime - dt);
+  const mins = Math.floor(roundTime / 60);
+  const secs = String(Math.floor(roundTime % 60)).padStart(2, '0');
+  $('round-timer').textContent = `${mins}:${secs}`;
+
+  for (const c of ['q', 'e', 'c']) {
+    if (abCd[c] > 0) abCd[c] = Math.max(0, abCd[c] - dt);
+    const v = Math.ceil(abCd[c]);
+    $(`cd-${c}`).textContent = v > 0 ? `${v}s` : 'READY';
+    $(`ab-${c}`).classList.toggle('ready', v === 0);
+  }
+}
+
+function updateSquadCrossfire(dt) {
+  tr.crossfireCd -= dt;
+  if (tr.crossfireCd > 0) return;
+  tr.crossfireCd = 0.16 + Math.random() * 0.16;
+  const cts = bots.filter(b => b.team === 'alpha' && b.hp > 0);
+  const ts = bots.filter(b => b.team === 'omega' && b.hp > 0);
+  if (!cts.length || !ts.length) return;
+  const ct = cts[Math.floor(Math.random() * cts.length)];
+  const te = ts[Math.floor(Math.random() * ts.length)];
+  const ctShoot = Math.random() < 0.55;
+  const src = ctShoot ? ct : te;
+  const dst = ctShoot ? te : ct;
+  const p0 = new THREE.Vector3(src.pos.x, 1.48, src.pos.z);
+  const p1 = new THREE.Vector3(dst.pos.x + (Math.random() - 0.5) * 1.4, 1.1 + Math.random() * 0.7, dst.pos.z + (Math.random() - 0.5) * 1.4);
+  spawnTracer(p0, p1, ctShoot ? 0x93c5fd : 0xfde047);
+  sfxNoise(0.07, ctShoot ? 1150 : 840, 0.045);
+}
+
+function updateTrailerDirector(rawDt) {
+  const dt = rawDt * tr.timeScale;
+  tr.t += dt;
+  updateTrailerActors(dt);
+
+  if (tr.scene === 'drone_breach') {
+    const u = Math.min(1, tr.t / 4.2);
+    const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    const cx = THREE.MathUtils.lerp(-25, 4.5, e);
+    const cy = THREE.MathUtils.lerp(9.2, 4.6, Math.sin(u * Math.PI * 0.75));
+    const cz = THREE.MathUtils.lerp(12.2, -9.2, e);
+    camera.position.set(cx, cy, cz);
+    camera.lookAt(
+      THREE.MathUtils.lerp(-5, 3.8, e),
+      THREE.MathUtils.lerp(1.6, 1.5, e),
+      THREE.MathUtils.lerp(2.0, -7.5, e)
+    );
+    camera.rotation.z = Math.sin(u * Math.PI) * -0.07;
+    updateSquadCrossfire(dt);
+    trOnce('sm1', 1.05, () => spawnSmoke(-2.4, 1.9, 2.2));
+    trOnce('k1', 2.55, () => {
+      const ph = bots.find(b => b.name === 'OMEGA-Phoenix');
+      if (ph) { ph.hp = 0; spawnImpactSparks(new THREE.Vector3(ph.pos.x, 1.6, ph.pos.z), 0xff4757, 12); }
+    });
+    trOnce('sm2', 3.25, () => spawnSmoke(3.5, 1.9, -11.0));
+  } else if (tr.scene === 'ak_entry') {
+    const ph = bots.find(b => b.name === 'BOT-Phoenix');
+    const vp = bots.find(b => b.name === 'BOT-Viper');
+
+    trOnce('buy_open', 0.05, () => {
+      renderBuyMenu();
+      $('modal-buy').classList.add('open');
+      inspectBuyItem(BUY_ITEMS[0]);
+      const nodes = document.querySelectorAll('#buy-wheel .wheel-node');
+      if (nodes[0]) nodes[0].style.borderColor = '#e3a73b';
+    });
+    trOnce('buy_hover_armor', 0.48, () => {
+      inspectBuyItem(BUY_ITEMS[4]);
+      const nodes = document.querySelectorAll('#buy-wheel .wheel-node');
+      if (nodes[0]) nodes[0].style.borderColor = '';
+      if (nodes[4]) { nodes[4].style.borderColor = '#e3a73b'; nodes[4].style.background = 'rgba(227,167,59,0.25)'; }
+    });
+    trOnce('buy_confirm', 0.82, () => {
+      me.cash = 3950; me.shield = 100;
+      sfxTone(520, 0.1, 'triangle', 0.1, 780);
+      renderBuyMenu(); inspectBuyItem(BUY_ITEMS[4]); syncHud();
+    });
+    trOnce('buy_close_insp', 1.15, () => {
+      $('modal-buy').classList.remove('open');
+      me.inspectTimer = 1.55;
+    });
+
+    trOnce('crouch_on', 2.08, () => { me.inspectTimer = 0; me.crouching = true; });
+    trOnce('ak_s1', 2.22, () => trShoot({ actor: ph, dmg: 36, head: false }));
+    trOnce('ak_s2', 2.35, () => trShoot({ actor: ph, dmg: 144, head: true }));
+    trOnce('crouch_off', 2.65, () => { me.crouching = false; });
+
+    trOnce('enemy_fire1', 2.82, () => {
+      if (vp) spawnTracer(new THREE.Vector3(vp.pos.x, 1.5, vp.pos.z), me.pos.clone().add(new THREE.Vector3(0.4, 1.4, 0)), 0xfde047);
+      sfxNoise(0.09, 860, 0.10);
+    });
+    trOnce('enemy_hit_me', 2.98, () => {
+      if (vp) spawnTracer(new THREE.Vector3(vp.pos.x, 1.5, vp.pos.z), me.pos.clone().add(new THREE.Vector3(0, 1.35, 0)), 0xfde047);
+      applyTrailerChipDamage(18);
+    });
+
+    trOnce('ak_t1', 3.18, () => trShoot({ wallPt: new THREE.Vector3(-1.2, 1.8, -17.1) }));
+    trOnce('ak_t2', 3.30, () => trShoot({ actor: vp, dmg: 36, head: false }));
+    trOnce('ak_t3', 3.42, () => trShoot({ actor: vp, dmg: 36, head: false }));
+    trOnce('ak_t4', 3.54, () => trShoot({ actor: vp, dmg: 144, head: true }));
+    trOnce('ak_reload', 4.02, () => startReload());
+
+    const moveGoal = tr.t < 2.1 ? new THREE.Vector3(-12.4, 0, -20.8)
+      : (tr.t < 2.7 ? me.pos.clone() : new THREE.Vector3(-10.8, 0, -18.8));
+    let lookPt = new THREE.Vector3(0, 1.68, -20.8);
+    if (tr.t >= 1.9 && tr.t < 2.75 && ph) lookPt = new THREE.Vector3(ph.pos.x, 1.74, ph.pos.z);
+    else if (tr.t >= 2.75 && vp) lookPt = new THREE.Vector3(vp.pos.x, 1.74, vp.pos.z);
+    drivePovFrame(dt, moveGoal, lookPt, tr.t < 1.15 ? 2.5 : 6.0, 14);
+  } else if (tr.scene === 'utility_breach') {
+    const rp = bots.find(b => b.name === 'BOT-Reaper');
+    const kd = bots.find(b => b.name === 'BOT-Kodiak');
+
+    trOnce('ut_smoke', 0.35, () => {
+      abCd.e = 14;
+      spawnSmoke(-0.6, 1.9, 2.2);
+    });
+    trOnce('ut_flash', 0.98, () => useFlash());
+    trOnce('ut_dash', 1.42, () => {
+      abCd.c = 8;
+      sfxNoise(0.16, 1200, 0.22);
+    });
+
+    trOnce('vp_s1', 2.02, () => trShoot({ actor: rp, dmg: 33, head: false }));
+    trOnce('vp_s2', 2.12, () => trShoot({ actor: rp, dmg: 33, head: false }));
+    trOnce('vp_s3', 2.22, () => trShoot({ actor: rp, dmg: 33, head: false }));
+    trOnce('vp_s4', 2.32, () => trShoot({ actor: rp, dmg: 120, head: true }));
+
+    trOnce('swap_deag', 2.82, () => {
+      equipWeapon('sheriff');
+      me.inspectTimer = 0.72;
+    });
+    trOnce('deag_hs', 3.68, () => {
+      me.crouching = true;
+      trShoot({ actor: kd, dmg: 170, head: true });
+    });
+    trOnce('deag_stand', 4.10, () => { me.crouching = false; me.inspectTimer = 1.2; });
+
+    let moveGoal = new THREE.Vector3(-7.0, 0, 3.8);
+    let spd = 5.8;
+    if (tr.t >= 1.42 && tr.t < 1.88) { moveGoal = new THREE.Vector3(-6.6, 0, 12.6); spd = 19.5; }
+    else if (tr.t >= 1.88 && tr.t < 2.8) { moveGoal = new THREE.Vector3(-6.2, 0, 13.4); spd = 3.5; }
+    else if (tr.t >= 2.8) { moveGoal = new THREE.Vector3(-5.6, 0, 14.4); spd = 3.2; }
+
+    let lookPt = new THREE.Vector3(0.5, 1.65, 2.2);
+    if (tr.t >= 0.85 && tr.t < 2.75 && rp) lookPt = new THREE.Vector3(rp.pos.x, 1.74, rp.pos.z);
+    else if (tr.t >= 2.75 && kd) lookPt = new THREE.Vector3(kd.pos.x, 1.74, kd.pos.z);
+    drivePovFrame(dt, moveGoal, lookPt, spd, 15);
+  } else if (tr.scene === 'awp_karambit_ace') {
+    const gh = bots.find(b => b.name === 'BOT-Ghost');
+    const boss = bots.find(b => b.name === 'OMEGA-Boss');
+
+    trOnce('awp_scope', 0.24, () => {
+      setScoped(true);
+      sfxTone(420, 0.06, 'sine', 0.06, 620);
+    });
+    trOnce('slomo_in', 1.12, () => { tr.timeScale = 0.45; });
+    trOnce('awp_fire', 1.56, () => {
+      tr.timeScale = 1.0;
+      trShoot({ actor: gh, dmg: 375, head: true });
+    });
+    trOnce('awp_unscope', 1.86, () => setScoped(false));
+
+    trOnce('boss_charge', 1.92, () => {
+      if (boss) { boss.speed = 4.6; boss.goal.set(-6.4, 0, -3.1); }
+      if (boss) spawnTracer(new THREE.Vector3(boss.pos.x, 1.5, boss.pos.z), me.pos.clone().add(new THREE.Vector3(0.25, 1.4, 0)), 0xfde047);
+    });
+    trOnce('swap_knife', 2.08, () => {
+      equipWeapon('knife');
+      me.inspectTimer = 0.92;
+    });
+    trOnce('knife_dash', 2.62, () => {
+      abCd.c = 8;
+      sfxNoise(0.16, 1200, 0.22);
+    });
+    trOnce('knife_ace', 2.95, () => {
+      trShoot({ actor: boss, dmg: 195, head: true });
+      const hb = $('hs-banner');
+      hb.textContent = '★ ACE · TEAM WIPED ★';
+      hb.style.opacity = '1';
+      setTimeout(() => { if (tr.active) hb.style.opacity = '0'; }, 1100);
+    });
+    trOnce('show_sb', 4.02, () => {
+      renderScoreboard();
+      $('modal-sb').classList.add('open');
+    });
+
+    let moveGoal = me.pos.clone();
+    let spd = 2.5;
+    if (tr.t >= 2.62 && tr.t < 3.02 && boss) {
+      moveGoal = new THREE.Vector3(boss.pos.x - 0.35, 0, boss.pos.z - 0.85);
+      spd = 18.0;
+    }
+    let lookPt = gh ? new THREE.Vector3(gh.pos.x, 1.74, gh.pos.z) : new THREE.Vector3(3.5, 1.7, -3.0);
+    if (tr.t >= 1.90 && boss) lookPt = new THREE.Vector3(boss.pos.x, 1.62, boss.pos.z);
+    drivePovFrame(dt, moveGoal, lookPt, spd, 16);
+  } else if (tr.scene === 'finale_orbit' || tr.scene === 'end_bg') {
+    const ang = -2.35 + tr.t * (tr.scene === 'end_bg' ? 0.16 : 0.46);
+    const rad = tr.scene === 'end_bg' ? 14.5 : THREE.MathUtils.lerp(11.8, 8.6, Math.min(1, tr.t / 3.6));
+    const cx = -1.5 + Math.cos(ang) * rad;
+    const cz = -18.5 + Math.sin(ang) * rad * 0.72;
+    const cy = tr.scene === 'end_bg' ? 5.2 : THREE.MathUtils.lerp(3.9, 2.3, Math.min(1, tr.t / 3.6));
+    camera.position.set(cx, cy, cz);
+    camera.lookAt(-1.2, 1.45, -18.8);
+    updateSquadCrossfire(dt);
+    trOnce('fin_sm', 1.2, () => spawnSmoke(-7.2, 1.9, -19.5));
+    trOnce('fin_k1', 2.1, () => {
+      const v = bots.find(b => b.name === 'OMEGA-Viper');
+      if (v) { v.hp = 0; spawnImpactSparks(new THREE.Vector3(v.pos.x, 1.6, v.pos.z), 0xff4757, 12); }
+    });
+  }
+}
+
 // ---------- Main Render Loop ----------
 let lastT = performance.now();
 let menuYaw = 0;
@@ -1446,6 +2056,20 @@ function loop(now) {
   lastT = now;
 
   if (!inMatch) {
+    if (tr.active) {
+      updateTrailerDirector(dt);
+      for (let i = tracers.length - 1; i >= 0; i--) {
+        tracers[i].life -= dt;
+        if (tracers[i].life <= 0) { scene.remove(tracers[i].line); tracers[i].line.geometry.dispose(); tracers.splice(i, 1); }
+      }
+      for (let i = smokes.length - 1; i >= 0; i--) {
+        smokes[i].life -= dt;
+        if (smokes[i].life < 1.5) smokes[i].mesh.material.opacity = Math.max(0, smokes[i].life / 1.5) * 0.9;
+        if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
+      }
+      renderer.render(scene, camera);
+      return;
+    }
     vmRoot.visible = false;
     menuYaw += dt * 0.14;
     camera.position.set(Math.cos(menuYaw) * 26, 11.5, Math.sin(menuYaw) * 26);
@@ -1514,9 +2138,16 @@ window.DillyStrike = {
   openScoreboard: (on) => { sbOpen = !!on; if (on) renderScoreboard(); $('modal-sb').classList.toggle('open', !!on); },
   openSettings,
   closeSettings,
+  setSfxMuted: (m) => { sfxMuted = !!m; },
+  trailer: {
+    start: startTrailerMode,
+    playScene: playTrailerScene,
+    stop: stopTrailerMode,
+    isActive: () => tr.active
+  },
   setBind: (act, code) => { if (act in BINDS) { BINDS[act] = code; saveBinds(); syncBindLabels(); renderKeybindsUI(); } },
   getBinds: () => Object.assign({}, BINDS),
-  getState: () => ({ inMatch, hp: me.hp, shield: me.shield, cash: me.cash, weapon: WEAPONS[me.weaponId].name, bots: bots.length })
+  getState: () => ({ inMatch, trailerActive: tr.active, trailerScene: tr.scene, hp: me.hp, shield: me.shield, cash: me.cash, weapon: WEAPONS[me.weaponId].name, bots: bots.length })
 };
 
 requestAnimationFrame(loop);
