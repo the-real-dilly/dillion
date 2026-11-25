@@ -124,7 +124,7 @@ function skyTexture(stops, sun, stars) {
       x.fillStyle = g; x.fillRect(cx + ox - sun.r * 2, cy - sun.r * 2, sun.r * 4, sun.r * 4);
     }
   }
-  const t = new THREE.CanvasTexture(c); return t;
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t; // engine renders in a linear (sRGB-correct) workflow
 }
 
 // time-of-day / weather presets (applied instantly on the cut, like DGM's setPreset)
@@ -602,6 +602,7 @@ void main(){
     col = mix(col, acc/w, smoothstep(0.03, 0.25, coc));
   }
   col = dsAces(col);
+  col = mix(col*12.92, 1.055*pow(col, vec3(1.0/2.4)) - 0.055, step(0.0031308, col)); // linear -> sRGB
   col = col*tint + lift;
   float l = dot(col, vec3(0.2126,0.7152,0.0722));
   col = mix(vec3(l), col, sat);

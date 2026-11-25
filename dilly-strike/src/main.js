@@ -5,6 +5,9 @@
    ========================================================================== */
 
 import * as THREE from 'three';
+import { initRender, renderFrame } from './render.js';
+import { enhanceDustline } from './mapdetail.js';
+import { createViewmodel } from './viewmodel.js';
 
 const $ = (id) => document.getElementById(id);
 export const DILLY_STRIKE_WS = 'wss://apibuild.dillonmay.com/strike';
@@ -177,6 +180,7 @@ sun.shadow.camera.top = 42;
 sun.shadow.camera.bottom = -42;
 sun.shadow.bias = -0.0005;
 scene.add(sun);
+initRender(renderer, scene, camera, sun, hemi); // linear workflow, sky, env, post chain, quality
 
 // ---------- Procedural Dust2 PBR Textures ----------
 function makeTexture(size, drawFn, repeatX = 1, repeatY = 1) {
@@ -362,6 +366,7 @@ function buildDustlineMap() {
   }
 }
 buildDustlineMap();
+enhanceDustline({ scene, mapMeshes, renderer, mats: { MAT_SAND, MAT_WALL, MAT_WALL_DARK, MAT_CRATE, MAT_DOOR, MAT_BARREL } });
 
 // ---------- Detailed Multi-Part CS:GO 3D Weapon Viewmodels + Gloved Hands ----------
 const vmRoot = new THREE.Group();
@@ -581,6 +586,9 @@ const remotes = new Map();
 let ws = null;
 let lastSync = 0;
 
+// CC0 gun models + gloved arms + animation layer (falls back to the box guns until loaded)
+const VM = createViewmodel({ vmRoot, camera, scene, me, weaponModels, oldParts: [rightArm, leftArm, muzzleFlash], team: me.team });
+
 // ---------- Weapon & Loadout Helpers ----------
 function equipWeapon(id) {
   if (!me.owned.has(id)) return;
@@ -666,6 +674,7 @@ function fireWeapon() {
   me.pitch = Math.min(Math.PI / 2 - 0.05, me.pitch + (w.recoil || 0.015) * (me.crouching ? 0.5 : 1.0));
   mfMat.opacity = w.melee || w.id === 'phantom' ? 0 : 0.95;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
+  VM.shot();
   playShot(w.id);
 
   const moveSpd = Math.hypot(me.vel.x, me.vel.z);
@@ -852,6 +861,7 @@ function respawnMe() {
   me.yaw = me.team === 'alpha' ? -1.18 : 1.95;
   me.pitch = 0;
   setScoped(false);
+  VM.setTeam(me.team);
   syncHud();
 }
 
@@ -932,6 +942,7 @@ function updatePlayer(dt) {
   me.recoilKick = Math.max(0, me.recoilKick - dt * 0.95);
   mfMat.opacity = Math.max(0, mfMat.opacity - dt * 22);
 
+  if (VM.update(dt)) return;
   const inspT = me.inspectTimer > 0 ? Math.sin((me.inspectTimer / 1.8) * Math.PI) : 0;
   vmRoot.position.set(
     0.24 + bobX - inspT * 0.08,
@@ -1556,6 +1567,7 @@ function trShoot({ actor, dmg = 38, head = false, wallPt = null }) {
   me.pitch = Math.min(1.2, me.pitch + (w.recoil || 0.015) * 0.55);
   mfMat.opacity = w.melee || w.id === 'phantom' ? 0 : 0.95;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
+  VM.shot();
   playShot(w.id);
 
   const startPt = camera.position.clone().add(new THREE.Vector3(0.20, -0.14, -0.55).applyEuler(camera.rotation));
@@ -1828,12 +1840,14 @@ function drivePovFrame(dt, moveGoal, lookPt, moveSpd = 5.8, aimRate = 12) {
 
   const inspT = me.inspectTimer > 0 ? Math.sin((me.inspectTimer / 1.6) * Math.PI) : 0;
   vmRoot.visible = !me.scoped;
-  vmRoot.position.set(
-    0.24 + bobX - inspT * 0.08,
-    -0.22 - bobY - (me.reloadTimer > 0 ? 0.14 : 0) + inspT * 0.04,
-    -0.44 + me.recoilKick
-  );
-  vmRoot.rotation.set(me.recoilKick * 1.5 + inspT * 0.24, inspT * 0.88, inspT * 0.34);
+  if (!VM.update(dt)) {
+    vmRoot.position.set(
+      0.24 + bobX - inspT * 0.08,
+      -0.22 - bobY - (me.reloadTimer > 0 ? 0.14 : 0) + inspT * 0.04,
+      -0.44 + me.recoilKick
+    );
+    vmRoot.rotation.set(me.recoilKick * 1.5 + inspT * 0.24, inspT * 0.88, inspT * 0.34);
+  }
 
   drawRadar();
   roundTime = Math.max(1, roundTime - dt);
@@ -2069,14 +2083,14 @@ function loop(now) {
         if (smokes[i].life < 1.5) smokes[i].mesh.material.opacity = Math.max(0, smokes[i].life / 1.5) * 0.9;
         if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
       }
-      if (tr.hook && tr.hook.render) tr.hook.render(dt); else renderer.render(scene, camera);
+      if (tr.hook && tr.hook.render) tr.hook.render(dt); else renderFrame(scene, camera);
       return;
     }
     vmRoot.visible = false;
     menuYaw += dt * 0.14;
     camera.position.set(Math.cos(menuYaw) * 26, 11.5, Math.sin(menuYaw) * 26);
     camera.lookAt(0, 2.2, 0);
-    renderer.render(scene, camera);
+    renderFrame(scene, camera);
     return;
   }
   vmRoot.visible = !me.scoped;
@@ -2122,7 +2136,7 @@ function loop(now) {
     if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
   }
 
-  renderer.render(scene, camera);
+  renderFrame(scene, camera);
 }
 
 window.addEventListener('resize', () => {
