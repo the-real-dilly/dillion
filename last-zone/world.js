@@ -28,12 +28,13 @@ export const POI = Object.fromEntries(POIS.map((p) => [p.id, p]));
 
 const BLOBS = [[0, 0, 640], [-480, 160, 380], [-330, -440, 360], [120, -520, 330], [420, -250, 290], [330, 320, 360], [-420, 520, 300], [430, 470, 220]];
 
-export function buildWorld() {
+export function buildWorld(seed = MAP_SEED) {
   const W = {
+    seed,
     H: new Float32Array(N * N), S: new Uint8Array(N * N), boxes: [], grid: new Map(), buildings: [], roads: [], trees: [], palms: [], rocks: [],
     loot: [], crates: [], props: [], fields: [], lights: [], fences: [], special: {}, stamp: 1, boxStamp: null
   };
-  const nz = makeNoise(MAP_SEED), r = mulberry32(MAP_SEED ^ 0x9e3779b9);
+  const nz = makeNoise(seed), r = mulberry32(seed ^ 0x9e3779b9);
   // ---- 1. raw height ----
   const mask = (x, z) => {
     let m = -1;
@@ -316,7 +317,7 @@ export function buildingAt(W, x, z) {
 // ---------------------------------------------------------------------------------------------
 // building kit: walls with openings, enterable houses, towers, props, loot points
 class Builder {
-  constructor(W, r) { this.W = W; this.r = r; this.dr = mulberry32(MAP_SEED ^ 0xdec0); }
+  constructor(W, r) { this.W = W; this.r = r; this.dr = mulberry32(W.seed ^ 0xdec0); }
   floorY(x, z) { return terrainH(this.W, x, z); }
   // axis-aligned wall from (x0,z0) to (x1,z1) (either x0==x1 or z0==z1), with openings [{u,w,y0,y1}] (u from start)
   wall(bi, x0, z0, x1, z1, y, h, th, s, openings = [], style) {
@@ -631,7 +632,7 @@ function scatterNature(W, r, nz) {
 
 // visual dressing: fences, utility poles + wires, barrels, pallets, dumpsters, benches, road decals
 function decorate(W) {
-  const r = mulberry32(MAP_SEED ^ 0x5ea1), occupied = (x, z, m) => W.buildings.some((b) => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
+  const r = mulberry32(W.seed ^ 0x5ea1), occupied = (x, z, m) => W.buildings.some((b) => x > b.x0 - m && x < b.x1 + m && z > b.z0 - m && z < b.z1 + m);
   W.poles = []; W.decals = [];
   // garden fences round hamlet and farm houses, open on the main door side
   for (const b of W.buildings) {
