@@ -644,3 +644,65 @@ body.cine #fx .bar { height: 12vh; }
 @media (max-width: 600px) { #tcard .txt { font-size: 11vw; } #tlogo .tagline { font-size: 11px; letter-spacing: .18em; } #trBadge { font-size: 9px; left: 12px; } #skiphint { font-size: 9px; right: 12px; } }
 
 @media (max-width: 760px) { body.cine #hud { transform: translate(12vw, 12vh) scale(.4712); transform-origin: 0 0; } }
+
+/* ==========================================================================
+   Realism pass — glass HUD panels, soft gradients, thin borders, accent glows,
+   3D-rendered weapon icons (src/viewmodel.js renderWeaponIcons).
+   Backdrop blur is skipped at ?q=low (html[data-gfx="low"]).
+   ========================================================================== */
+:root { --glass: rgba(14, 18, 25, .46); --glass-2: rgba(14, 18, 25, .62); --glass-line: rgba(255, 255, 255, .10); --glass-hi: rgba(255, 255, 255, .16); }
+html:not([data-gfx="low"]) .radar-frame,
+html:not([data-gfx="low"]) #cs-bot-left,
+html:not([data-gfx="low"]) #cs-bot-right,
+html:not([data-gfx="low"]) .lo-slot,
+html:not([data-gfx="low"]) .ab-chip,
+html:not([data-gfx="low"]) .round-clock,
+html:not([data-gfx="low"]) .kf-row,
+html:not([data-gfx="low"]) .rs-obj,
+html:not([data-gfx="low"]) #radar-callout,
+html:not([data-gfx="low"]) #cs-cash-pill,
+html:not([data-gfx="low"]) .av-slot,
+html:not([data-gfx="low"]) .cs-buy-wrap,
+html:not([data-gfx="low"]) .wheel-node { -webkit-backdrop-filter: blur(10px) saturate(140%); backdrop-filter: blur(10px) saturate(140%); }
+.radar-frame { background: radial-gradient(circle at 50% 40%, rgba(30, 40, 52, .55), rgba(8, 11, 16, .72)); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 1px rgba(0,0,0,.45), 0 12px 34px rgba(0,0,0,.45); }
+#cs-bot-left { background: linear-gradient(90deg, rgba(14,18,25,.62), rgba(14,18,25,.28)); border: 1px solid var(--glass-line); border-left: 2px solid rgba(255,255,255,.55); box-shadow: inset 0 1px 0 var(--glass-hi), 0 10px 30px rgba(0,0,0,.35); border-radius: 2px; }
+#cs-bot-right { background: linear-gradient(270deg, rgba(14,18,25,.66), rgba(14,18,25,.28)); border: 1px solid var(--glass-line); border-right: 2px solid rgba(255,255,255,.55); box-shadow: inset 0 1px 0 var(--glass-hi), 0 10px 30px rgba(0,0,0,.35); border-radius: 2px; }
+.cs-stat strong, #wep-mag { text-shadow: 0 0 18px rgba(255,255,255,.18), 0 2px 6px rgba(0,0,0,.6); }
+.cs-bar { height: 4px; border-radius: 2px; }
+.cs-bar > div { box-shadow: 0 0 8px rgba(255,255,255,.55); border-radius: 2px; }
+.cs-stat.arm .cs-bar > div { box-shadow: 0 0 10px rgba(90,176,255,.7); }
+.pip { border-radius: 1px; box-shadow: 0 0 4px rgba(255,255,255,.35); }
+.pip.empty { box-shadow: none; }
+.ab-chip { background: linear-gradient(180deg, rgba(20,26,35,.55), rgba(10,13,18,.62)); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 var(--glass-hi); border-radius: 2px; }
+.ab-chip.ready { border-bottom-color: #fff; box-shadow: inset 0 1px 0 var(--glass-hi), 0 4px 16px rgba(255,255,255,.08); }
+.round-clock { background: linear-gradient(180deg, rgba(20,26,35,.7), rgba(8,11,16,.82)); border: 1px solid var(--glass-line); border-bottom: 2px solid rgba(255,255,255,.3); box-shadow: inset 0 1px 0 var(--glass-hi), 0 8px 24px rgba(0,0,0,.4); }
+.team-score.ct { text-shadow: 0 0 16px rgba(90,176,255,.55); }
+.team-score.t { text-shadow: 0 0 16px rgba(232,163,58,.55); }
+.kf-row { background: linear-gradient(90deg, rgba(14,18,25,.35), rgba(14,18,25,.62)); border: 1px solid var(--glass-line); border-radius: 2px; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.kf-row.mine { border-color: rgba(255,79,94,.8); box-shadow: inset 0 0 14px rgba(255,79,94,.18), 0 0 14px rgba(255,79,94,.18); }
+.kf-wep.has-ico { background: none; padding: 0 2px; }
+.kf-ico { height: 18px; width: auto; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); opacity: .92; }
+#radar-callout, #cs-cash-pill { background: linear-gradient(90deg, rgba(14,18,25,.66), rgba(14,18,25,.36)); border: 1px solid var(--glass-line); border-radius: 2px; }
+#cs-cash-pill { text-shadow: 0 0 12px rgba(139,227,111,.45), 0 1px 4px rgba(0,0,0,.85); }
+/* loadout strip with weapon silhouettes */
+.lo-slot { background: linear-gradient(90deg, rgba(14,18,25,0), rgba(14,18,25,.55)); border-right: 1px solid var(--glass-line); border-radius: 2px 0 0 2px; min-width: 172px; }
+.lo-slot .wico { height: 22px; width: auto; opacity: .5; filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); margin-right: auto; }
+.lo-slot.active { background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.16)); box-shadow: inset -2px 0 0 #fff, 0 0 18px rgba(255,255,255,.06); }
+.lo-slot.active .wico { opacity: 1; filter: drop-shadow(0 0 6px rgba(255,255,255,.45)) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+/* buy menu */
+.cs-buy-wrap { background: linear-gradient(160deg, rgba(22,28,38,.78), rgba(10,13,18,.86)); border: 1px solid var(--glass-line); border-top: 2px solid var(--cs-green); box-shadow: inset 0 1px 0 var(--glass-hi), 0 30px 90px rgba(0,0,0,.7), 0 0 60px rgba(139,227,111,.06); border-radius: 4px; }
+.wheel-node { background: linear-gradient(180deg, rgba(28,35,46,.78), rgba(14,18,25,.86)); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 var(--glass-hi), 0 6px 18px rgba(0,0,0,.35); border-radius: 3px; width: 128px; }
+.wheel-node:hover:not(:disabled) { border-color: rgba(139,227,111,.9); box-shadow: inset 0 1px 0 var(--glass-hi), 0 0 22px rgba(139,227,111,.28); }
+.wheel-node .wn-ico { display: block; width: 104px; height: 39px; object-fit: contain; margin: 0 auto 4px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.6)); }
+.cs-buy-right { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)); border: 1px solid var(--glass-line); border-left: 2px solid var(--cs-green); border-radius: 3px; }
+#insp-art { margin: 6px -6px 2px; min-height: 0; }
+#insp-art .insp-ico { display: block; width: 100%; height: auto; filter: drop-shadow(0 8px 12px rgba(0,0,0,.6)); }
+.insp-fill { background: linear-gradient(90deg, #cfd6df, #fff); box-shadow: 0 0 8px rgba(255,255,255,.35); }
+.insp-track { border-radius: 2px; overflow: hidden; }
+/* modals: glassier cards */
+.modal { backdrop-filter: blur(8px) saturate(120%); }
+.btn { border-radius: 2px; }
+.btn:hover:not(:disabled) { box-shadow: 0 0 18px rgba(255,255,255,.08); }
+.btn-play { box-shadow: 0 10px 40px rgba(255,79,94,.35), 0 0 0 1px rgba(255,255,255,.08) inset; background: linear-gradient(180deg, #ff6370, var(--accent) 55%, #e43a4a); }
+/* menu loadout cards use the rendered icons when available */
+.lo-art img.lo-render { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(0,0,0,.55)); }

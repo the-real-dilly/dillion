@@ -5,6 +5,11 @@
    ========================================================================== */
 
 import * as THREE from 'three';
+import { initRender, renderFrame } from './render.js';
+import { enhanceDustline } from './mapdetail.js';
+import { createViewmodel, renderWeaponIcons, loadGuns } from './viewmodel.js';
+import { loadCharacters, charsReady, Operator } from './characters.js';
+loadCharacters().catch((e) => console.warn('character models unavailable, using fallback figures', e));
 
 const $ = (id) => document.getElementById(id);
 export const DILLY_STRIKE_WS = 'wss://apibuild.dillonmay.com/strike';
@@ -177,6 +182,7 @@ sun.shadow.camera.top = 42;
 sun.shadow.camera.bottom = -42;
 sun.shadow.bias = -0.0005;
 scene.add(sun);
+initRender(renderer, scene, camera, sun, hemi); // linear workflow, sky, env, post chain, quality
 
 // ---------- Procedural Dust2 PBR Textures ----------
 function makeTexture(size, drawFn, repeatX = 1, repeatY = 1) {
@@ -362,6 +368,7 @@ function buildDustlineMap() {
   }
 }
 buildDustlineMap();
+enhanceDustline({ scene, mapMeshes, renderer, mats: { MAT_SAND, MAT_WALL, MAT_WALL_DARK, MAT_CRATE, MAT_DOOR, MAT_BARREL } });
 
 // ---------- Detailed Multi-Part CS:GO 3D Weapon Viewmodels + Gloved Hands ----------
 const vmRoot = new THREE.Group();
@@ -480,7 +487,40 @@ muzzleFlash.position.set(0, 0.02, -0.68);
 vmRoot.add(muzzleFlash);
 
 // ---------- Upgraded CS:GO CT & T 3D Operative Models ----------
+function nameTagSprite(name, team) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 42;
+  const cx = c.getContext('2d');
+  cx.fillStyle = 'rgba(10,14,19,0.75)'; cx.fillRect(14, 4, 228, 34);
+  cx.font = 'bold 19px Arial Narrow, sans-serif';
+  cx.fillStyle = team === 'alpha' ? '#6eb3f7' : '#e3a73b';
+  cx.textAlign = 'center'; cx.fillText(name.slice(0, 16), 128, 28);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false }));
+  tag.scale.set(1.5, 0.25, 1); tag.position.y = 2.2;
+  return tag;
+}
+// skinned operator with team kit once the mannequin has loaded; blocky fallback before that
 function createAgentModel(name, team) {
+  if (charsReady()) {
+    const op = new Operator(name, team);
+    op.group.add(nameTagSprite(name, team));
+    return op;
+  }
+  return createBlockyAgent(name, team);
+}
+// swap any fallback figures for skinned operators as soon as the models are available
+function upgradeAgentModels(list) {
+  if (!charsReady()) return;
+  for (const a of list) {
+    if (!a.model || a.model.animate) continue;
+    const old = a.model, parent = old.group.parent, nm = createAgentModel(a.name, a.team);
+    nm.group.position.copy(old.group.position); nm.group.rotation.copy(old.group.rotation); nm.group.visible = old.group.visible;
+    old.group.traverse((o) => { if (o.isSprite && !o.visible) nm.group.traverse((q) => { if (q.isSprite) q.visible = false; }); });
+    if (parent) { parent.remove(old.group); parent.add(nm.group); }
+    a.model = nm;
+  }
+}
+function createBlockyAgent(name, team) {
   const g = new THREE.Group();
   const isCT = team === 'alpha';
   const suitCol = isCT ? 0x26384d : 0x5c4b37;
@@ -581,6 +621,55 @@ const remotes = new Map();
 let ws = null;
 let lastSync = 0;
 
+// ===== RANKED HOOKS (driven by src/ranked.js) — BEGIN =====
+// While a ranked match is live `rankedNet` replaces the casual socket for outgoing
+// game messages; the server is authoritative for rounds, economy, damage and spawns.
+let rankedNet = null;
+function netLive() { return !!rankedNet || !!(ws && ws.readyState === 1); }
+function netSend(obj) {
+  if (rankedNet) { rankedNet.send(obj); return; }
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+function rkClearRemotes() { for (const r of remotes.values()) scene.remove(r.model.group); remotes.clear(); }
+const rankedApi = {
+  attach(net) { rankedNet = net; for (const b of bots) scene.remove(b.model.group); bots = []; rkClearRemotes(); },
+  detach() { rankedNet = null; rkClearRemotes(); },
+  active: () => !!rankedNet,
+  me,
+  addRemote: (p) => addRemote(p),
+  removeRemote(id) { const r = remotes.get(id); if (r) { scene.remove(r.model.group); remotes.delete(id); } },
+  moveRemote(id, x, y, z, yaw, snap) {
+    const r = remotes.get(id); if (!r) return;
+    r.targetPos.set(x, y, z); r.targetYaw = yaw;
+    if (snap) { r.model.group.position.set(x, y, z); r.model.group.rotation.y = yaw; }
+  },
+  showRemote(id, on) { const r = remotes.get(id); if (r) r.model.group.visible = !!on; },
+  setScore(a, o) { scoreAlpha = a; scoreOmega = o; syncHud(); },
+  setRoundTime(t) { roundTime = t; },
+  enter: () => enterMatch(true),
+  equip: (id) => equipWeapon(id),
+  rerenderBuy() { if (buyOpen) renderBuyMenu(); },
+  closeBuy() { buyOpen = false; $('modal-buy').classList.remove('open'); },
+  syncHud: () => syncHud(),
+  killfeed: (...a) => addKillfeed(...a),
+  chat: (n, t) => addChat(n, t),
+  smoke: (x, y, z) => spawnSmoke(x, y, z),
+  sfx: (...a) => sfxTone(...a)
+};
+// ===== RANKED HOOKS — END =====
+
+// CC0 gun models + gloved arms + animation layer (falls back to the box guns until loaded)
+const VM = createViewmodel({ vmRoot, camera, scene, me, weaponModels, oldParts: [rightArm, leftArm, muzzleFlash], team: me.team });
+// weapon icons rendered from the same 3D models (HUD loadout strip, buy wheel, inspector, menu loadout)
+let WICONS = {};
+loadGuns().then(() => {
+  try { WICONS = renderWeaponIcons(renderer, Object.keys(WEAPONS)); } catch (e) { WICONS = {}; }
+  document.documentElement.classList.add('has-wicons');
+  if (inMatch) syncHud();
+  window.dispatchEvent(new CustomEvent('dillystrike:icons'));
+}).catch(() => {});
+const wIcon = (id, kind = 'sil', cls = 'wico') => (WICONS[id] ? `<img class="${cls}" alt="" src="${WICONS[id][kind]}">` : '');
+
 // ---------- Weapon & Loadout Helpers ----------
 function equipWeapon(id) {
   if (!me.owned.has(id)) return;
@@ -653,6 +742,7 @@ function spawnSmoke(x, y, z) {
 const raycaster = new THREE.Raycaster();
 
 function fireWeapon() {
+  if (rankedNet && rankedNet.blockFire()) return; /* RANKED: dead / buy phase */
   if (me.fireCd > 0 || me.reloadTimer > 0) return;
   const w = WEAPONS[me.weaponId];
   if (!w.melee) {
@@ -666,6 +756,7 @@ function fireWeapon() {
   me.pitch = Math.min(Math.PI / 2 - 0.05, me.pitch + (w.recoil || 0.015) * (me.crouching ? 0.5 : 1.0));
   mfMat.opacity = w.melee || w.id === 'phantom' ? 0 : 0.95;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
+  VM.shot();
   playShot(w.id);
 
   const moveSpd = Math.hypot(me.vel.x, me.vel.z);
@@ -705,8 +796,8 @@ function fireWeapon() {
 
     if (hit.object.userData.bot) {
       damageBot(hit.object.userData.bot, dmg, isHS, w.name);
-    } else if (hit.object.userData.remote && ws && ws.readyState === 1) {
-      ws.send(JSON.stringify({ type: 'hit', target: hit.object.userData.remote.id, dmg, hs: isHS, weapon: w.name }));
+    } else if (hit.object.userData.remote && netLive()) { /* RANKED: netSend */
+      netSend({ type: 'hit', target: hit.object.userData.remote.id, dmg, hs: isHS, weapon: rankedNet ? w.id : w.name });
     }
   } else if (wallHits.length > 0 && !w.melee) {
     spawnBulletDecal(wallHits[0]);
@@ -762,7 +853,7 @@ function damageBot(bot, dmg, isHS, wepName) {
     bot.hp = 0;
     bot.deaths++;
     bot.respawnTimer = 4.0;
-    bot.model.group.visible = false;
+    if (!bot.model.animate) bot.model.group.visible = false; // skinned operators play their death animation first
     me.kills++;
     me.cash = Math.min(16000, me.cash + (wepName === 'Dilly Fang' ? 1500 : 300));
     scoreAlpha++;
@@ -776,6 +867,7 @@ function updateBots(dt) {
   for (const b of bots) {
     if (b.respawnTimer > 0) {
       b.respawnTimer -= dt;
+      if (b.model.animate) { b.model.animate(dt, { dead: true }); if (b.respawnTimer < 1.3) b.model.group.visible = false; }
       if (b.respawnTimer <= 0) {
         b.hp = 100;
         b.pos.set(26 + (Math.random() - 0.5) * 6, 0, (Math.random() - 0.5) * 24);
@@ -808,6 +900,7 @@ function updateBots(dt) {
     const distP = toP.length();
     b.model.group.position.copy(b.pos);
     b.model.group.rotation.y = Math.atan2(toP.x, toP.z);
+    if (b.model.animate) b.model.animate(dt, { aim: distP < 34, pitch: Math.atan2(toP.y, Math.hypot(toP.x, toP.z)) });
 
     b.fireCd -= dt;
     if (distP < 34 && b.fireCd <= 0) {
@@ -817,7 +910,8 @@ function updateBots(dt) {
       const blocked = raycaster.intersectObjects(mapMeshes, false).length > 0;
       if (!blocked) {
         b.fireCd = 0.78 + Math.random() * 0.55;
-        spawnTracer(bOrigin, me.pos.clone().add(new THREE.Vector3(0, 1.3, 0)), 0xfde047);
+        if (b.model.fired) b.model.fired();
+        spawnTracer(b.model.muzzleWorld ? b.model.muzzleWorld() : bOrigin, me.pos.clone().add(new THREE.Vector3(0, 1.3, 0)), 0xfde047);
         sfxNoise(0.08, 900, 0.09);
         if (Math.random() < 0.32) {
           applyDamageToMe(14 + Math.floor(Math.random() * 8), b.name);
@@ -852,6 +946,7 @@ function respawnMe() {
   me.yaw = me.team === 'alpha' ? -1.18 : 1.95;
   me.pitch = 0;
   setScoped(false);
+  VM.setTeam(me.team);
   syncHud();
 }
 
@@ -876,8 +971,9 @@ function getCallout(x, z) {
 
 function updatePlayer(dt) {
   me.crouching = !!(me.keys[BINDS.crouch] || (BINDS.crouch === 'ControlLeft' && me.keys['ControlRight']));
-  const fwd = (me.keys[BINDS.fwd] ? 1 : 0) - (me.keys[BINDS.back] ? 1 : 0);
-  const str = (me.keys[BINDS.right] ? 1 : 0) - (me.keys[BINDS.left] ? 1 : 0);
+  const rkFrozen = !!(rankedNet && rankedNet.frozen()); /* RANKED: frozen in buy phase / dead */
+  const fwd = rkFrozen ? 0 : (me.keys[BINDS.fwd] ? 1 : 0) - (me.keys[BINDS.back] ? 1 : 0);
+  const str = rkFrozen ? 0 : (me.keys[BINDS.right] ? 1 : 0) - (me.keys[BINDS.left] ? 1 : 0);
 
   let spd = me.weaponId === 'knife' ? 8.4 : (me.scoped ? 3.2 : (me.crouching ? 3.3 : 6.4));
   const sinY = Math.sin(me.yaw), cosY = Math.cos(me.yaw);
@@ -889,7 +985,7 @@ function updatePlayer(dt) {
   me.vel.x = THREE.MathUtils.lerp(me.vel.x, mx * spd, Math.min(1, dt * 14));
   me.vel.z = THREE.MathUtils.lerp(me.vel.z, mz * spd, Math.min(1, dt * 14));
   me.vel.y -= 24 * dt;
-  if (me.keys[BINDS.jump] && me.onGround) { me.vel.y = 8.0; me.onGround = false; }
+  if (me.keys[BINDS.jump] && me.onGround && !rkFrozen) { me.vel.y = 8.0; me.onGround = false; }
 
   const nx = me.pos.x + me.vel.x * dt;
   if (!collides(nx, me.pos.y, me.pos.z)) me.pos.x = nx; else me.vel.x = 0;
@@ -932,6 +1028,7 @@ function updatePlayer(dt) {
   me.recoilKick = Math.max(0, me.recoilKick - dt * 0.95);
   mfMat.opacity = Math.max(0, mfMat.opacity - dt * 22);
 
+  if (VM.update(dt)) return;
   const inspT = me.inspectTimer > 0 ? Math.sin((me.inspectTimer / 1.8) * Math.PI) : 0;
   vmRoot.position.set(
     0.24 + bobX - inspT * 0.08,
@@ -948,6 +1045,7 @@ function updatePlayer(dt) {
 // ---------- Tactical Utility (Flash / Smoke / Dash) ----------
 function useFlash() {
   if (abCd.q > 0) return;
+  if (rankedNet && !rankedNet.ability('flash')) return; /* RANKED: one charge per round */
   abCd.q = 12;
   sfxTone(1600, 0.28, 'sine', 0.12, 2400);
   $('flash-fx').style.opacity = '0.45';
@@ -956,14 +1054,16 @@ function useFlash() {
 }
 function useSmoke() {
   if (abCd.e > 0) return;
+  if (rankedNet && !rankedNet.ability('smoke')) return; /* RANKED */
   abCd.e = 14;
   const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
   const pt = camera.position.clone().addScaledVector(dir, 11);
   spawnSmoke(pt.x, 1.8, pt.z);
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'smoke', x: pt.x, y: 1.8, z: pt.z }));
+  netSend({ type: 'smoke', x: pt.x, y: 1.8, z: pt.z }); /* RANKED: netSend */
 }
 function useDash() {
   if (abCd.c > 0) return;
+  if (rankedNet && !rankedNet.ability('dash')) return; /* RANKED */
   abCd.c = 8;
   sfxNoise(0.16, 1200, 0.22);
   const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, me.yaw, 0));
@@ -1139,7 +1239,7 @@ function syncHud() {
     if (!me.owned.has(wep.id)) continue;
     const row = document.createElement('div');
     row.className = 'lo-slot' + (wep.id === me.weaponId ? ' active' : '');
-    row.innerHTML = `<span>${wep.name}</span><span class="lo-num">${wep.slot}</span>`;
+    row.innerHTML = `${wIcon(wep.id)}<span>${wep.name}</span><span class="lo-num">${wep.slot}</span>`;
     lo.appendChild(row);
   }
 
@@ -1170,7 +1270,8 @@ function addKillfeed(killer, victim, wep, hs, kTeam = 'alpha', vTeam = 'omega', 
   div.className = 'kf-row' + (isMine ? ' mine' : '');
   const kCls = kTeam === 'alpha' ? 'kf-ct' : 'kf-t';
   const vCls = vTeam === 'alpha' ? 'kf-ct' : 'kf-t';
-  div.innerHTML = `<span class="${kCls}">${killer}</span><span class="kf-wep">${wep}</span>${hs ? '<span class="kf-hs">⊕</span>' : ''}<span class="${vCls}">${victim}</span>`;
+  const wObj = Object.values(WEAPONS).find((w) => w.name === wep), wImg = wObj ? wIcon(wObj.id, 'sil', 'kf-ico') : '';
+  div.innerHTML = `<span class="${kCls}">${killer}</span>${wImg ? `<span class="kf-wep has-ico" title="${wep}">${wImg}</span>` : `<span class="kf-wep">${wep}</span>`}${hs ? '<span class="kf-hs">⊕</span>' : ''}<span class="${vCls}">${victim}</span>`;
   kf.appendChild(div);
   setTimeout(() => div.remove(), 5500);
 }
@@ -1196,6 +1297,9 @@ const BUY_ITEMS = [
 
 function inspectBuyItem(it) {
   $('insp-name').textContent = it.name;
+  let art = $('insp-art');
+  if (!art) { art = document.createElement('div'); art.id = 'insp-art'; $('insp-name').before(art); }
+  art.innerHTML = it.kind === 'wep' ? wIcon(it.id, 'shade', 'insp-ico') : '';
   $('insp-desc').textContent = it.desc;
   $('insp-price').textContent = '$' + it.cost;
   const st = it.stats || { dmg: 80, rpm: 70, pen: 80, acc: 80 };
@@ -1222,9 +1326,10 @@ function renderBuyMenu() {
     btn.style.setProperty('--tx', tx);
     btn.style.setProperty('--ty', ty);
     btn.disabled = owned ? false : (me.cash < it.cost || (it.kind === 'armor' && me.shield >= 100));
-    btn.innerHTML = `<small>${idx + 1}</small><strong>${it.name}</strong><span>${owned ? 'EQUIP' : '$' + it.cost}</span>`;
+    btn.innerHTML = `<small>${idx + 1}</small>${it.kind === 'wep' ? wIcon(it.id, 'shade', 'wn-ico') : ''}<strong>${it.name}</strong><span>${owned ? 'EQUIP' : '$' + it.cost}</span>`;
     btn.onmouseenter = () => inspectBuyItem(it);
     btn.onclick = () => {
+      if (rankedNet) { rankedNet.buy(it, owned); return; } /* RANKED: server-side economy */
       if (it.kind === 'armor') {
         if (me.cash >= it.cost && me.shield < 100) { me.cash -= it.cost; me.shield = 100; sfxTone(520, 0.1, 'triangle', 0.1, 780); }
       } else if (it.kind === 'util') {
@@ -1405,7 +1510,7 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'Enter') {
       const txt = $('chat-inp').value.trim();
       if (txt) {
-        if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'chat', text: txt }));
+        if (netLive()) netSend({ type: 'chat', text: txt }); /* RANKED: netSend */
         else addChat(me.name, txt);
       }
       $('chat-inp').value = ''; $('chat-inp').classList.remove('open'); chatOpen = false;
@@ -1556,6 +1661,7 @@ function trShoot({ actor, dmg = 38, head = false, wallPt = null }) {
   me.pitch = Math.min(1.2, me.pitch + (w.recoil || 0.015) * 0.55);
   mfMat.opacity = w.melee || w.id === 'phantom' ? 0 : 0.95;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
+  VM.shot();
   playShot(w.id);
 
   const startPt = camera.position.clone().add(new THREE.Vector3(0.20, -0.14, -0.55).applyEuler(camera.rotation));
@@ -1735,6 +1841,7 @@ function playTrailerScene(sceneName) {
 function updateTrailerActors(dt) {
   for (const a of bots) {
     if (!a.model.group.visible) continue;
+    if (a.hp <= 0 && a.model.animate) { a.model.animate(dt, { dead: true }); continue; }
     if (a.hp <= 0) {
       if (a.fall < 1) {
         a.fall = Math.min(1, a.fall + dt * 4.2);
@@ -1765,6 +1872,7 @@ function updateTrailerActors(dt) {
     } else {
       a.model.group.rotation.y = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
     }
+    if (a.model.animate) a.model.animate(dt, { aim: true });
   }
 
   for (let i = tr.sparks.length - 1; i >= 0; i--) {
@@ -1828,12 +1936,14 @@ function drivePovFrame(dt, moveGoal, lookPt, moveSpd = 5.8, aimRate = 12) {
 
   const inspT = me.inspectTimer > 0 ? Math.sin((me.inspectTimer / 1.6) * Math.PI) : 0;
   vmRoot.visible = !me.scoped;
-  vmRoot.position.set(
-    0.24 + bobX - inspT * 0.08,
-    -0.22 - bobY - (me.reloadTimer > 0 ? 0.14 : 0) + inspT * 0.04,
-    -0.44 + me.recoilKick
-  );
-  vmRoot.rotation.set(me.recoilKick * 1.5 + inspT * 0.24, inspT * 0.88, inspT * 0.34);
+  if (!VM.update(dt)) {
+    vmRoot.position.set(
+      0.24 + bobX - inspT * 0.08,
+      -0.22 - bobY - (me.reloadTimer > 0 ? 0.14 : 0) + inspT * 0.04,
+      -0.44 + me.recoilKick
+    );
+    vmRoot.rotation.set(me.recoilKick * 1.5 + inspT * 0.24, inspT * 0.88, inspT * 0.34);
+  }
 
   drawRadar();
   roundTime = Math.max(1, roundTime - dt);
@@ -2056,6 +2166,7 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
+  if (charsReady() && (bots.some((b) => !b.model.animate) || [...remotes.values()].some((r) => !r.model.animate))) { upgradeAgentModels(bots); upgradeAgentModels([...remotes.values()]); }
 
   if (!inMatch) {
     if (tr.active) {
@@ -2069,14 +2180,14 @@ function loop(now) {
         if (smokes[i].life < 1.5) smokes[i].mesh.material.opacity = Math.max(0, smokes[i].life / 1.5) * 0.9;
         if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
       }
-      if (tr.hook && tr.hook.render) tr.hook.render(dt); else renderer.render(scene, camera);
+      if (tr.hook && tr.hook.render) tr.hook.render(dt); else renderFrame(scene, camera);
       return;
     }
     vmRoot.visible = false;
     menuYaw += dt * 0.14;
     camera.position.set(Math.cos(menuYaw) * 26, 11.5, Math.sin(menuYaw) * 26);
     camera.lookAt(0, 2.2, 0);
-    renderer.render(scene, camera);
+    renderFrame(scene, camera);
     return;
   }
   vmRoot.visible = !me.scoped;
@@ -2092,16 +2203,17 @@ function loop(now) {
     const secs = String(Math.floor(roundTime % 60)).padStart(2, '0');
     $('round-timer').textContent = `${mins}:${secs}`;
 
-    if (ws && ws.readyState === 1 && now - lastSync > 50) {
+    if (netLive() && now - lastSync > 50) { /* RANKED: netSend */
       lastSync = now;
-      ws.send(JSON.stringify({
+      netSend({
         type: 'state', x: +me.pos.x.toFixed(2), y: +me.pos.y.toFixed(2), z: +me.pos.z.toFixed(2),
         yaw: +me.yaw.toFixed(2), pitch: +me.pitch.toFixed(2), weapon: me.weaponId
-      }));
+      });
     }
     for (const r of remotes.values()) {
       r.model.group.position.lerp(r.targetPos, Math.min(1, dt * 14));
       r.model.group.rotation.y = r.targetYaw;
+      if (r.model.animate) r.model.animate(dt, { aim: true });
     }
 
     for (const k of ['q', 'e', 'c']) {
@@ -2122,7 +2234,7 @@ function loop(now) {
     if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
   }
 
-  renderer.render(scene, camera);
+  renderFrame(scene, camera);
 }
 
 window.addEventListener('resize', () => {
@@ -2132,6 +2244,7 @@ window.addEventListener('resize', () => {
 });
 
 window.DillyStrike = {
+  ranked: rankedApi, /* RANKED */
   enterMatch,
   equipWeapon,
   setScoped,
@@ -2162,6 +2275,8 @@ window.DillyStrike = {
   },
   setBind: (act, code) => { if (act in BINDS) { BINDS[act] = code; saveBinds(); syncBindLabels(); renderKeybindsUI(); } },
   getBinds: () => Object.assign({}, BINDS),
+  vm: VM,
+  weaponIcon: (id, kind = 'sil') => (WICONS[id] ? WICONS[id][kind] : null),
   getState: () => ({ inMatch, trailerActive: tr.active, trailerScene: tr.scene, hp: me.hp, shield: me.shield, cash: me.cash, weapon: WEAPONS[me.weaponId].name, bots: bots.length })
 };
 

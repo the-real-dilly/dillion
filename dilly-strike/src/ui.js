@@ -79,7 +79,7 @@ function renderLoadout() {
     return `<div class="lo-card${STARTER.has(w.id) ? ' equipped' : ''}" style="--rar:${rar}">
       ${STARTER.has(w.id) ? '<span class="lo-badge">Starter</span>' : ''}
       <div class="lo-cat">Slot ${w.slot} · ${cat}</div>
-      <div class="lo-art"><svg viewBox="0 0 200 70" fill="currentColor">${WSVG[w.id] || ''}</svg></div>
+      <div class="lo-art">${(DS() && DS().weaponIcon && DS().weaponIcon(w.id, 'shade')) ? `<img class="lo-render" alt="" src="${DS().weaponIcon(w.id, 'shade')}">` : `<svg viewBox="0 0 200 70" fill="currentColor">${WSVG[w.id] || ''}</svg>`}</div>
       <div class="lo-name">${esc(w.name)}</div>
       <div class="lo-meta"><span>${w.melee ? 'Free' : 'Mag ' + w.mag}</span><b>${w.cost ? '$' + w.cost : 'Default'}</b></div>
       ${stat('Damage', s.dmg | 0)}${stat('Fire rate', s.rpm | 0)}${stat('Pen.', s.pen | 0)}${stat('Accuracy', s.acc | 0)}
@@ -162,7 +162,7 @@ function bindAgentSelect() {
 const FIRST_TO = 7, ELIMS = 5, BUY_MS = 12000;
 const R = { on: false, round: 1, ct: 0, t: 0, k0: 0, d0: 0, kStart: 0, dStart: 0, mvps: 0, earned: 0, buyUntil: 0, ending: false, lastSec: 115, wasIn: false, hs: 0 };
 const timerSecs = () => { const m = /(\d+):(\d+)/.exec(($('round-timer') || {}).textContent || ''); return m ? (+m[1]) * 60 + (+m[2]) : 115; };
-function isOnline() { return /RUST/i.test(($('sc-mode') || {}).textContent || ''); }
+function isOnline() { return /RUST/i.test(($('sc-mode') || {}).textContent || '') || !!(DS() && DS().ranked && DS().ranked.active()); } // RANKED: server runs the rounds
 function startRounds() {
   const E = ENG(); if (!E) return;
   Object.assign(R, { on: true, round: 1, ct: 0, t: 0, k0: E.me.kills, d0: E.me.deaths, kStart: E.me.kills, dStart: E.me.deaths, mvps: 0, earned: 0, buyUntil: performance.now() + BUY_MS, ending: false, lastSec: 115 });
@@ -332,6 +332,7 @@ function boot() {
   applyXhair(); applyIface();
   renderRoster(); renderLoadout(); syncProfile();
   if (!ENG()) setTimeout(renderLoadout, 400);
+  window.addEventListener('dillystrike:icons', renderLoadout); // swap SVGs for 3D-rendered weapon icons
   setInterval(tick, 150);
   // Esc closes the full-screen menus (the game ignores keys outside a match)
   window.addEventListener('keydown', (e) => {
@@ -339,6 +340,6 @@ function boot() {
     if ($('agent-select').classList.contains('on')) closeAgentSelect();
     else if ($('match-end').classList.contains('on')) { showScreen('match-end', false); setView('home'); }
   });
-  window.DillyStrikeUI = { setView, openAgentSelect, deploy, endRound, endMatch, rounds: () => ({ ...R }) };
+  window.DillyStrikeUI = { setView, openAgentSelect, deploy, endRound, endMatch, rounds: () => ({ ...R }), AGENTS, agentSVG, showScreen }; // RANKED: AGENTS/agentSVG/showScreen used by ranked.js
 }
 if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot); else boot();
