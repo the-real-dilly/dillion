@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261125025249";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261125025339";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -8458,6 +8458,11 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
       <button class="dgm-btn" data-int="gunshop">🔫 Tactical Shop</button>
       <button class="dgm-btn" id="dgm-btn-open-wardrobe2">🎨 Customize Dilly</button>
     </div>
+    <h4>Customs &amp; Missions</h4>
+    <div class="dgm-grid">
+      <button class="dgm-btn" id="dgm-btn-modshop" style="border-color:rgba(56,189,248,.5);color:#7dd3fc;">🔧 Mod Shop Garage</button>
+      <button class="dgm-btn" id="dgm-btn-heist" style="border-color:rgba(250,204,21,.55);color:#fde047;">💰 Bank Heist ($10K)</button>
+    </div>
   `;
   document.body.appendChild(expMenu);
 
@@ -8868,11 +8873,304 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
     }
   };
 
+  // ==========================================================================
+  // 8. DRIVE-IN MOD SHOP GARAGE (Paint, 3D Neon Underglow, 3D Spoiler, Turbo)
+  // ==========================================================================
+  const MOD_GARAGE_POS = { x: -26, z: -10, y: groundH(-26, -10) };
+  const garagePad = makePadRing(0x38bdf8, 3.8);
+  garagePad.position.set(MOD_GARAGE_POS.x, MOD_GARAGE_POS.y, MOD_GARAGE_POS.z);
+  scene.add(garagePad);
+
+  const MODS = {
+    open: false,
+    paint: "#c41418",
+    neon: "none",
+    spoiler: "none",
+    turbo: 0, // 0=Stock, 1=Street (+18%), 2=Twin-Turbo (+35%)
+    neonGroup: null,
+    spoilerGroup: null
+  };
+
+  const MOD_PAINTS = [
+    { name: "Factory Crimson", hex: "#c41418" },
+    { name: "Obsidian Black", hex: "#14161b" },
+    { name: "Dilly Emerald", hex: "#15803d" },
+    { name: "Champ Gold", hex: "#d99b06" },
+    { name: "Electric Cyan", hex: "#0284c7" },
+    { name: "Hyper Violet", hex: "#7c3aed" },
+    { name: "Pearl White", hex: "#f1f5f9" },
+    { name: "Sunset Orange", hex: "#ea580c" }
+  ];
+  const MOD_NEONS = [
+    { id: "none", name: "Off", col: null },
+    { id: "cyan", name: "Cyan", col: 0x22d3ee },
+    { id: "green", name: "Emerald", col: 0x4ade80 },
+    { id: "pink", name: "Magenta", col: 0xf472b6 },
+    { id: "gold", name: "Gold", col: 0xfacc15 },
+    { id: "red", name: "Inferno", col: 0xf43f5e }
+  ];
+  const MOD_SPOILERS = [
+    { id: "none", name: "Stock" },
+    { id: "lip", name: "Street Lip" },
+    { id: "gt", name: "Carbon GT Wing" }
+  ];
+  const MOD_TURBOS = [
+    { id: 0, name: "Stock (1.0×)" },
+    { id: 1, name: "Street Tune (+18%)" },
+    { id: 2, name: "Twin-Turbo (+35%)" }
+  ];
+
+  function applyCarMods(saveNow = true) {
+    if (P && P.paintMat) P.paintMat.color.set(MODS.paint);
+    if (typeof DILLY_PAINT !== "undefined") DILLY_PAINT.color.set(MODS.paint);
+
+    // 3D Neon Underglow
+    if (MODS.neonGroup && P && P.mesh) { P.mesh.remove(MODS.neonGroup); MODS.neonGroup = null; }
+    const nOpt = MOD_NEONS.find((n) => n.id === MODS.neon);
+    if (nOpt && nOpt.col && P && P.mesh) {
+      const ng = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ color: nOpt.col, transparent: true, opacity: 0.88 });
+      for (const sx of [-0.92, 0.92]) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 3.1), mat);
+        bar.position.set(sx, 0.24, 0);
+        ng.add(bar);
+      }
+      const pl = new THREE.PointLight(nOpt.col, 2.2, 8.5);
+      pl.position.set(0, 0.22, 0);
+      ng.add(pl);
+      P.mesh.add(ng);
+      MODS.neonGroup = ng;
+    }
+
+    // 3D Rear Spoiler / Carbon GT Wing
+    if (MODS.spoilerGroup && P && P.mesh) { P.mesh.remove(MODS.spoilerGroup); MODS.spoilerGroup = null; }
+    if (MODS.spoiler !== "none" && P && P.mesh) {
+      const sg = new THREE.Group();
+      const carbon = mStd(0x111318, 0.28, 0.72);
+      if (MODS.spoiler === "lip") {
+        const lip = new THREE.Mesh(new THREE.BoxGeometry(1.78, 0.08, 0.24), carbon);
+        lip.position.set(0, 0.96, -2.02);
+        lip.rotation.x = 0.22;
+        sg.add(lip);
+      } else if (MODS.spoiler === "gt") {
+        for (const sx of [-0.62, 0.62]) {
+          const strut = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.36, 0.22), carbon);
+          strut.position.set(sx, 1.08, -1.96);
+          sg.add(strut);
+        }
+        const wing = new THREE.Mesh(new THREE.BoxGeometry(1.96, 0.07, 0.38), carbon);
+        wing.position.set(0, 1.28, -2.02);
+        wing.rotation.x = 0.14;
+        sg.add(wing);
+        for (const sx of [-0.99, 0.99]) {
+          const endp = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.24, 0.44), mStd(MODS.paint, 0.25, 0.7));
+          endp.position.set(sx, 1.28, -2.02);
+          sg.add(endp);
+        }
+      }
+      P.mesh.add(sg);
+      MODS.spoilerGroup = sg;
+    }
+
+    if (saveNow) {
+      try { localStorage.setItem("dgm_carmods_v1", JSON.stringify({ paint: MODS.paint, neon: MODS.neon, spoiler: MODS.spoiler, turbo: MODS.turbo })); } catch (_) {}
+    }
+    refreshModShopUI();
+  }
+
+  const modEl = document.createElement("div");
+  modEl.id = "dgm-modshop";
+  modEl.style.cssText = "position:fixed;top:50%;right:22px;transform:translateY(-50%);z-index:972;display:none;width:312px;background:rgba(12,14,18,.95);border:1px solid rgba(56,189,248,.5);border-radius:18px;padding:16px;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 20px 55px rgba(0,0,0,.75);backdrop-filter:blur(16px);";
+  modEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <h3 style="margin:0;font-size:15px;font-weight:800;letter-spacing:.5px;color:#38bdf8;">🔧 LOS PEPINOS CUSTOMS</h3>
+      <button class="dgm-pill" id="dgm-mod-close" style="padding:4px 10px;">✕</button>
+    </div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin:8px 0 6px;font-weight:700;">Metallic Paint</div>
+    <div class="dgm-swatches" id="dgm-mod-paints"></div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin:10px 0 6px;font-weight:700;">Neon Underglow</div>
+    <div class="dgm-hats" id="dgm-mod-neons"></div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin:10px 0 6px;font-weight:700;">Rear Spoiler</div>
+    <div class="dgm-hats" id="dgm-mod-spoilers"></div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin:10px 0 6px;font-weight:700;">Engine &amp; Turbo Tune</div>
+    <div class="dgm-hats" id="dgm-mod-turbos"></div>
+  `;
+  document.body.appendChild(modEl);
+
+  function renderModShopControls() {
+    const pBox = document.getElementById("dgm-mod-paints"); pBox.innerHTML = "";
+    for (const o of MOD_PAINTS) {
+      const b = document.createElement("button");
+      b.className = "dgm-sw"; b.title = o.name; b.style.background = o.hex; b.dataset.val = o.hex;
+      b.onclick = (e) => { e.stopPropagation(); MODS.paint = o.hex; applyCarMods(true); };
+      pBox.appendChild(b);
+    }
+    const nBox = document.getElementById("dgm-mod-neons"); nBox.innerHTML = "";
+    for (const o of MOD_NEONS) {
+      const b = document.createElement("button");
+      b.className = "dgm-hat"; b.textContent = o.name; b.dataset.val = o.id;
+      b.onclick = (e) => { e.stopPropagation(); MODS.neon = o.id; applyCarMods(true); };
+      nBox.appendChild(b);
+    }
+    const sBox = document.getElementById("dgm-mod-spoilers"); sBox.innerHTML = "";
+    for (const o of MOD_SPOILERS) {
+      const b = document.createElement("button");
+      b.className = "dgm-hat"; b.textContent = o.name; b.dataset.val = o.id;
+      b.onclick = (e) => { e.stopPropagation(); MODS.spoiler = o.id; applyCarMods(true); };
+      sBox.appendChild(b);
+    }
+    const tBox = document.getElementById("dgm-mod-turbos"); tBox.innerHTML = "";
+    for (const o of MOD_TURBOS) {
+      const b = document.createElement("button");
+      b.className = "dgm-hat"; b.textContent = o.name; b.dataset.val = String(o.id);
+      b.onclick = (e) => { e.stopPropagation(); MODS.turbo = o.id; applyCarMods(true); toast(`⚡ INSTALLED ${o.name.toUpperCase()}`, "gold"); };
+      tBox.appendChild(b);
+    }
+    refreshModShopUI();
+  }
+
+  function refreshModShopUI() {
+    for (const el of document.getElementById("dgm-mod-paints").children) el.classList.toggle("on", el.dataset.val === MODS.paint);
+    for (const el of document.getElementById("dgm-mod-neons").children) el.classList.toggle("on", el.dataset.val === MODS.neon);
+    for (const el of document.getElementById("dgm-mod-spoilers").children) el.classList.toggle("on", el.dataset.val === MODS.spoiler);
+    for (const el of document.getElementById("dgm-mod-turbos").children) el.classList.toggle("on", el.dataset.val === String(MODS.turbo));
+  }
+
+  function toggleModShop(force) {
+    MODS.open = force != null ? !!force : !MODS.open;
+    modEl.style.display = MODS.open ? "block" : "none";
+    if (MODS.open) {
+      toggleMenu(false); toggleWardrobe(false); toggleMpPanel(false);
+      if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    }
+  }
+
+  // ==========================================================================
+  // 9. 3-STAGE LOS PEPINOS BANK HEIST ($10,000 PAYOUT)
+  // ==========================================================================
+  const BANK_POS = { x: 16, z: -48, y: groundH(16, -48) };
+  const bankPad = makePadRing(0xfacc15, 4.4);
+  bankPad.position.set(BANK_POS.x, BANK_POS.y, BANK_POS.z);
+  scene.add(bankPad);
+
+  const HEIST = {
+    stage: 0,      // 0=idle, 1=reach bank, 2=drill vault (5s), 3=chopper extraction
+    drill: 0,      // 0..100
+    completed: 0
+  };
+
+  const heistBanner = document.createElement("div");
+  heistBanner.id = "dgm-heist-banner";
+  heistBanner.style.cssText = "position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:945;display:none;background:rgba(12,14,18,.92);border:1.5px solid #facc15;border-radius:12px;padding:8px 18px;color:#fef08a;font:800 13px/1.3 system-ui,-apple-system,sans-serif;letter-spacing:.5px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.6);min-width:300px;";
+  document.body.appendChild(heistBanner);
+
+  function startBankHeist() {
+    HEIST.stage = 1;
+    HEIST.drill = 0;
+    toggleMenu(false);
+    heistBanner.style.display = "block";
+    toast("💰 BANK HEIST STARTED! DRIVE TO FIRST BRINE BANK", "gold");
+    updateHeistBanner();
+  }
+
+  function advanceHeistStage() {
+    if (HEIST.stage === 1) {
+      HEIST.stage = 2;
+      HEIST.drill = 0;
+      if (typeof addHeat === "function") addHeat(35);
+      toast("🔓 VAULT BREACHED! HOLD POSITION WHILE LASER DRILLS!", "gold");
+    } else if (HEIST.stage === 2) {
+      HEIST.stage = 3;
+      HEIST.drill = 100;
+      if (typeof addHeat === "function") addHeat(45);
+      toast("💰 $10,000 GOLD SECURED! ESCAPE VIA DILLY CHOPPER (HELIPAD)!", "gold");
+    } else if (HEIST.stage === 3) {
+      HEIST.stage = 0;
+      HEIST.completed++;
+      heistBanner.style.display = "none";
+      addCash(10000, "BANK HEIST PAYOUT");
+      toast("🏆 HEIST PASSED! +$10,000 CASH!", "gold");
+    }
+    updateHeistBanner();
+  }
+
+  function updateHeistBanner(dist = 0) {
+    if (HEIST.stage === 0) { heistBanner.style.display = "none"; return; }
+    heistBanner.style.display = "block";
+    if (HEIST.stage === 1) {
+      heistBanner.innerHTML = `🏦 HEIST STAGE 1/3 · BREACH FIRST BRINE BANK <span style="color:#fff;">(${Math.round(dist)}m)</span>`;
+    } else if (HEIST.stage === 2) {
+      heistBanner.innerHTML = `🔓 HEIST STAGE 2/3 · LASER DRILLING VAULT: <span style="color:#4ade80;">${Math.round(HEIST.drill)}%</span>
+        <div style="height:5px;background:rgba(255,255,255,.15);border-radius:4px;margin-top:5px;overflow:hidden;"><div style="height:100%;width:${Math.round(HEIST.drill)}%;background:#facc15;"></div></div>`;
+    } else if (HEIST.stage === 3) {
+      heistBanner.innerHTML = `🚁 HEIST STAGE 3/3 · ESCAPE TO HELIPAD (${Math.round(dist)}m) OR FLY CHOPPER > 28m ALT!`;
+    }
+  }
+
+  // Hook E-key interact for Mod Shop & Bank Heist beacons
+  const _prevInteract = window.__dgmTryInteract;
+  window.__dgmTryInteract = function () {
+    if (_prevInteract && _prevInteract()) return true;
+    const px = D.onFoot ? D.x : P.x, pz = D.onFoot ? D.z : P.z;
+    if (Math.hypot(px - MOD_GARAGE_POS.x, pz - MOD_GARAGE_POS.z) < 6.5) { toggleModShop(true); return true; }
+    if (HEIST.stage === 0 && Math.hypot(px - BANK_POS.x, pz - BANK_POS.z) < 7.0) { startBankHeist(); return true; }
+    return false;
+  };
+
+  // Hook per-frame update for Turbo boost, Garage/Bank beacons & Heist progression
+  const _prevExpTick = window.__dgmUpdateExp;
+  window.__dgmUpdateExp = function (dt) {
+    _prevExpTick(dt);
+    garagePad.userData.ring.rotation.z += dt * 1.1;
+    bankPad.userData.ring.rotation.z += dt * 1.3;
+    if (mode !== "game") { heistBanner.style.display = "none"; return; }
+
+    // Apply Turbo Tune extra acceleration while driving player car
+    if (!D.onFoot && !EXP.veh && !EXP.interior && MODS.turbo > 0 && (keys.w || keys.arrowup)) {
+      const mult = MODS.turbo === 2 ? 12.5 : 6.5;
+      P.vx += Math.sin(P.h) * mult * dt;
+      P.vz += Math.cos(P.h) * mult * dt;
+    }
+
+    const px = EXP.veh ? EXP.veh.x : (D.onFoot ? D.x : P.x);
+    const pz = EXP.veh ? EXP.veh.z : (D.onFoot ? D.z : P.z);
+
+    if (HEIST.stage === 1) {
+      const d = Math.hypot(px - BANK_POS.x, pz - BANK_POS.z);
+      updateHeistBanner(d);
+      if (d < 8.0) advanceHeistStage();
+    } else if (HEIST.stage === 2) {
+      const d = Math.hypot(px - BANK_POS.x, pz - BANK_POS.z);
+      if (d < 12.0) {
+        HEIST.drill = Math.min(100, HEIST.drill + dt * 20);
+        if (HEIST.drill >= 100) advanceHeistStage();
+      }
+      updateHeistBanner(d);
+    } else if (HEIST.stage === 3) {
+      const heli = EXP.vehs.heli;
+      const d = Math.hypot(px - heli.home.x, pz - heli.home.z);
+      updateHeistBanner(d);
+      if ((EXP.veh && EXP.veh.id === "heli" && EXP.veh.y >= 28) || d < 5.5) {
+        advanceHeistStage();
+      }
+    }
+  };
+
+  document.getElementById("dgm-btn-modshop").onclick = (e) => { e.stopPropagation(); toggleModShop(true); };
+  document.getElementById("dgm-mod-close").onclick = (e) => { e.stopPropagation(); toggleModShop(false); };
+  document.getElementById("dgm-btn-heist").onclick = (e) => { e.stopPropagation(); startBankHeist(); };
+
   // Initialize everything
   initVehicles();
   initInteriors();
   renderWardrobeControls();
   loadOutfit();
+  renderModShopControls();
+  try {
+    const savedM = JSON.parse(localStorage.getItem("dgm_carmods_v1") || "null");
+    if (savedM) Object.assign(MODS, savedM);
+  } catch (_) {}
+  applyCarMods(false);
 
   // Public debug / automation hooks
   window.DGM_EXP = {
@@ -8898,7 +9196,23 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
     sendChat: mpSendChat,
     togglePanel: toggleMpPanel,
     get state() {
-      return { connected: MP.connected, id: MP.id, pod: MP.pod, remotes: MP.remotes.size, url: MP.url };
+      return { connected: MP.connected, id: MP.id, pod: MP.pod, room: MP.room, job: MP.job, remotes: MP.remotes.size, url: MP.url };
+    }
+  };
+  window.DGM_HEIST = {
+    start: startBankHeist,
+    advance: advanceHeistStage,
+    openModShop: () => toggleModShop(true),
+    closeModShop: () => toggleModShop(false),
+    applyMods: (o) => { Object.assign(MODS, o); applyCarMods(true); },
+    get state() {
+      return {
+        stage: HEIST.stage,
+        drill: Math.round(HEIST.drill),
+        completed: HEIST.completed,
+        modShopOpen: MODS.open,
+        mods: { paint: MODS.paint, neon: MODS.neon, spoiler: MODS.spoiler, turbo: MODS.turbo }
+      };
     }
   };
 })();
