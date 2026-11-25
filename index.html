@@ -2,56 +2,66 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.DILLION_V="20261125011000";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261125011527";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#2a0e08">
-<title>Dillion · the daily landing</title>
-<meta name="description" content="Seven prompts a day, same for everyone. Rare answers launch you farther from Earth. Obvious ones barely count. One in a dillion.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%232a0e08'/%3E%3Cpath d='M3 8h8l2-2v4l-2-2' fill='none' stroke='%23ff7a45' stroke-width='2'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#07090e">
+<title>Dilly Gaming · Next-Gen Browser Games</title>
+<meta name="description" content="Dilly Gaming is an independent game studio building high-craft 3D and isometric browser games. Instant play, zero downloads.">
+<link rel="icon" href="img/dilly-gaming-logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261125011000">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=20261125011527">
 </head>
 <body>
-<div class="sky" id="sky" aria-hidden="true"><i class="sun"></i><i class="phobos"></i></div>
-<div class="dust" aria-hidden="true"></div>
-<div class="dunes" aria-hidden="true"></div>
-<div class="ship" id="ship" aria-hidden="true"><div class="smoke"></div><span id="shipSvg"></span><div class="flame"></div></div>
-<button class="peek" id="peek" aria-label="Elon (parody) popping out of a crater. Click for a quip."><span class="bubble" id="peekSay">To Mars!</span><span id="peekSvg"></span><span class="rim"></span></button>
+<div class="dg-bg" aria-hidden="true"></div>
 
 <header class="top">
-  <button class="icon-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">☰</button>
-  <a class="logo" href="#/">DILLION</a>
-  <div class="depth-chip" id="depthChip" title="Distance from Earth">0 km</div>
+  <div class="top-inner">
+    <div class="top-left">
+      <button class="icon-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <a class="brand" href="#/">
+        <img src="img/dilly-gaming-logo.png" alt="Dilly Gaming logo" class="brand-img">
+        <span class="brand-word">DILLY <b>GAMING</b></span>
+      </a>
+    </div>
+    <nav class="top-nav" aria-label="Primary">
+      <a href="#/">Home</a>
+      <a href="dillyverse/index.html">DillyVerse</a>
+      <a href="dilly-gone-mad.html#play">Dilly Gone Mad</a>
+      <a href="pinecrest-tycoon/index.html">Pinecrest Tycoon</a>
+      <a href="#/games">All Games</a>
+    </nav>
+    <a class="btn small nav-cta" href="dillyverse/index.html">Play Now</a>
+  </div>
 </header>
 
 <aside class="drawer" id="drawer" aria-hidden="true">
-  <div class="drawer-head"><span class="logo">DILLION</span><h2>Menu</h2><button class="icon-btn" id="closeBtn" aria-label="Close menu">×</button></div>
-  <p class="eyebrow">Launch</p>
+  <div class="drawer-head">
+    <img src="img/dilly-gaming-logo.png" alt="Dilly Gaming" class="drawer-logo">
+    <h2>DILLY GAMING</h2>
+    <button class="icon-btn" id="closeBtn" aria-label="Close menu">×</button>
+  </div>
+  <p class="eyebrow">Flagship Titles</p>
   <nav>
-    <a href="#/">Daily landing</a>
-    <a href="#/unlimited">∞ Unlimited</a>
-    <a href="#/games">Games</a>
+    <a href="#/">🏠 Studio Home</a>
     <a href="dillyverse/index.html">🧊 DillyVerse <span class="tag">NEW</span></a>
-    <a href="pinecrest-tycoon/index.html">🌲 Pinecrest Tycoon <span class="tag">NEW</span></a>
-    <a href="dilly-goes-wild.html">🥒 Dilly Goes Wild <span class="tag">NEW</span></a>
+    <a href="dilly-gone-mad.html#play">🎬 Dilly Gone Mad <span class="tag">OUT NOW</span></a>
+    <a href="pinecrest-tycoon/index.html">🌲 Pinecrest Tycoon <span class="tag">BY KING</span></a>
+    <a href="dilly-goes-wild.html#play">🥒 Dilly Goes Wild</a>
+    <a href="last-zone-preview.html">🪂 Last Zone <span class="tag">PREVIEW</span></a>
+    <a href="#/games">🕹 All Arcade Games</a>
+    <a href="#/dive">🎯 Daily Challenge</a>
     <a href="#/crossword">✚ Crossword</a>
-    <a href="#/party">Rocket Relay</a>
-    <a href="#/archive">⟲ Archive</a>
-    <a href="#/packs">Themed packs</a>
-    <a href="#/me">My Dillion</a>
-    <a href="#/friends">Friends</a>
-    <a href="#/faq">FAQ</a>
   </nav>
-  <footer>one in a dillion.</footer>
+  <footer>© Dilly Gaming · Instant Play</footer>
 </aside>
 <div class="scrim" id="scrim"></div>
 
 <main id="app" tabindex="-1"></main>
 
-<script src="data.js?v=20261125011000"></script>
-<script src="games.js?v=20261125011000"></script>
-<script src="app.js?v=20261125011000"></script>
+<script src="data.js?v=20261125011527"></script>
+<script src="games.js?v=20261125011527"></script>
+<script src="app.js?v=20261125011527"></script>
 </body>
 </html>

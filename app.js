@@ -39,9 +39,9 @@ function judge(p, guess) {
 }
 const gem = p => [].concat(p.a[p.a.length - 1])[0];
 const depthOf = run => Math.max(0, run.res.reduce((s, r) => s + r.pts, 0));
-function setDepth(m) { const f = Math.min(1, m / MAXDEPTH); document.documentElement.style.setProperty("--depth", f); chip.textContent = m + " km"; }
+function setDepth(m) { const f = Math.min(1, m / MAXDEPTH); document.documentElement.style.setProperty("--depth", f); if (chip) chip.textContent = m + " km"; }
 
-function dust() { const b = $(".dust"); b.innerHTML = ""; for (let i = 0; i < 26; i++) { const e = document.createElement("i"); e.style.cssText = `top:${Math.random() * 90}%;--dy:${(Math.random() * 60 - 30) | 0}px;animation-duration:${10 + Math.random() * 18}s;animation-delay:-${Math.random() * 28}s;opacity:${.25 + Math.random() * .5};width:${2 + (Math.random() * 4 | 0)}px;height:${2 + (Math.random() * 3 | 0)}px`; b.append(e); } }
+function dust() { const b = $(".dust"); if (!b) return; b.innerHTML = ""; for (let i = 0; i < 26; i++) { const e = document.createElement("i"); e.style.cssText = `top:${Math.random() * 90}%;--dy:${(Math.random() * 60 - 30) | 0}px;animation-duration:${10 + Math.random() * 18}s;animation-delay:-${Math.random() * 28}s;opacity:${.25 + Math.random() * .5};width:${2 + (Math.random() * 4 | 0)}px;height:${2 + (Math.random() * 3 | 0)}px`; b.append(e); } }
 
 /* ---------- views ---------- */
 const views = {};
@@ -54,71 +54,134 @@ function route() {
 let cleanup = () => {}; const onLeave = f => { cleanup = f; };
 
 views.home = () => {
-  const d = today(), run = store.get("run:" + d), done = run && run.res.length >= 7;
-  app.innerHTML = `<section class="hero">
-    <div class="mascot-wrap">${pixel(window.MASCOT, 11)}<div class="glow"></div></div>
-    <p class="eyebrow">Mission #${dayNo(d)} · ${d}</p>
-    <h1>The daily <em>landing</em></h1>
-    <p class="lede">Seven prompts. Same for everyone. <b>Rare answers launch you farther from Earth.</b> Obvious ones barely count.</p>
-    <p class="twist"><b>Today's twist · ${TW[twistFor(d)].name}</b> ${TW[twistFor(d)].desc}</p>
-    <div class="row center"><a class="btn big" href="#/dive">${done ? "View your mission" : run ? "Resume mission" : "Launch"}</a><a class="btn ghost" href="#/unlimited">∞ Unlimited</a></div>
-    ${done ? `<p class="done">Today's distance: <b>${depthOf(run)} m</b> · ${rankOf(depthOf(run))}</p>` : ""}
-  </section>
-  <section class="card legend"><h3>How far can you go?</h3><ul class="tierlist">${window.TIERS.map(t => `<li class="t-${t.id}"><span><i class="sw" style="background:currentColor"></i>${t.name}</span><b>${t.pts ? "+" + t.pts + " km" : "0 km"}</b></li>`).join("")}</ul>
-  <p class="sub">Type any answer. The more people would say it, the shallower it lands.</p></section>
-  <section class="card promo">
-    <a class="promo-shot" href="dilly-goes-wild.html?v=20261125011000#play"><img src="img/dilly-goes-wild.png?v=20261125011000" width="1512" height="798" loading="lazy" alt="Dilly Goes Wild: Dilly the pickle on a rainy night street, with headlights, lit windows and a police car closing in."></a>
-    <div class="promo-copy">
-      <p class="eyebrow">New game <span class="tag">NEW</span></p>
-      <h2>Dilly Goes Wild</h2>
-      <p>Dilly the pickle has had enough of the jar. Steal a car, tear through a rain-soaked city after dark, bonk pedestrians for cash, and shake off the cops.</p>
-      <div class="row"><a class="btn big" href="dilly-goes-wild.html?v=20261125011000#play">Play now</a><a class="btn ghost" href="dilly-goes-wild.html?v=20261125011000#trailer">▶ Trailer</a></div>
-      <p class="sub small-note">Desktop browser + keyboard. Cartoon chaos: nobody gets hurt, they just see stars.</p>
+  setDepth(0);
+  app.innerHTML = `
+  <section class="dg-hero">
+    <div class="dg-hero-glow" aria-hidden="true"></div>
+    <img class="dg-hero-logo" src="img/dilly-gaming-logo.png" alt="Dilly Gaming">
+    <div class="dg-pill">INDEPENDENT BROWSER GAME STUDIO</div>
+    <h1>Next-Gen Browser Games.<br><em>Zero Downloads.</em></h1>
+    <p class="dg-lede">Dilly Gaming builds fast, original 3D open-world, voxel sandbox, and tycoon experiences that launch instantaneously in any desktop browser.</p>
+    <div class="dg-hero-actions">
+      <a class="btn big" href="#dg-catalog">▶ Explore Games</a>
+      <a class="btn ghost" href="dillyverse/index.html">🧊 Launch DillyVerse</a>
+    </div>
+    <div class="dg-stats">
+      <div><strong>5</strong><span>Flagship Titles</span></div>
+      <div><strong>0 MB</strong><span>Instant Play</span></div>
+      <div><strong>WebGL 2</strong><span>&amp; Rust Powered</span></div>
+      <div><strong>100%</strong><span>Free to Play</span></div>
     </div>
   </section>
-  <section class="card promo mad">
-    <a class="promo-shot" href="dilly-gone-mad.html?v=20261125011000#play"><img src="img/dilly-gone-mad.jpg?v=20261125011000" width="960" height="430" loading="lazy" alt="Dilly Gone Mad: Dilly waves next to a cherry-red convertible on a sunset city street lined with palms and high-rises."></a>
-    <div class="promo-copy">
-      <p class="eyebrow">New game <span class="tag">OUT NOW</span></p>
-      <img class="promo-logo" src="assets/brand/dg-logo.png" width="1200" height="524" alt="Dilly Gone Mad logo: a silver D and gold G over a mountain peak." loading="lazy">
-      <h2 class="sr-only">Dilly Gone Mad</h2>
-      <p>A cinematic 3D open-world romp through the sunset city of Los Pepinos. Chase cams, police pursuits, stunt jumps and a radio full of brine.</p>
-      <div class="row"><a class="btn big" href="dilly-gone-mad.html?v=20261125011000#play">Play now</a><a class="btn ghost" href="dilly-gone-mad.html?v=20261125011000#trailer">▶ Trailer</a></div>
-      <p class="sub small-note">Free in your browser. Desktop + keyboard; press Q to switch graphics quality.</p>
+
+  <section id="dg-catalog" class="dg-section">
+    <div class="dg-sec-head">
+      <div>
+        <p class="dg-kicker">STUDIO CATALOG</p>
+        <h2>Flagship Worlds</h2>
+      </div>
+      <a class="btn small ghost" href="#/games">View Full Arcade →</a>
+    </div>
+
+    <div class="dg-grid">
+      <article class="dg-game featured">
+        <a class="dg-shot" href="dillyverse/index.html">
+          <img src="img/dillyverse.png" width="1280" height="800" alt="DillyVerse 3D voxel sandbox survival world">
+          <span class="dg-badge gold">NEW · 3D SANDBOX</span>
+        </a>
+        <div class="dg-body">
+          <div class="dg-meta">Voxel Survival · Creative · Rust Multiplayer</div>
+          <h3>DILLYVERSE</h3>
+          <p>Build. Explore. Survive. Infinite chunk-based 3D worlds with 5 biomes, 3D caves, ores, 3×3 crafting, furnaces, creatures, IndexedDB saves, and an authoritative Rust WebSocket backend.</p>
+          <div class="dg-actions">
+            <a class="btn big" href="dillyverse/index.html">▶ Play Now</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="dg-game">
+        <a class="dg-shot" href="dilly-gone-mad.html#play">
+          <img src="img/dilly-gone-mad.jpg" width="960" height="430" loading="lazy" alt="Dilly Gone Mad open-world 3D city driving">
+          <span class="dg-badge">OUT NOW · 3D OPEN WORLD</span>
+        </a>
+        <div class="dg-body">
+          <div class="dg-meta">3D Open-World Action · Los Pepinos</div>
+          <h3>Dilly Gone Mad</h3>
+          <p>Cinematic 3D open-world driving through sunset-lit Los Pepinos. Steal any car, outrun police pursuits, hit stunt ramps, and explore the full interactive map.</p>
+          <div class="dg-actions">
+            <a class="btn" href="dilly-gone-mad.html#play">▶ Play Now</a>
+            <a class="btn ghost small" href="dilly-gone-mad.html#trailer">Trailer</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="dg-game">
+        <a class="dg-shot" href="pinecrest-tycoon/index.html">
+          <img src="img/pinecrest-tycoon.png" width="1280" height="640" loading="lazy" alt="Pinecrest Tycoon isometric Christmas tree farm">
+          <span class="dg-badge">CREATED BY KING</span>
+        </a>
+        <div class="dg-body">
+          <div class="dg-meta">2.5D Isometric Tycoon · Created by King</div>
+          <h3>Pinecrest Tycoon</h3>
+          <p>Run your own snowy Christmas tree farm, watch the 9-Act Hallmark-style holiday movie, defend your pines from Dill Pickle Raiders, and unleash The Dilly Twist.</p>
+          <div class="dg-actions">
+            <a class="btn" href="pinecrest-tycoon/index.html">▶ Play Now</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="dg-game">
+        <a class="dg-shot" href="dilly-goes-wild.html#play">
+          <img src="img/dilly-goes-wild.png" width="1512" height="798" loading="lazy" alt="Dilly Goes Wild top-down neon city action">
+          <span class="dg-badge">ARCADE CLASSIC</span>
+        </a>
+        <div class="dg-body">
+          <div class="dg-meta">Top-Down Action · Neon City Chaos</div>
+          <h3>Dilly Goes Wild</h3>
+          <p>Tear through a rain-soaked city after dark, snag fast rides, rack up cash combos, and outmaneuver the police in pure arcade style.</p>
+          <div class="dg-actions">
+            <a class="btn" href="dilly-goes-wild.html#play">▶ Play Now</a>
+            <a class="btn ghost small" href="dilly-goes-wild.html#trailer">Trailer</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="dg-game">
+        <a class="dg-shot" href="last-zone-preview.html">
+          <img src="img/last-zone/01_title.jpg" width="1280" height="720" loading="lazy" alt="Last Zone Battle Royale sneak peek">
+          <span class="dg-badge dev">IN DEVELOPMENT</span>
+        </a>
+        <div class="dg-body">
+          <div class="dg-meta">Battle Royale · Early Build Preview</div>
+          <h3>Last Zone</h3>
+          <p>Drop from a plane, gear up, and outlast 24 rival contractors inside a shrinking gas ring. Preview early screenshots from the upcoming battle royale.</p>
+          <div class="dg-actions">
+            <a class="btn ghost" href="last-zone-preview.html">See Sneak Peek</a>
+          </div>
+        </div>
+      </article>
     </div>
   </section>
-  <section class="card promo lz">
-    <a class="promo-shot" href="last-zone-preview.html?v=20261125011000"><img src="img/last-zone/01_title.jpg?v=20261125011000" width="1280" height="720" loading="lazy" alt="DILLION: LAST ZONE title screen: an island battle royale with Dilly in contractor kit."></a>
-    <div class="promo-copy">
-      <p class="eyebrow">Sneak peek <span class="tag">IN DEVELOPMENT</span></p>
-      <h2>Dillion: Last Zone</h2>
-      <p>A battle royale in the Dilly Gone Mad universe. Drop from a plane, loot up, outlast 24 rival contractors and the shrinking gas. Early screenshots from the first build.</p>
-      <div class="row"><a class="btn big" href="last-zone-preview.html?v=20261125011000">See the sneak peek</a></div>
-      <p class="sub small-note">Not playable yet. Low-poly early build.</p>
+
+  <section class="dg-arcade-strip">
+    <div>
+      <p class="dg-kicker">MINI-GAMES &amp; DAILY CHALLENGES</p>
+      <h3>Quick-Play Arcade</h3>
+      <p class="dg-sub">Jump into Daily Trivia, Mini Crossword, Orbit Scramble, Rover Rescue, Memory Match, and Rocket Relay.</p>
+    </div>
+    <div class="dg-actions">
+      <a class="btn" href="#/games">🕹 Open Arcade</a>
+      <a class="btn ghost" href="#/dive">🎯 Daily Challenge</a>
     </div>
   </section>
-  <section class="card promo">
-    <a class="promo-shot" href="pinecrest-tycoon/index.html?v=20261125011000"><img src="img/pinecrest-tycoon.png?v=20261125011000" width="1280" height="640" loading="lazy" alt="Pinecrest Tycoon: an isometric Christmas tree farm with snowy pine groves, stalls, paths, and holiday guests."></a>
-    <div class="promo-copy">
-      <p class="eyebrow">Created by King <span class="tag">NEW</span></p>
-      <h2>Pinecrest Tycoon</h2>
-      <p>Build and run your own 2.5D isometric Christmas tree farm. Plant pine groves and seasonal crops, build cozy stalls, hire staff, expand your land, and welcome holiday guests.</p>
-      <div class="row"><a class="btn big" href="pinecrest-tycoon/index.html?v=20261125011000">Play now</a></div>
-      <p class="sub small-note">Created by <b>King</b> · Classic isometric tycoon gameplay right in your browser.</p>
+
+  <footer class="dg-footer">
+    <img src="img/dilly-gaming-logo.png" alt="Dilly Gaming">
+    <div>
+      <strong>DILLY GAMING</strong>
+      <p>Independent Browser Game Studio · Built for Instant Play.</p>
     </div>
-  </section>
-  <section class="card promo">
-    <a class="promo-shot" href="dillyverse/index.html"><img src="img/dillyverse.png" width="1280" height="800" loading="lazy" alt="DillyVerse: 3D voxel sandbox survival world with procedurally generated biomes, trees, crafting, and exploration."></a>
-    <div class="promo-copy">
-      <p class="eyebrow">3D Voxel Sandbox <span class="tag">NEW</span></p>
-      <h2>DILLYVERSE</h2>
-      <p>Build. Explore. Survive. Infinite chunk-based 3D voxel worlds with mountains, forests, caves, ores, crafting tables, furnaces, voxel creatures, IndexedDB world saving, Creative flight, and WebSocket multiplayer.</p>
-      <div class="row"><a class="btn big" href="dillyverse/index.html">Play now</a></div>
-      <p class="sub small-note">Survival &amp; Creative modes · Runs right in your browser.</p>
-    </div>
-  </section>
-  <a class="card pack link" href="#/games"><div><h3>✚ More games</h3><p>DillyVerse · Dilly Gone Mad · Pinecrest Tycoon · Dilly Goes Wild · Crossword · Orbit Scramble · Rover Rescue · Memory · Higher or Lower</p></div><b class="t-dillion">play</b></a>
-  <footer class="foot">one in a dillion.</footer>`;
+  </footer>`;
 };
 
 function diveView(run, save, opts) {
