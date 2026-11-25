@@ -706,3 +706,9 @@ html:not([data-gfx="low"]) .wheel-node { -webkit-backdrop-filter: blur(10px) sat
 .btn-play { box-shadow: 0 10px 40px rgba(255,79,94,.35), 0 0 0 1px rgba(255,255,255,.08) inset; background: linear-gradient(180deg, #ff6370, var(--accent) 55%, #e43a4a); }
 /* menu loadout cards use the rendered icons when available */
 .lo-art img.lo-render { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(0,0,0,.55)); }
+/* map select chips (built from src/maps registry) */
+.map-chip[data-map] { cursor: pointer; color: inherit; text-align: left; flex-wrap: wrap; background: linear-gradient(160deg, rgba(28,35,46,.72), rgba(12,15,21,.82)); border: 1px solid var(--glass-line); border-radius: 3px; transition: border-color .15s, box-shadow .15s, transform .15s var(--ease); }
+.map-chip[data-map]:hover { border-color: rgba(255,255,255,.4); transform: translateY(-1px); }
+.map-chip[data-map].active { border-color: #fff; box-shadow: inset 0 -2px 0 var(--accent), 0 0 22px rgba(255,79,94,.18); }
+.map-chip[data-map] small { display: block; width: 100%; padding-left: 74px; margin-top: -6px; font: 600 10px/1 var(--f-disp); letter-spacing: .16em; color: var(--muted); text-transform: uppercase; }
+.map-card .map-art svg { width: 100%; height: 100%; }

@@ -5,8 +5,8 @@
    ========================================================================== */
 
 import * as THREE from 'three';
-import { initRender, renderFrame } from './render.js';
-import { enhanceDustline } from './mapdetail.js';
+import { initRender, renderFrame, applyLighting, PRESETS, RENDER } from './render.js';
+import { MAPS, savedMapId, saveMapId } from './maps/index.js';
 import { createViewmodel, renderWeaponIcons, loadGuns } from './viewmodel.js';
 import { loadCharacters, charsReady, Operator } from './characters.js';
 loadCharacters().catch((e) => console.warn('character models unavailable, using fallback figures', e));
@@ -292,7 +292,7 @@ function addBox(x, y, z, w, h, d, mat, isSolid = true, onRadar = true) {
   mesh.position.set(x, y, z);
   mesh.castShadow = h > 0.2;
   mesh.receiveShadow = true;
-  scene.add(mesh);
+  buildGroup.add(mesh);
   mapMeshes.push(mesh);
   if (isSolid) {
     colliders.push({
@@ -312,63 +312,66 @@ function addSpray(x, y, z, letter, rotX = -Math.PI / 2, rotY = 0) {
   );
   m.position.set(x, y, z);
   m.rotation.set(rotX, rotY, 0);
-  scene.add(m);
+  buildGroup.add(m);
 }
 
-function buildDustlineMap() {
-  // Ground floor (Dust2 sandstone plaza)
-  addBox(0, -0.5, 0, 76, 1, 56, MAT_SAND, false, false);
-
-  // Outer perimeter fortress walls + desert parapet trims
-  addBox(0, 4.5, -28, 76, 9, 2, MAT_WALL_DARK);
-  addBox(0, 4.5, 28, 76, 9, 2, MAT_WALL_DARK);
-  addBox(-38, 4.5, 0, 2, 9, 56, MAT_WALL_DARK);
-  addBox(38, 4.5, 0, 2, 9, 56, MAT_WALL_DARK);
-
-  // Center Mid dividing walls + Dust2 Mid Double Doors frame
-  addBox(-10, 3.0, -10, 2.2, 6, 18, MAT_WALL);
-  addBox(10, 3.0, 10, 2.2, 6, 18, MAT_WALL);
-  addBox(0, 2.6, 0, 6.5, 5.2, 2.2, MAT_DOOR); // Iconic green-steel Mid Doors
-  // Overhead archway lintels (decorative, high clearance)
-  addBox(-10, 6.4, 4, 2.4, 1.4, 10, MAT_WALL_DARK, false, false);
-  addBox(10, 6.4, -4, 2.4, 1.4, 10, MAT_WALL_DARK, false, false);
-
-  // A-Site (North / -Z) Dust2 crate stacks & stone wall
-  addBox(-22, 1.3, -15, 3.2, 2.6, 3.2, MAT_CRATE);
-  addBox(-22, 3.3, -15.3, 1.6, 1.5, 1.6, MAT_CRATE, false, false);
-  addBox(14, 1.3, -17, 3.4, 2.6, 2.6, MAT_CRATE);
-  addBox(4, 2.5, -18, 8, 5, 1.8, MAT_WALL);
-  addSpray(0, 0.03, -21, 'A');
-  addSpray(4, 2.6, -17.05, 'A', 0, 0);
-
-  // B-Site (South / +Z) warehouse cover & crate stacks
-  addBox(22, 1.3, 15, 3.2, 2.6, 3.2, MAT_CRATE);
-  addBox(22.2, 3.3, 15, 1.5, 1.5, 1.5, MAT_CRATE, false, false);
-  addBox(-16, 1.3, 17, 3.5, 2.6, 2.8, MAT_CRATE);
-  addBox(-4, 2.5, 18, 8, 5, 1.8, MAT_WALL);
-  addSpray(0, 0.03, 21, 'B');
-  addSpray(-4, 2.6, 17.05, 'B', 0, Math.PI);
-
-  // Spawn cover barriers (CT -X, T +X)
-  addBox(-28, 1.8, 0, 2, 3.6, 12, MAT_WALL_DARK);
-  addBox(28, 1.8, 0, 2, 3.6, 12, MAT_WALL_DARK);
-
-  // Accent CS:GO crates in Mid & Lanes
-  addBox(-4, 0.9, 6, 2.2, 1.8, 2.2, MAT_CRATE);
-  addBox(5, 0.9, -6, 2.2, 1.8, 2.2, MAT_CRATE);
-  addBox(-20, 0.9, 6, 2.4, 1.8, 2.4, MAT_CRATE);
-  addBox(20, 0.9, -6, 2.4, 1.8, 2.4, MAT_CRATE);
-
-  // Decorative steel oil barrels near sites
-  for (const [bx, bz] of [[-18, -19], [18, 19], [-6, -24], [6, 24]]) {
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.25, 12), MAT_BARREL);
-    barrel.position.set(bx, 0.62, bz);
-    barrel.castShadow = true; barrel.receiveShadow = true;
-    scene.add(barrel);
-  }
+// ---------- Map registry: build each map once into its own group, swap colliders / raycast meshes / radar ----------
+let buildGroup = scene;
+const MAPDATA = {};
+let CUR_MAP = MAPS.dustline;
+let selectedMapId = savedMapId();
+function ensureMapBuilt(id) {
+  if (MAPDATA[id]) return MAPDATA[id];
+  const map = MAPS[id], group = new THREE.Group(); group.name = 'map:' + id;
+  scene.add(group);
+  const prev = [mapMeshes.splice(0), colliders.splice(0), radarBoxes.splice(0)];
+  buildGroup = group;
+  const ctx = { THREE, scene, group, addBox, addSpray, renderer, MATS: { MAT_SAND, MAT_WALL, MAT_WALL_DARK, MAT_CRATE, MAT_DOOR, MAT_BARREL }, mapMeshes };
+  map.build(ctx);
+  if (map.dress) map.dress(ctx);
+  buildGroup = scene;
+  const data = MAPDATA[id] = { group, meshes: mapMeshes.splice(0), colliders: colliders.splice(0), radar: radarBoxes.splice(0) };
+  mapMeshes.push(...prev[0]); colliders.push(...prev[1]); radarBoxes.push(...prev[2]);
+  return data;
 }
-buildDustlineMap();
-enhanceDustline({ scene, mapMeshes, renderer, mats: { MAT_SAND, MAT_WALL, MAT_WALL_DARK, MAT_CRATE, MAT_DOOR, MAT_BARREL } });
+function activateMap(id) {
+  if (!MAPS[id]) id = 'dustline';
+  const data = ensureMapBuilt(id);
+  CUR_MAP = MAPS[id];
+  for (const k in MAPDATA) MAPDATA[k].group.visible = k === id;
+  mapMeshes.length = 0; mapMeshes.push(...data.meshes);
+  colliders.length = 0; colliders.push(...data.colliders);
+  radarBoxes.length = 0; radarBoxes.push(...data.radar);
+  applyLighting(PRESETS[CUR_MAP.lighting] || PRESETS.desert);
+  const half = (CUR_MAP.shadow && CUR_MAP.shadow.half) || 50;
+  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half * 0.92, bottom: -half * 0.92 }); sun.shadow.camera.updateProjectionMatrix();
+  applyMapLabels();
+  try { renderer.compile(scene, camera); } catch (_) { /* precompile is best-effort: avoids first-sight shader hitches */ }
+  return CUR_MAP;
+}
+function applyMapLabels() {
+  const m = CUR_MAP, set = (sel, txt) => document.querySelectorAll(sel).forEach((el) => { el.textContent = txt; });
+  set('#sc-mode', m.title); set('.map-name', m.code); set('.map-desc', m.desc); set('.as-map b', m.code); set('.ml-map', m.code);
+  set('.me-map', 'Competitive · ' + m.code); set('.sb-map', 'Competitive · ' + m.code); set('.home-kicker', 'Season 01 · ' + m.kicker);
+  const art = document.querySelector('.map-card .map-art');
+  if (art) art.innerHTML = m.minimapSVG ? m.minimapSVG() : '<svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg>';
+  document.querySelectorAll('.map-chip[data-map]').forEach((c) => c.classList.toggle('active', c.dataset.map === selectedMapId));
+  window.dispatchEvent(new CustomEvent('dillystrike:map', { detail: { id: m.id, name: m.name, code: m.code } }));
+}
+function selectMap(id) {
+  if (!MAPS[id]) return;
+  selectedMapId = id; saveMapId(id);
+  if (!inMatch && !tr.active) activateMap(id); else applyMapLabels();
+}
+// map chips on the Play view (built from the registry)
+function buildMapChips() {
+  const strip = document.querySelector('.map-strip'); if (!strip) return;
+  strip.innerHTML = Object.values(MAPS).map((m) => `<button class="map-chip" data-map="${m.id}" title="${m.desc}">${m.minimapSVG ? m.minimapSVG() : '<svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg>'}<span>${m.code}</span><small>${m.online ? 'Solo · Online' : 'Solo vs bots'}</small></button>`).join('');
+  strip.querySelectorAll('.map-chip').forEach((c) => c.addEventListener('click', () => selectMap(c.dataset.map)));
+}
+buildMapChips();
+activateMap('dustline'); // always built first (trailer + online map)
+if (selectedMapId !== 'dustline') activateMap(selectedMapId);
 
 // ---------- Detailed Multi-Part CS:GO 3D Weapon Viewmodels + Gloved Hands ----------
 const vmRoot = new THREE.Group();
@@ -823,9 +826,9 @@ function showHitmarker(hs) {
 }
 
 // ---------- Tactical Bots ----------
-const BOT_WAYPOINTS = [
-  [-6, -20], [8, -19], [0, -6], [0, 6], [-8, 20], [10, 19], [20, 0], [-18, -8], [18, 8]
-];
+// bot waypoints / spawns come from the active map (maps/*.js)
+const BOT_WAYPOINTS = { get length() { return CUR_MAP.waypoints.length; } };
+const botWp = (i) => CUR_MAP.waypoints[i];
 
 function spawnBots() {
   for (const b of bots) scene.remove(b.model.group);
@@ -833,15 +836,16 @@ function spawnBots() {
   const names = ['BOT-Phoenix', 'BOT-Viper', 'BOT-Reaper', 'BOT-Kodiak', 'BOT-Ghost'];
   for (let i = 0; i < names.length; i++) {
     const model = createAgentModel(names[i], 'omega');
-    const sx = 24 + (i % 2) * 5;
-    const sz = -12 + i * 6;
+    const sp = CUR_MAP.botSpawn(i);
+    const sx = sp.x;
+    const sz = sp.z;
     model.group.position.set(sx, 0, sz);
     scene.add(model.group);
     bots.push({
       id: 'bot_' + i, name: names[i], team: 'omega', model,
       pos: new THREE.Vector3(sx, 0, sz),
       hp: 100, kills: 0, deaths: 0, cash: 800,
-      wp: BOT_WAYPOINTS[i % BOT_WAYPOINTS.length],
+      wp: botWp(i % BOT_WAYPOINTS.length), path: null, pi: 0, stuck: 0,
       fireCd: 1.2 + Math.random(), respawnTimer: 0, blindTimer: 0, stride: Math.random() * 6
     });
   }
@@ -862,6 +866,25 @@ function damageBot(bot, dmg, isHS, wepName) {
   }
 }
 
+// grid A* bots (maps with nav): follow a path to a strategic target, sometimes hunt the player
+function navBot(b, dt) {
+  const nav = CUR_MAP.nav;
+  if (!b.path || b.pi >= b.path.length) {
+    const hunt = Math.random() < 0.35;
+    const t = hunt ? [me.pos.x, me.pos.z] : nav.randomTarget();
+    b.path = nav.path(b.pos.x, b.pos.z, t[0], t[1]) || null; b.pi = 1; b.stuck = 0;
+    if (!b.path) return;
+  }
+  const p = b.path[b.pi]; if (!p) { b.path = null; return; }
+  const dx = p[0] - b.pos.x, dz = p[1] - b.pos.z, d = Math.hypot(dx, dz);
+  if (d < 0.7) { b.pi++; return; }
+  const sp = 4.2 * dt, nx = b.pos.x + dx / d * sp, nz = b.pos.z + dz / d * sp;
+  if (!collides(nx, 0.5, nz, 0.45)) { b.pos.x = nx; b.pos.z = nz; b.stuck = 0; }
+  else if (!collides(nx, 0.5, b.pos.z, 0.45)) b.pos.x = nx;
+  else if (!collides(b.pos.x, 0.5, nz, 0.45)) b.pos.z = nz;
+  else if ((b.stuck += dt) > 0.6) b.path = null;
+}
+
 function updateBots(dt) {
   if (isMP) return;
   for (const b of bots) {
@@ -870,7 +893,7 @@ function updateBots(dt) {
       if (b.model.animate) { b.model.animate(dt, { dead: true }); if (b.respawnTimer < 1.3) b.model.group.visible = false; }
       if (b.respawnTimer <= 0) {
         b.hp = 100;
-        b.pos.set(26 + (Math.random() - 0.5) * 6, 0, (Math.random() - 0.5) * 24);
+        const rp = CUR_MAP.botRespawn(); b.pos.set(rp.x, 0, rp.z); b.path = null;
         b.model.group.position.copy(b.pos);
         b.model.group.visible = true;
         syncHud();
@@ -879,10 +902,11 @@ function updateBots(dt) {
     }
     if (b.blindTimer > 0) { b.blindTimer -= dt; continue; }
 
+    if (CUR_MAP.nav) navBot(b, dt); else {
     const dx = b.wp[0] - b.pos.x, dz = b.wp[1] - b.pos.z;
     const d = Math.hypot(dx, dz);
     if (d < 1.8) {
-      b.wp = BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)];
+      b.wp = botWp(Math.floor(Math.random() * BOT_WAYPOINTS.length));
     } else {
       const nx = b.pos.x + (dx / d) * 4.2 * dt;
       const nz = b.pos.z + (dz / d) * 4.2 * dt;
@@ -892,8 +916,9 @@ function updateBots(dt) {
         b.model.legL.rotation.x = Math.sin(b.stride) * 0.45;
         b.model.legR.rotation.x = -Math.sin(b.stride) * 0.45;
       } else {
-        b.wp = BOT_WAYPOINTS[Math.floor(Math.random() * BOT_WAYPOINTS.length)];
+        b.wp = botWp(Math.floor(Math.random() * BOT_WAYPOINTS.length));
       }
+    }
     }
 
     const toP = new THREE.Vector3(me.pos.x - b.pos.x, (me.pos.y + 1.4) - (b.pos.y + 1.5), me.pos.z - b.pos.z);
@@ -937,13 +962,12 @@ function applyDamageToMe(dmg, byName) {
 }
 
 function respawnMe() {
-  const sx = me.team === 'alpha' ? -23 : 23;
-  const sz = me.team === 'alpha' ? -10 : 10;
-  me.pos.set(sx, 0, sz + (Math.random() - 0.5) * 4);
+  const sp = CUR_MAP.playerSpawn(me.team);
+  me.pos.set(sp.x, 0, sp.z);
   me.vel.set(0, 0, 0);
   me.hp = 100;
   me.shield = 100;
-  me.yaw = me.team === 'alpha' ? -1.18 : 1.95;
+  me.yaw = sp.yaw;
   me.pitch = 0;
   setScoped(false);
   VM.setTeam(me.team);
@@ -960,14 +984,7 @@ function collides(x, y, z, r = 0.42) {
   return false;
 }
 
-function getCallout(x, z) {
-  if (x < -25) return 'CT SPAWN';
-  if (x > 25) return 'T SPAWN';
-  if (z < -13) return 'BOMBSITE A';
-  if (z > 13) return 'BOMBSITE B';
-  if (Math.abs(x) < 12 && Math.abs(z) < 12) return 'MID DOORS';
-  return z < 0 ? 'LONG A' : 'B TUNNELS';
-}
+function getCallout(x, z) { return CUR_MAP.callout(x, z); }
 
 function updatePlayer(dt) {
   me.crouching = !!(me.keys[BINDS.crouch] || (BINDS.crouch === 'ControlLeft' && me.keys['ControlRight']));
@@ -1089,28 +1106,27 @@ function drawRadar() {
   const toR = (wx, wz) => [(wx - me.pos.x) * scale, (wz - me.pos.z) * scale];
 
   // Floor footprint
-  const [fx, fz] = toR(-38, -28);
+  const bnd = CUR_MAP.bounds;
+  const [fx, fz] = toR(bnd.minX, bnd.minZ);
   rctx.fillStyle = '#252d36';
-  rctx.fillRect(fx, fz, 76 * scale, 56 * scale);
+  rctx.fillRect(fx, fz, (bnd.maxX - bnd.minX) * scale, (bnd.maxZ - bnd.minZ) * scale);
 
-  // Bombsites A & B
-  const [ax, az] = toR(0, -21);
-  rctx.fillStyle = 'rgba(227,167,59,0.28)'; rctx.fillRect(ax - 12, az - 8, 24, 16);
-  const [bx, bz] = toR(0, 21);
-  rctx.fillStyle = 'rgba(110,179,247,0.28)'; rctx.fillRect(bx - 12, bz - 8, 24, 16);
+  // Bombsites (from the map)
+  for (const st of CUR_MAP.sites) {
+    const [sx2, sz2] = toR(st.x, st.z);
+    rctx.fillStyle = st.color; rctx.fillRect(sx2 - st.w * scale / 2, sz2 - st.d * scale / 2, st.w * scale, st.d * scale);
+  }
 
   // Walls & Crates
   for (const b of radarBoxes) {
     const [rx, rz] = toR(b.x - b.w / 2, b.z - b.d / 2);
-    rctx.fillStyle = b.isCrate ? '#8c6943' : '#536273';
+    rctx.fillStyle = b.isCrate || (b.w < 1.7 && b.d < 1.7) ? '#8c6943' : '#536273';
     rctx.fillRect(rx, rz, b.w * scale, b.d * scale);
   }
 
   // Site Letters
-  rctx.fillStyle = '#fde047'; rctx.font = 'bold 11px sans-serif'; rctx.textAlign = 'center';
-  rctx.fillText('A', ax, az + 4);
-  rctx.fillStyle = '#7dd3fc';
-  rctx.fillText('B', bx, bz + 4);
+  rctx.font = 'bold 11px sans-serif'; rctx.textAlign = 'center';
+  for (const st of CUR_MAP.sites) { const [lx, lz] = toR(st.x, st.z); rctx.fillStyle = st.text || '#fde047'; rctx.fillText(st.letter, lx, lz + 4); }
 
   // Enemies / Teammates
   const entities = isMP ? Array.from(remotes.values()) : bots.filter(b => b.hp > 0);
@@ -1365,6 +1381,9 @@ function renderScoreboard() {
 function enterMatch(mpMode) {
   if (typeof stopTrailerMode === 'function' && tr.active) stopTrailerMode(true);
   isMP = mpMode;
+  // online servers run de_dustline only; solo uses the selected map
+  activateMap(mpMode && !MAPS[selectedMapId].online ? 'dustline' : selectedMapId);
+  if (mpMode && !MAPS[selectedMapId].online) addChat('SYSTEM', `Online servers run ${MAPS.dustline.code} only — ${MAPS[selectedMapId].name} is solo vs bots for now.`);
   me.name = $('agent-name').value.trim() || 'DillyAgent';
   me.kills = 0; me.deaths = 0; me.cash = 1200; roundTime = 115;
   if (!mpMode) { scoreAlpha = 0; scoreOmega = 0; me.team = 'alpha'; spawnBots(); }
@@ -1373,7 +1392,7 @@ function enterMatch(mpMode) {
   inMatch = true; paused = false; buyOpen = false; chatOpen = false;
   $('modal-lobby').classList.remove('open');
   $('hud').classList.add('active');
-  $('sc-mode').textContent = mpMode ? 'RUST · DE_DUSTLINE' : 'DE_DUSTLINE';
+  $('sc-mode').textContent = mpMode ? 'RUST · ' + CUR_MAP.title : CUR_MAP.title;
   syncHud();
   canvas.requestPointerLock?.();
 }
@@ -1704,6 +1723,7 @@ function applyTrailerChipDamage(dmg) {
 
 function startTrailerMode() {
   if (inMatch) return;
+  if (CUR_MAP.id !== 'dustline') activateMap('dustline'); // the trailer is shot on de_dustline
   tr.active = true;
   $('modal-lobby').classList.remove('open');
   $('modal-settings').classList.remove('open');
@@ -1712,6 +1732,7 @@ function startTrailerMode() {
 
 function stopTrailerMode(skipLobby = false) {
   tr.active = false;
+  if (!skipLobby && CUR_MAP.id !== selectedMapId) setTimeout(() => { if (!tr.active && !inMatch) activateMap(selectedMapId); }, 0);
   tr.hook = null;
   tr.scene = null;
   tr.timeScale = 1;
@@ -2185,8 +2206,9 @@ function loop(now) {
     }
     vmRoot.visible = false;
     menuYaw += dt * 0.14;
-    camera.position.set(Math.cos(menuYaw) * 26, 11.5, Math.sin(menuYaw) * 26);
-    camera.lookAt(0, 2.2, 0);
+    const mc = CUR_MAP.menuCam;
+    camera.position.set(Math.cos(menuYaw) * mc.r, mc.h, Math.sin(menuYaw) * mc.r);
+    camera.lookAt(mc.look[0], mc.look[1], mc.look[2]);
     renderFrame(scene, camera);
     return;
   }
@@ -2269,6 +2291,8 @@ window.DillyStrike = {
       hitmarker: showHitmarker, killfeed: addKillfeed, syncHud, drawRadar,
       setScoped, equipWeapon, pov: drivePovFrame,
       sfxTone, sfxNoise, playShot, playHeadshot,
+      collides,
+      stepBots: (dt = 0.05, n = 1) => { for (let i = 0; i < n; i++) updateBots(dt); }, // test hook: fast-forward bot AI
       setScore: (a, o) => { scoreAlpha = a; scoreOmega = o; },
       setRoundTime: (t) => { roundTime = t; }
     }
@@ -2276,8 +2300,11 @@ window.DillyStrike = {
   setBind: (act, code) => { if (act in BINDS) { BINDS[act] = code; saveBinds(); syncBindLabels(); renderKeybindsUI(); } },
   getBinds: () => Object.assign({}, BINDS),
   vm: VM,
+  maps: () => Object.values(MAPS).map((m) => ({ id: m.id, name: m.name, code: m.code, desc: m.desc, online: m.online })),
+  getMap: () => ({ id: CUR_MAP.id, name: CUR_MAP.name, code: CUR_MAP.code, selected: selectedMapId }),
+  setMap: selectMap,
   weaponIcon: (id, kind = 'sil') => (WICONS[id] ? WICONS[id][kind] : null),
-  getState: () => ({ inMatch, trailerActive: tr.active, trailerScene: tr.scene, hp: me.hp, shield: me.shield, cash: me.cash, weapon: WEAPONS[me.weaponId].name, bots: bots.length })
+  getState: () => ({ map: CUR_MAP.id, inMatch, trailerActive: tr.active, trailerScene: tr.scene, hp: me.hp, shield: me.shield, cash: me.cash, weapon: WEAPONS[me.weaponId].name, bots: bots.length })
 };
 
 requestAnimationFrame(loop);

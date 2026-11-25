@@ -130,6 +130,13 @@
         body: JSON.stringify({ callsign: clean, pin: pin || "0000", rp_job: profile.rp_job })
       });
       if (res.ok) profile = await res.json();
+      // Wrong PIN / reserved callsign / throttled: don't sign in locally.
+      else if (res.status === 401 || res.status === 403 || res.status === 429) {
+        let msg = "Sign-in failed";
+        try { msg = (await res.json()).error || msg; } catch (_) {}
+        alert("Dilly Online Hub: " + msg);
+        return null;
+      }
     } catch (_) {}
     STATE.account = profile;
     try {
@@ -200,6 +207,7 @@
       : `
         <div class="dg-acct-bar">
           <input id="dg-login-name" type="text" maxlength="16" placeholder="Callsign (e.g. DillyPro)" style="width:150px;">
+          <input id="dg-login-pin" type="password" inputmode="numeric" maxlength="12" placeholder="PIN" autocomplete="current-password" style="width:80px;">
           <select id="dg-login-job">
             <option value="Civilian">👤 Civilian</option>
             <option value="LPPD Officer">🚔 LPPD Officer</option>
@@ -362,7 +370,8 @@
       loginBtn.onclick = () => {
         const nm = document.getElementById("dg-login-name").value;
         const jb = document.getElementById("dg-login-job").value;
-        saveAccount(nm, "0000", jb);
+        const pinEl = document.getElementById("dg-login-pin");
+        saveAccount(nm, (pinEl && pinEl.value) || "0000", jb);
       };
     }
     const switchBtn = document.getElementById("dg-acct-switch");

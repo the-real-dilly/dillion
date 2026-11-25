@@ -5,12 +5,13 @@
    - Real-time 3D position, yaw, pitch, weapon & crouch sync
    - Server-authoritative damage, headshots, kills, killfeed & team scores
    - Smoke & flashbang ability broadcast + tactical chat
+   - RANKED: any path containing "/ranked" is served by ranked.rs (see README.md)
    Run: cargo run --release --manifest-path dilly-strike/server/Cargo.toml -- [port]
    ========================================================================== */
 
-mod ha;
-
-use ha::{pg_escape, HaContext};
+use dilly_strike_server::ha::{pg_escape, HaContext};
+use dilly_strike_server::ranked::Ranked;
+use dilly_strike_server::util::{compute_ws_accept, encode_frame, json_esc, json_f64, json_str, try_decode_frame};
 use std::collections::HashMap;
 use std::env;
 use std::io::{Read, Write};
@@ -80,6 +81,8 @@ fn main() {
         });
     }
 
+    let ranked = Ranked::from_env(ha_ctx.clone());
+
     let addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&addr).expect("Failed to bind Dilly Strike HA server");
     println!(
@@ -89,11 +92,12 @@ fn main() {
 
     for stream in listener.incoming().flatten() {
         let st = Arc::clone(&state);
-        thread::spawn(move || handle_client(stream, st));
+        let rk = Arc::clone(&ranked);
+        thread::spawn(move || handle_client(stream, st, rk));
     }
 }
 
-fn handle_client(mut stream: TcpStream, state: Arc<Mutex<MatchState>>) {
+fn handle_client(mut stream: TcpStream, state: Arc<Mutex<MatchState>>, ranked: Arc<Ranked>) {
     let _ = stream.set_nodelay(true);
     let mut buf = [0u8; 4096];
     let n = match stream.read(&mut buf) {
@@ -101,6 +105,12 @@ fn handle_client(mut stream: TcpStream, state: Arc<Mutex<MatchState>>) {
         _ => return,
     };
     let req = String::from_utf8_lossy(&buf[..n]);
+
+    // ---- ranked mode (ranked.rs) ----
+    if req.split_whitespace().nth(1).map_or(false, |p| p.contains("/ranked")) {
+        ranked.serve(stream, &req);
+        return;
+    }
 
     let ws_key = req.lines().find_map(|line| {
         if line.to_ascii_lowercase().starts_with("sec-websocket-key:") {
@@ -396,146 +406,4 @@ fn broadcast(state: &Arc<Mutex<MatchState>>, json: &str, except: Option<&str>) {
     ha.publish(REDIS_CHANNEL, json);
 }
 
-/* ---------- RFC 6455 WebSocket + SHA-1 + Base64 + JSON Helpers ---------- */
-
-fn encode_frame(op: u8, payload: &[u8]) -> Vec<u8> {
-    let len = payload.len();
-    let mut out = Vec::with_capacity(len + 10);
-    out.push(0x80 | (op & 0x0f));
-    if len < 126 {
-        out.push(len as u8);
-    } else if len < 65536 {
-        out.push(126);
-        out.extend_from_slice(&(len as u16).to_be_bytes());
-    } else {
-        out.push(127);
-        out.extend_from_slice(&(len as u64).to_be_bytes());
-    }
-    out.extend_from_slice(payload);
-    out
-}
-
-fn try_decode_frame(buf: &mut Vec<u8>) -> Option<(u8, Vec<u8>)> {
-    if buf.len() < 2 { return None; }
-    let op = buf[0] & 0x0f;
-    let masked = (buf[1] & 0x80) != 0;
-    let mut len = (buf[1] & 0x7f) as usize;
-    let mut off = 2;
-    if len == 126 {
-        if buf.len() < 4 { return None; }
-        len = u16::from_be_bytes([buf[2], buf[3]]) as usize;
-        off = 4;
-    } else if len == 127 {
-        if buf.len() < 10 { return None; }
-        let mut b8 = [0u8; 8];
-        b8.copy_from_slice(&buf[2..10]);
-        len = u64::from_be_bytes(b8) as usize;
-        off = 10;
-    }
-    let mlen = if masked { 4 } else { 0 };
-    let total = off + mlen + len;
-    if buf.len() < total { return None; }
-    let mut payload = buf[off + mlen..total].to_vec();
-    if masked {
-        let mask = [buf[off], buf[off + 1], buf[off + 2], buf[off + 3]];
-        for (i, b) in payload.iter_mut().enumerate() { *b ^= mask[i & 3]; }
-    }
-    buf.drain(..total);
-    Some((op, payload))
-}
-
-fn compute_ws_accept(key: &str) -> String {
-    let mut input = key.as_bytes().to_vec();
-    input.extend_from_slice(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-    base64_encode(&sha1(&input))
-}
-
-fn sha1(data: &[u8]) -> [u8; 20] {
-    let (mut h0, mut h1, mut h2, mut h3, mut h4) =
-        (0x67452301u32, 0xEFCDAB89u32, 0x98BADCFEu32, 0x10325476u32, 0xC3D2E1F0u32);
-    let bit_len = (data.len() as u64) * 8;
-    let mut msg = data.to_vec();
-    msg.push(0x80);
-    while (msg.len() % 64) != 56 { msg.push(0); }
-    msg.extend_from_slice(&bit_len.to_be_bytes());
-    for chunk in msg.chunks_exact(64) {
-        let mut w = [0u32; 80];
-        for i in 0..16 {
-            w[i] = u32::from_be_bytes([chunk[i*4], chunk[i*4+1], chunk[i*4+2], chunk[i*4+3]]);
-        }
-        for i in 16..80 { w[i] = (w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16]).rotate_left(1); }
-        let (mut a, mut b, mut c, mut d, mut e) = (h0, h1, h2, h3, h4);
-        for (i, &wi) in w.iter().enumerate() {
-            let (f, k) = match i {
-                0..=19 => ((b & c) | ((!b) & d), 0x5A827999u32),
-                20..=39 => (b ^ c ^ d, 0x6ED9EBA1u32),
-                40..=59 => ((b & c) | (b & d) | (c & d), 0x8F1BBCDCu32),
-                _ => (b ^ c ^ d, 0xCA62C1D6u32),
-            };
-            let t = a.rotate_left(5).wrapping_add(f).wrapping_add(e).wrapping_add(k).wrapping_add(wi);
-            e = d; d = c; c = b.rotate_left(30); b = a; a = t;
-        }
-        h0 = h0.wrapping_add(a); h1 = h1.wrapping_add(b); h2 = h2.wrapping_add(c);
-        h3 = h3.wrapping_add(d); h4 = h4.wrapping_add(e);
-    }
-    let mut out = [0u8; 20];
-    for (i, h) in [h0, h1, h2, h3, h4].iter().enumerate() { out[i*4..i*4+4].copy_from_slice(&h.to_be_bytes()); }
-    out
-}
-
-fn base64_encode(input: &[u8]) -> String {
-    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
-    for ch in input.chunks(3) {
-        let b0 = ch[0] as u32;
-        let b1 = if ch.len() > 1 { ch[1] as u32 } else { 0 };
-        let b2 = if ch.len() > 2 { ch[2] as u32 } else { 0 };
-        let tr = (b0 << 16) | (b1 << 8) | b2;
-        out.push(T[((tr >> 18) & 0x3f) as usize] as char);
-        out.push(T[((tr >> 12) & 0x3f) as usize] as char);
-        out.push(if ch.len() > 1 { T[((tr >> 6) & 0x3f) as usize] as char } else { '=' });
-        out.push(if ch.len() > 2 { T[(tr & 0x3f) as usize] as char } else { '=' });
-    }
-    out
-}
-
-fn json_esc(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            c if (c as u32) < 0x20 => {}
-            c => out.push(c),
-        }
-    }
-    out
-}
-
-fn json_str(json: &str, key: &str) -> Option<String> {
-    let pat = format!("\"{}\"", key);
-    let idx = json.find(&pat)?;
-    let rest = &json[idx + pat.len()..];
-    let colon = rest.find(':')?;
-    let after = rest[colon + 1..].trim_start();
-    if !after.starts_with('"') { return None; }
-    let mut out = String::new();
-    let mut chars = after[1..].chars();
-    while let Some(c) = chars.next() {
-        if c == '\\' { if let Some(e) = chars.next() { out.push(e); } }
-        else if c == '"' { return Some(out); }
-        else { out.push(c); }
-    }
-    None
-}
-
-fn json_f64(json: &str, key: &str) -> Option<f64> {
-    let pat = format!("\"{}\"", key);
-    let idx = json.find(&pat)?;
-    let rest = &json[idx + pat.len()..];
-    let colon = rest.find(':')?;
-    let after = rest[colon + 1..].trim_start();
-    let end = after.find(|c: char| !matches!(c, '0'..='9' | '-' | '+' | '.' | 'e' | 'E')).unwrap_or(after.len());
-    after[..end].parse::<f64>().ok()
-}
+/* WebSocket / SHA-1 / Base64 / JSON helpers now live in util.rs (shared with ranked mode). */

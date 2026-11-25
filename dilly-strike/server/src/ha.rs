@@ -193,7 +193,7 @@ fn parse_redis_url(url: &str) -> (String, Option<String>) {
     (addr, auth)
 }
 
-fn resp_cmd(parts: &[&str]) -> Vec<u8> {
+pub fn resp_cmd(parts: &[&str]) -> Vec<u8> {
     let mut out = format!("*{}\r\n", parts.len()).into_bytes();
     for p in parts {
         out.extend_from_slice(format!("${}\r\n{}\r\n", p.len(), p).as_bytes());
@@ -201,7 +201,7 @@ fn resp_cmd(parts: &[&str]) -> Vec<u8> {
     out
 }
 
-fn redis_connect(url: &str) -> Result<TcpStream, String> {
+pub fn redis_connect(url: &str) -> Result<TcpStream, String> {
     let (addr, pass) = parse_redis_url(url);
     let mut s = TcpStream::connect(&addr).map_err(|e| e.to_string())?;
     let _ = s.set_nodelay(true);
@@ -361,13 +361,23 @@ fn pg_simple_query(url: &str, sql: &str) -> Result<Vec<Vec<String>>, String> {
                 }
             }
             b'Z' => break,
-            b'E' => return Err("PostgreSQL query error".into()),
+            b'E' => return Err(format!("PostgreSQL query error: {}", pg_error_text(&body))),
             _ => {}
         }
     }
 
     let _ = pg_send_msg(&mut s, b'X', &[]);
     Ok(rows)
+}
+
+/// Human-readable message ('M' field) from an ErrorResponse body.
+fn pg_error_text(body: &[u8]) -> String {
+    for field in body.split(|b| *b == 0) {
+        if field.first() == Some(&b'M') {
+            return String::from_utf8_lossy(&field[1..]).to_string();
+        }
+    }
+    "unknown".into()
 }
 
 fn pg_send_msg(s: &mut TcpStream, tag: u8, payload: &[u8]) -> Result<(), String> {

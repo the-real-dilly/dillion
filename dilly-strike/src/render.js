@@ -71,7 +71,22 @@ export function drawSky(W, H, sunDir, mode = 'sphere', opts = {}) {
   hz.addColorStop(0, 'rgba(236,214,178,0)'); hz.addColorStop(0.8, 'rgba(236,214,178,0.55)'); hz.addColorStop(1, 'rgba(226,200,160,0.7)');
   x.fillStyle = hz; x.fillRect(0, H * 0.42, W, H * 0.1);
   // distant dunes / mesas silhouette (bluish with aerial perspective)
-  if (!opts.noHills) {
+  if (opts.hills === 'mountains') {
+    const r3 = rnd(23);
+    const ridge = (base, amp, rough, col) => {
+      x.fillStyle = col; x.beginPath(); x.moveTo(0, H);
+      const pts = 220; let y = 0, v = 0;
+      for (let i = 0; i <= pts; i++) {
+        v += (r3() - 0.5) * rough; v *= 0.92; y += v; y = Math.max(-1, Math.min(1, y));
+        const peak = Math.pow(Math.abs(Math.sin(i / pts * Math.PI * 5 + base * 40)), 3);
+        x.lineTo(i / pts * W, (base - amp * (0.35 + 0.45 * peak + 0.2 * y)) * H);
+      }
+      x.lineTo(W, H); x.closePath(); x.fill();
+    };
+    ridge(0.5, 0.09, 0.5, 'rgba(150,170,186,0.55)');
+    ridge(0.5, 0.06, 0.7, 'rgba(118,138,140,0.75)');
+    ridge(0.5, 0.032, 0.9, 'rgba(86,104,94,0.92)');
+  } else if (!opts.noHills) {
     const r2 = rnd(11);
     for (const [base, amp, col] of [[0.495, 0.03, 'rgba(176,160,140,0.55)'], [0.5, 0.016, 'rgba(198,172,134,0.75)']]) {
       x.fillStyle = col; x.beginPath(); x.moveTo(0, H);
@@ -160,6 +175,38 @@ const GRADE = {
     }`
 };
 
+/* ---------------- lighting presets (one per map) ---------------- */
+export const PRESETS = {
+  // warm late-afternoon desert sun: lower elevation for longer, readable shadows
+  desert: { id: 'desert', sun: [0.62, 0.56, 0.36], sunCol: 0xffdcb0, sunI: 2.35, hemi: [0xc9d6e8, 0xb48c5e, 0.66], fog: [0xd9c7a6, 0.0062], exp: 1.0, sky: {} },
+  // cool mountain morning: low sun through thin mist, green-grey stone, distant ridges
+  mountain: { id: 'mountain', sun: [-0.52, 0.5, 0.58], sunCol: 0xffe4c4, sunI: 2.2, hemi: [0xc2d2e6, 0x6f6a5c, 0.7], fog: [0xc4ccd0, 0.0078], exp: 1.1,
+    sky: { stops: [[0, '#3d6a98'], [0.25, '#7ea2c4'], [0.42, '#c4d4de'], [0.49, '#e4e2d8'], [0.5, '#d8d8cc'], [0.56, '#9aa49a'], [1, '#5d6658']], hills: 'mountains' } }
+};
+const PCACHE = {};
+export function applyLighting(p) {
+  const { sun, hemi, scene, renderer } = R; if (!sun) return;
+  R.preset = p;
+  const sd = new THREE.Vector3(...p.sun).normalize();
+  sun.position.copy(sd).multiplyScalar(70); sun.color.setHex(p.sunCol); sun.intensity = p.sunI;
+  hemi.color.setHex(p.hemi[0]); hemi.groundColor.setHex(p.hemi[1]); hemi.intensity = p.hemi[2];
+  if (scene.fog) { scene.fog.color.setHex(p.fog[0]); scene.fog.density = p.fog[1]; }
+  renderer.toneMappingExposure = p.exp;
+  const C = PCACHE[p.id] || (PCACHE[p.id] = {});
+  if (!C.sky) C.sky = drawSky(2048, 1024, [sd.x, sd.y, sd.z], 'sphere', p.sky);
+  if (R.sky) { R.sky.material.map = C.sky; R.sky.material.needsUpdate = true; }
+  if (C.env === undefined) {
+    try {
+      const pm = new THREE.PMREMGenerator(renderer);
+      const eq = drawSky(512, 256, [sd.x, sd.y, sd.z], 'equi', Object.assign({ noClouds: true }, p.sky));
+      C.env = pm.fromEquirectangular(eq).texture; eq.dispose(); pm.dispose();
+    } catch (e) { C.env = null; }
+  }
+  R.envTex = C.env;
+  for (const m of R.envMats) { if (m.userData.lowStash) m.userData.lowStash.e = C.env; else m.envMap = C.env; }
+  R.lastHemi = -1;
+}
+
 /* ---------------- setup ---------------- */
 export function initRender(renderer, scene, camera, sun, hemi) {
   Object.assign(R, { renderer, scene, camera, sun, hemi });
@@ -169,35 +216,19 @@ export function initRender(renderer, scene, camera, sun, hemi) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // warm late-afternoon desert sun: lower elevation for longer, readable shadows
-  const sd = new THREE.Vector3(0.62, 0.56, 0.36).normalize();
-  sun.position.copy(sd).multiplyScalar(70);
-  sun.color.setHex(0xffdcb0); sun.intensity = 2.35;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { near: 20, far: 150, left: -50, right: 50, top: 46, bottom: -46 });
   sun.shadow.camera.updateProjectionMatrix();
   sun.shadow.bias = -0.00025; sun.shadow.normalBias = 0.035; sun.shadow.radius = 2.2;
-  hemi.color.setHex(0xc9d6e8); hemi.groundColor.setHex(0xb48c5e); hemi.intensity = 0.66;
-  if (scene.fog) { scene.fog.color.setHex(0xd9c7a6); scene.fog.density = 0.0062; }
-
-  // replace the old sky texture (keep the SphereGeometry/BackSide mesh: trailer.js finds and re-maps it)
+  // keep the SphereGeometry/BackSide sky mesh (trailer.js finds and re-maps it); presets swap its texture
   const sky = scene.children.find((o) => o.isMesh && o.geometry && o.geometry.type === 'SphereGeometry' && o.material && o.material.side === THREE.BackSide);
   if (sky) {
-    const old = sky.material.map;
-    sky.material.map = drawSky(2048, 1024, [sd.x, sd.y, sd.z], 'sphere');
+    if (sky.material.map) sky.material.map.dispose();
     sky.material.toneMapped = true; sky.material.needsUpdate = true;
-    if (old) old.dispose();
     sky.geometry.dispose(); sky.geometry = new THREE.SphereGeometry(190, 48, 24);
     R.sky = sky;
   }
-
-  // environment (reflections + soft IBL), registered per material so it can follow time-of-day
-  try {
-    const pm = new THREE.PMREMGenerator(renderer);
-    const eq = drawSky(512, 256, [sd.x, sd.y, sd.z], 'equi', { noClouds: true });
-    R.envTex = pm.fromEquirectangular(eq).texture;
-    eq.dispose(); pm.dispose();
-  } catch (e) { R.envTex = null; }
+  applyLighting(PRESETS.desert);
 
   // post chain
   const HDR = renderer.capabilities.isWebGL2 || renderer.extensions.has('EXT_color_buffer_half_float') ? THREE.HalfFloatType : THREE.UnsignedByteType;
