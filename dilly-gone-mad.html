@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<script>window.DILLION_V="20261125021355";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
+<script>window.DILLION_V="20261125023736";fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v&&j.v!==window.DILLION_V){var u=new URL(location.href);if(u.searchParams.get("v")!==j.v){u.searchParams.set("v",j.v);location.replace(u.href)}}}).catch(function(){});</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Dilly Gone Mad</title>
 <meta name="description" content="Dilly Gone Mad: a cinematic 3D open-world driving romp through the sunset city of Los Pepinos. Out now: play free in your browser." />
@@ -8569,13 +8569,249 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
     }
   });
 
+  // ==========================================================================
+  // 7. OPTIONAL MULTIPLAYER (HA Rust WebSocket: wss://apibuild.dillonmay.com/mad)
+  // ==========================================================================
+  const MP_DEFAULT_URL = "wss://apibuild.dillonmay.com/mad";
+  const MP = {
+    ws: null,
+    connected: false,
+    id: null,
+    pod: null,
+    name: localStorage.getItem("dgm_mp_name") || "DillyDriver",
+    url: MP_DEFAULT_URL,
+    panelOpen: false,
+    remotes: new Map(), // id -> { id, name, mode, mesh, targetX, targetY, targetZ, targetH }
+    lastSend: 0
+  };
+
+  const mpBtn = document.createElement("button");
+  mpBtn.className = "dgm-pill";
+  mpBtn.id = "dgm-btn-mp";
+  mpBtn.textContent = "🌐 Multiplayer: Solo";
+  hudBar.appendChild(mpBtn);
+
+  const mpPanel = document.createElement("div");
+  mpPanel.id = "dgm-mp-panel";
+  mpPanel.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:965;display:none;width:340px;background:rgba(12,14,18,.95);border:1px solid rgba(56,189,248,.5);border-radius:16px;padding:14px;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 20px 55px rgba(0,0,0,.75);backdrop-filter:blur(14px);";
+  mpPanel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <strong style="color:#38bdf8;font-size:14px;letter-spacing:.5px;">🌐 LOS PEPINOS ONLINE</strong>
+      <button class="dgm-pill" id="dgm-mp-close" style="padding:3px 9px;">✕</button>
+    </div>
+    <div id="dgm-mp-status" style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">Mode: Solo (Offline) · Server: ${MP_DEFAULT_URL}</div>
+    <input id="dgm-mp-name" type="text" maxlength="16" value="${MP.name}" placeholder="Your Callsign" style="width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.45);color:#fff;font-size:12.5px;margin-bottom:8px;outline:none;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+      <button class="dgm-btn" id="dgm-mp-connect" style="text-align:center;background:rgba(34,197,94,.22);border-color:#22c55e;color:#bbf7d0;">▶ Join Online</button>
+      <button class="dgm-btn" id="dgm-mp-disconnect" style="text-align:center;">⏹ Play Solo</button>
+    </div>
+    <div id="dgm-mp-chatlog" style="max-height:110px;overflow-y:auto;font-size:11.5px;color:#e2e8f0;background:rgba(0,0,0,.35);border-radius:8px;padding:6px 8px;margin-bottom:6px;display:flex;flex-direction:column;gap:3px;">
+      <div style="color:#94a3b8;">Optional multiplayer powered by HA Rust + Redis + Postgres.</div>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <input id="dgm-mp-chatinp" type="text" maxlength="120" placeholder="Chat to Los Pepinos..." style="flex:1;padding:6px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.45);color:#fff;font-size:12px;outline:none;">
+      <button class="dgm-btn" id="dgm-mp-send" style="padding:6px 10px;">Send</button>
+    </div>
+  `;
+  document.body.appendChild(mpPanel);
+
+  function addMpChat(who, txt) {
+    const log = document.getElementById("dgm-mp-chatlog");
+    if (!log) return;
+    const d = document.createElement("div");
+    d.innerHTML = `<b style="color:#38bdf8;">${String(who).replace(/</g, "&lt;")}:</b> ${String(txt).replace(/</g, "&lt;")}`;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    while (log.children.length > 24) log.removeChild(log.firstChild);
+  }
+
+  function makeRemoteMesh(name) {
+    const g = new THREE.Group();
+    // Sleek Cyan/Gold Multiplayer Sports Car
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.72, 4.3), mStd(0x0ea5e9, 0.24, 0.6));
+    body.position.y = 0.62;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.58, 2.0), mGlass);
+    cabin.position.set(0, 1.18, -0.15);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.74, 4.34), mStd(0xfacc15, 0.25, 0.6));
+    stripe.position.y = 0.63;
+    g.add(body, cabin, stripe);
+
+    // Floating Nameplate Sprite
+    const c = document.createElement("canvas");
+    c.width = 256; c.height = 48;
+    const cx = c.getContext("2d");
+    cx.fillStyle = "rgba(9,12,18,0.82)";
+    cx.fillRect(10, 6, 236, 36);
+    cx.strokeStyle = "#38bdf8"; cx.lineWidth = 3;
+    cx.strokeRect(10, 6, 236, 36);
+    cx.font = "bold 20px system-ui, sans-serif";
+    cx.fillStyle = "#f8fafc";
+    cx.textAlign = "center";
+    cx.fillText(String(name).slice(0, 16), 128, 31);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+    sp.scale.set(3.2, 0.6, 1);
+    sp.position.y = 2.6;
+    g.add(sp);
+    return g;
+  }
+
+  function upsertRemote(p) {
+    if (!p || !p.id || p.id === MP.id) return;
+    let r = MP.remotes.get(p.id);
+    if (!r) {
+      const mesh = makeRemoteMesh(p.name || "Driver");
+      mesh.position.set(p.x || 0, p.y || 0, p.z || 0);
+      scene.add(mesh);
+      r = { id: p.id, name: p.name || "Driver", mode: p.mode || "car", mesh, targetX: p.x || 0, targetY: p.y || 0, targetZ: p.z || 0, targetH: p.h || 0 };
+      MP.remotes.set(p.id, r);
+    } else {
+      if (p.x != null) r.targetX = p.x;
+      if (p.y != null) r.targetY = p.y;
+      if (p.z != null) r.targetZ = p.z;
+      if (p.h != null) r.targetH = p.h;
+      if (p.mode) r.mode = p.mode;
+    }
+    syncMpBadge();
+  }
+
+  function clearRemotes() {
+    for (const r of MP.remotes.values()) scene.remove(r.mesh);
+    MP.remotes.clear();
+    syncMpBadge();
+  }
+
+  function syncMpBadge() {
+    if (MP.connected) {
+      mpBtn.textContent = `🌐 Online (${MP.remotes.size + 1})`;
+      mpBtn.style.borderColor = "#22c55e";
+      document.getElementById("dgm-mp-status").textContent = `Connected (${MP.remotes.size + 1} online) · Pod: ${MP.pod || "ha"}`;
+    } else {
+      mpBtn.textContent = "🌐 Multiplayer: Solo";
+      mpBtn.style.borderColor = "rgba(250,204,21,.45)";
+      document.getElementById("dgm-mp-status").textContent = `Mode: Solo (Offline) · Server: ${MP.url}`;
+    }
+  }
+
+  function mpDisconnect(silent = false) {
+    if (MP.ws) { try { MP.ws.close(); } catch (_) {} MP.ws = null; }
+    MP.connected = false;
+    MP.id = null;
+    clearRemotes();
+    if (!silent) toast("SWITCHED TO SOLO MODE", "gold");
+  }
+
+  function mpConnect(url = MP_DEFAULT_URL, customName = null) {
+    mpDisconnect(true);
+    const inp = document.getElementById("dgm-mp-name");
+    MP.name = (customName || (inp && inp.value) || "DillyDriver").trim().slice(0, 16) || "DillyDriver";
+    MP.url = url || MP_DEFAULT_URL;
+    try { localStorage.setItem("dgm_mp_name", MP.name); } catch (_) {}
+    document.getElementById("dgm-mp-status").textContent = `Connecting to ${MP.url}...`;
+    try {
+      const ws = new WebSocket(MP.url);
+      MP.ws = ws;
+      ws.onopen = () => {
+        const curMode = EXP.veh ? EXP.veh.id : (D.onFoot ? "foot" : "car");
+        const px = D.onFoot ? D.x : P.x, py = D.onFoot ? D.y : (P.y || 0), pz = D.onFoot ? D.z : P.z, ph = D.onFoot ? D.h : P.h;
+        ws.send(JSON.stringify({ type: "join", name: MP.name, mode: curMode, x: +px.toFixed(2), y: +py.toFixed(2), z: +pz.toFixed(2), h: +ph.toFixed(3) }));
+      };
+      ws.onmessage = (ev) => {
+        let m; try { m = JSON.parse(ev.data); } catch (_) { return; }
+        if (m.type === "welcome") {
+          MP.connected = true;
+          MP.id = m.id;
+          MP.pod = m.pod || "ha";
+          for (const p of (m.players || [])) upsertRemote(p);
+          syncMpBadge();
+          toast(`🌐 JOINED LOS PEPINOS ONLINE (${MP.remotes.size + 1})`, "gold");
+          addMpChat("SYSTEM", `Connected as ${MP.name} (pod ${MP.pod}).`);
+        } else if (m.type === "player_join" && m.player) {
+          upsertRemote(m.player);
+          toast(`🌐 ${m.player.name} JOINED`, "gold");
+          addMpChat("SYSTEM", `${m.player.name} joined Los Pepinos.`);
+        } else if (m.type === "state") {
+          upsertRemote(m);
+        } else if (m.type === "leave") {
+          const r = MP.remotes.get(m.id);
+          if (r) { scene.remove(r.mesh); MP.remotes.delete(m.id); syncMpBadge(); }
+        } else if (m.type === "chat") {
+          addMpChat(m.name || "Driver", m.text || "");
+        }
+      };
+      ws.onerror = () => {
+        if (!MP.connected) document.getElementById("dgm-mp-status").textContent = "⚠️ Server unreachable — playing Solo Mode.";
+      };
+      ws.onclose = () => {
+        if (MP.ws === ws) { MP.connected = false; MP.ws = null; clearRemotes(); }
+      };
+    } catch (_) {
+      document.getElementById("dgm-mp-status").textContent = "⚠️ Could not open WebSocket — playing Solo Mode.";
+    }
+  }
+
+  function mpSendChat(txt) {
+    const clean = String(txt || "").trim().slice(0, 120);
+    if (!clean) return;
+    if (MP.ws && MP.ws.readyState === 1) {
+      MP.ws.send(JSON.stringify({ type: "chat", text: clean }));
+    } else {
+      addMpChat(MP.name + " (Solo)", clean);
+    }
+  }
+
+  function toggleMpPanel(force) {
+    MP.panelOpen = force != null ? !!force : !MP.panelOpen;
+    mpPanel.style.display = MP.panelOpen ? "block" : "none";
+    if (MP.panelOpen) { toggleMenu(false); toggleWardrobe(false); }
+  }
+
+  mpBtn.onclick = (e) => { e.stopPropagation(); toggleMpPanel(); };
+  document.getElementById("dgm-mp-close").onclick = (e) => { e.stopPropagation(); toggleMpPanel(false); };
+  document.getElementById("dgm-mp-connect").onclick = (e) => { e.stopPropagation(); mpConnect(); };
+  document.getElementById("dgm-mp-disconnect").onclick = (e) => { e.stopPropagation(); mpDisconnect(); };
+  document.getElementById("dgm-mp-send").onclick = (e) => {
+    e.stopPropagation();
+    const inp = document.getElementById("dgm-mp-chatinp");
+    mpSendChat(inp.value); inp.value = "";
+  };
+  document.getElementById("dgm-mp-chatinp").addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") { mpSendChat(e.target.value); e.target.value = ""; }
+  });
+  document.getElementById("dgm-mp-name").addEventListener("keydown", (e) => e.stopPropagation());
+
+  // Wrap per-frame updater to sync MP state & interpolate 3D remote players
+  const _baseExpUpdate = window.__dgmUpdateExp;
+  window.__dgmUpdateExp = function (dt) {
+    _baseExpUpdate(dt);
+    if (MP.connected && MP.ws && MP.ws.readyState === 1) {
+      const now = performance.now();
+      if (now - MP.lastSend > 65) {
+        MP.lastSend = now;
+        const curMode = EXP.veh ? EXP.veh.id : (D.onFoot ? "foot" : "car");
+        const px = EXP.veh ? EXP.veh.x : (D.onFoot ? D.x : P.x);
+        const py = EXP.veh ? EXP.veh.y : (D.onFoot ? D.y : (P.y || 0));
+        const pz = EXP.veh ? EXP.veh.z : (D.onFoot ? D.z : P.z);
+        const ph = EXP.veh ? EXP.veh.h : (D.onFoot ? D.h : P.h);
+        MP.ws.send(JSON.stringify({ type: "state", mode: curMode, x: +px.toFixed(2), y: +py.toFixed(2), z: +pz.toFixed(2), h: +ph.toFixed(3) }));
+      }
+      for (const r of MP.remotes.values()) {
+        const k = Math.min(1, dt * 10);
+        r.mesh.position.x = lerp(r.mesh.position.x, r.targetX, k);
+        r.mesh.position.y = lerp(r.mesh.position.y, r.targetY, k);
+        r.mesh.position.z = lerp(r.mesh.position.z, r.targetZ, k);
+        r.mesh.rotation.y = r.targetH;
+      }
+    }
+  };
+
   // Initialize everything
   initVehicles();
   initInteriors();
   renderWardrobeControls();
   loadOutfit();
 
-  // Public debug / automation hook
+  // Public debug / automation hooks
   window.DGM_EXP = {
     board: boardVehicle,
     exitVehicle,
@@ -8591,6 +8827,15 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { per
         wardrobeOpen: EXP.wardrobeOpen,
         outfit: Object.assign({}, EXP.outfit)
       };
+    }
+  };
+  window.DGM_MP = {
+    connect: mpConnect,
+    disconnect: mpDisconnect,
+    sendChat: mpSendChat,
+    togglePanel: toggleMpPanel,
+    get state() {
+      return { connected: MP.connected, id: MP.id, pod: MP.pod, remotes: MP.remotes.size, url: MP.url };
     }
   };
 })();

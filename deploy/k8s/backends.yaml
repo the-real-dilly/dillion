@@ -1,0 +1,321 @@
+# ============================================================================
+# DILLY GAMING HA RUST BACKENDS — 3 Replicas Each + HPA (3..12) + PDB
+# Services: dillyverse-server (:8080), dilly-strike-server (:8081), dilly-gone-mad-server (:8082)
+# ============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dillyverse-server
+  namespace: dilly-gaming
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dillyverse-server
+  template:
+    metadata:
+      labels:
+        app: dillyverse-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: dillyverse-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: dillyverse-server
+          image: ghcr.io/the-real-dilly/dillyverse-server:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DILLYVERSE_SEED
+              value: "DILLYVERSE-MP-01"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: REDIS_URL
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dillyverse-server
+  namespace: dilly-gaming
+spec:
+  selector:
+    app: dillyverse-server
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dillyverse-server-hpa
+  namespace: dilly-gaming
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dillyverse-server
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dillyverse-server-pdb
+  namespace: dilly-gaming
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: dillyverse-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dilly-strike-server
+  namespace: dilly-gaming
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dilly-strike-server
+  template:
+    metadata:
+      labels:
+        app: dilly-strike-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: dilly-strike-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: dilly-strike-server
+          image: ghcr.io/the-real-dilly/dilly-strike-server:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: PORT
+              value: "8081"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: REDIS_URL
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dilly-strike-server
+  namespace: dilly-gaming
+spec:
+  selector:
+    app: dilly-strike-server
+  ports:
+    - port: 8081
+      targetPort: 8081
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dilly-strike-server-hpa
+  namespace: dilly-gaming
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dilly-strike-server
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dilly-strike-server-pdb
+  namespace: dilly-gaming
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: dilly-strike-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dilly-gone-mad-server
+  namespace: dilly-gaming
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dilly-gone-mad-server
+  template:
+    metadata:
+      labels:
+        app: dilly-gone-mad-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: dilly-gone-mad-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: dilly-gone-mad-server
+          image: ghcr.io/the-real-dilly/dilly-gone-mad-server:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: PORT
+              value: "8082"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dilly-ha-secrets
+                  key: REDIS_URL
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8082
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dilly-gone-mad-server
+  namespace: dilly-gaming
+spec:
+  selector:
+    app: dilly-gone-mad-server
+  ports:
+    - port: 8082
+      targetPort: 8082
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dilly-gone-mad-server-hpa
+  namespace: dilly-gaming
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dilly-gone-mad-server
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dilly-gone-mad-server-pdb
+  namespace: dilly-gaming
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: dilly-gone-mad-server

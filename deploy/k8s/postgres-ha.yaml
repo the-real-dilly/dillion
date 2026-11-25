@@ -1,0 +1,147 @@
+# ============================================================================
+# PostgreSQL 16 High-Availability StatefulSet (Primary + Read Replica)
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+  namespace: dilly-gaming
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS dillyverse_blocks (
+      seed TEXT NOT NULL, bx BIGINT NOT NULL, by BIGINT NOT NULL, bz BIGINT NOT NULL,
+      block_id INTEGER NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (seed, bx, by, bz)
+    );
+    CREATE TABLE IF NOT EXISTS dilly_strike_stats (
+      callsign TEXT PRIMARY KEY, kills INTEGER DEFAULT 0, deaths INTEGER DEFAULT 0,
+      headshots INTEGER DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS dilly_mad_players (
+      callsign TEXT PRIMARY KEY, last_x DOUBLE PRECISION DEFAULT 0, last_y DOUBLE PRECISION DEFAULT 0,
+      last_z DOUBLE PRECISION DEFAULT 0, mode TEXT DEFAULT 'car', updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS dilly_mad_chat (
+      id BIGSERIAL PRIMARY KEY, callsign TEXT NOT NULL, message TEXT NOT NULL,
+      pod_id TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-ha-headless
+  namespace: dilly-gaming
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-ha
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-ha-primary
+  namespace: dilly-gaming
+spec:
+  selector:
+    app: postgres-ha
+    statefulset.kubernetes.io/pod-name: postgres-ha-0
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-ha
+  namespace: dilly-gaming
+spec:
+  serviceName: postgres-ha-headless
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres-ha
+  template:
+    metadata:
+      labels:
+        app: postgres-ha
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: postgres-ha
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          args:
+            - "-c"
+            - "password_encryption=md5"
+            - "-c"
+            - "wal_level=replica"
+            - "-c"
+            - "max_wal_senders=6"
+            - "-c"
+            - "max_connections=300"
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: dilly-ha-secrets
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: md5
+          volumeMounts:
+            - name: pg-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "dilly", "-d", "dillygaming"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "dilly", "-d", "dillygaming"]
+            initialDelaySeconds: 25
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: init-sql
+          configMap:
+            name: postgres-init-sql
+  volumeClaimTemplates:
+    - metadata:
+        name: pg-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-ha-pdb
+  namespace: dilly-gaming
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgres-ha

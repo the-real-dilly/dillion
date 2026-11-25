@@ -1,0 +1,44 @@
+# ============================================================================
+# NGINX Ingress with TLS & WebSocket Upgrade Support for apibuild.dillonmay.com
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dilly-gaming-ingress
+  namespace: dilly-gaming
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: "dillyverse-server,dilly-strike-server,dilly-gone-mad-server"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - apibuild.dillonmay.com
+      secretName: apibuild-dillonmay-tls
+  rules:
+    - host: apibuild.dillonmay.com
+      http:
+        paths:
+          - path: /strike
+            pathType: Prefix
+            backend:
+              service:
+                name: dilly-strike-server
+                port:
+                  number: 8081
+          - path: /mad
+            pathType: Prefix
+            backend:
+              service:
+                name: dilly-gone-mad-server
+                port:
+                  number: 8082
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dillyverse-server
+                port:
+                  number: 8080

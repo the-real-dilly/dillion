@@ -5,6 +5,9 @@
    Run: cargo run --release -- [port] [seed]
    ========================================================================== */
 
+mod ha;
+
+use ha::{pg_escape, HaContext};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -13,6 +16,8 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+
+const REDIS_CHANNEL: &str = "dilly:verse:events";
 
 struct Client {
     id: String,
@@ -31,6 +36,7 @@ struct ServerState {
     clients: HashMap<String, Client>,
     blocks: HashMap<String, u32>, // "x,y,z" -> blockId
     dirty: bool,
+    ha: HaContext,
 }
 
 const SAVE_FILE: &str = "dillyverse-server-world.json";
@@ -41,20 +47,47 @@ fn main() {
         .get(1)
         .and_then(|s| s.parse().ok())
         .or_else(|| env::var("PORT").ok().and_then(|s| s.parse().ok()))
-        .unwrap_or(25565);
+        .unwrap_or(8080);
     let seed = args
         .get(2)
         .cloned()
         .or_else(|| env::var("DILLYVERSE_SEED").ok())
         .unwrap_or_else(|| "DILLYVERSE-MP-01".to_string());
 
+    let ha_ctx = HaContext::from_env("dillyverse");
+    let _ = ha_ctx.pg_exec(
+        "CREATE TABLE IF NOT EXISTS dillyverse_blocks (\
+            seed TEXT NOT NULL,\
+            bx BIGINT NOT NULL,\
+            by BIGINT NOT NULL,\
+            bz BIGINT NOT NULL,\
+            block_id INTEGER NOT NULL,\
+            updated_at TIMESTAMPTZ DEFAULT NOW(),\
+            PRIMARY KEY (seed, bx, by, bz)\
+         );",
+    );
+
     let mut initial_blocks = HashMap::new();
-    if let Ok(raw) = fs::read_to_string(SAVE_FILE) {
-        load_persisted_blocks(&raw, &mut initial_blocks);
-        println!(
-            "[DillyVerse Rust Server] Loaded {} persisted block edits.",
-            initial_blocks.len()
-        );
+    if let Ok(rows) = ha_ctx.pg_query(&format!(
+        "SELECT bx, by, bz, block_id FROM dillyverse_blocks WHERE seed='{}';",
+        pg_escape(&seed)
+    )) {
+        for r in rows {
+            if r.len() >= 4 {
+                if let Ok(bid) = r[3].parse::<u32>() {
+                    initial_blocks.insert(format!("{},{},{}", r[0], r[1], r[2]), bid);
+                }
+            }
+        }
+        if !initial_blocks.is_empty() {
+            println!("[DillyVerse HA] Loaded {} blocks from PostgreSQL.", initial_blocks.len());
+        }
+    }
+    if initial_blocks.is_empty() {
+        if let Ok(raw) = fs::read_to_string(SAVE_FILE) {
+            load_persisted_blocks(&raw, &mut initial_blocks);
+            println!("[DillyVerse HA] Loaded {} persisted block edits from disk.", initial_blocks.len());
+        }
     }
 
     let state = Arc::new(Mutex::new(ServerState {
@@ -63,16 +96,35 @@ fn main() {
         clients: HashMap::new(),
         blocks: initial_blocks,
         dirty: false,
+        ha: ha_ctx.clone(),
     }));
 
-    // Periodic world persistence thread (every 20s)
+    // Subscribe to Redis Pub/Sub for cross-pod HA fanout (and sync local block cache)
+    {
+        let st = Arc::clone(&state);
+        ha_ctx.spawn_subscriber(REDIS_CHANNEL.to_string(), move |payload| {
+            if json_get_str(payload, "type").as_deref() == Some("block_set") {
+                if let (Some(bx), Some(by), Some(bz), Some(bid)) = (
+                    json_get_f64(payload, "x").map(|v| v.floor() as i64),
+                    json_get_f64(payload, "y").map(|v| v.floor() as i64),
+                    json_get_f64(payload, "z").map(|v| v.floor() as i64),
+                    json_get_f64(payload, "blockId").map(|v| v as u32),
+                ) {
+                    st.lock().unwrap().blocks.insert(format!("{},{},{}", bx, by, bz), bid);
+                }
+            }
+            broadcast_local(&st, payload, None);
+        });
+    }
+
+    // Periodic disk backup fallback (when running standalone without PostgreSQL)
     {
         let st = Arc::clone(&state);
         thread::spawn(move || loop {
             thread::sleep(Duration::from_secs(20));
             let snapshot = {
                 let mut guard = st.lock().unwrap();
-                if !guard.dirty {
+                if !guard.dirty || guard.ha.database_url.is_some() {
                     continue;
                 }
                 guard.dirty = false;
@@ -83,10 +135,10 @@ fn main() {
     }
 
     let addr = format!("0.0.0.0:{}", port);
-    let listener = TcpListener::bind(&addr).expect("Failed to bind DillyVerse Rust server");
+    let listener = TcpListener::bind(&addr).expect("Failed to bind DillyVerse HA server");
     println!(
-        "[DillyVerse Rust Server] Listening on ws://localhost:{} (seed: {})",
-        port, seed
+        "[DillyVerse HA Rust Server] Listening on ws://0.0.0.0:{} (seed: {}, pod: {})",
+        port, seed, ha_ctx.pod_id
     );
 
     for stream in listener.incoming().flatten() {
@@ -114,18 +166,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<ServerState>>) {
         }
     });
 
-    // Plain HTTP health/status check
+    // Plain HTTP Kubernetes /healthz & /readyz probe
     let Some(key) = ws_key else {
-        let (seed, players, blocks) = {
+        let body = {
             let g = state.lock().unwrap();
-            (g.seed.clone(), g.clients.len(), g.blocks.len())
+            g.ha.health_json("dillyverse-server", g.clients.len())
         };
-        let body = format!(
-            "{{\"name\":\"DillyVerse Rust Server\",\"seed\":\"{}\",\"players\":{},\"blocks\":{}}}",
-            json_escape(&seed),
-            players,
-            blocks
-        );
         let resp = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             body.len(),
@@ -342,6 +388,12 @@ fn handle_message(client_id: &str, text: &str, state: &Arc<Mutex<ServerState>>) 
                 if ok {
                     g.blocks.insert(format!("{},{},{}", bx, by, bz), bid);
                     g.dirty = true;
+                    g.ha.pg_exec_async(format!(
+                        "INSERT INTO dillyverse_blocks (seed, bx, by, bz, block_id, updated_at) \
+                         VALUES ('{}', {}, {}, {}, {}, NOW()) \
+                         ON CONFLICT (seed, bx, by, bz) DO UPDATE SET block_id = EXCLUDED.block_id, updated_at = NOW();",
+                        pg_escape(&g.seed), bx, by, bz, bid
+                    ));
                 }
                 ok
             };
@@ -388,7 +440,7 @@ fn send_to(state: &Arc<Mutex<ServerState>>, target_id: &str, json: &str) {
     }
 }
 
-fn broadcast(state: &Arc<Mutex<ServerState>>, json: &str, except_id: Option<&str>) {
+fn broadcast_local(state: &Arc<Mutex<ServerState>>, json: &str, except_id: Option<&str>) {
     let frame = encode_frame(0x1, json.as_bytes());
     let mut g = state.lock().unwrap();
     for (id, c) in g.clients.iter_mut() {
@@ -397,6 +449,12 @@ fn broadcast(state: &Arc<Mutex<ServerState>>, json: &str, except_id: Option<&str
         }
         let _ = c.stream.write_all(&frame);
     }
+}
+
+fn broadcast(state: &Arc<Mutex<ServerState>>, json: &str, except_id: Option<&str>) {
+    broadcast_local(state, json, except_id);
+    let ha = state.lock().unwrap().ha.clone();
+    ha.publish(REDIS_CHANNEL, json);
 }
 
 /* ---------- RFC 6455 WebSocket Framing ---------- */

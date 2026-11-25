@@ -8,12 +8,17 @@
    Run: cargo run --release --manifest-path dilly-strike/server/Cargo.toml -- [port]
    ========================================================================== */
 
+mod ha;
+
+use ha::{pg_escape, HaContext};
 use std::collections::HashMap;
 use std::env;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
+
+const REDIS_CHANNEL: &str = "dilly:strike:events";
 
 struct Player {
     id: String,
@@ -37,6 +42,7 @@ struct MatchState {
     score_alpha: u32,
     score_omega: u32,
     players: HashMap<String, Player>,
+    ha: HaContext,
 }
 
 fn main() {
@@ -45,18 +51,41 @@ fn main() {
         .get(1)
         .and_then(|s| s.parse().ok())
         .or_else(|| env::var("PORT").ok().and_then(|s| s.parse().ok()))
-        .unwrap_or(25566);
+        .unwrap_or(8081);
+
+    let ha_ctx = HaContext::from_env("dilly-strike");
+    let _ = ha_ctx.pg_exec(
+        "CREATE TABLE IF NOT EXISTS dilly_strike_stats (\
+            callsign TEXT PRIMARY KEY,\
+            kills INTEGER DEFAULT 0,\
+            deaths INTEGER DEFAULT 0,\
+            headshots INTEGER DEFAULT 0,\
+            updated_at TIMESTAMPTZ DEFAULT NOW()\
+         );",
+    );
 
     let state = Arc::new(Mutex::new(MatchState {
         next_id: 1,
         score_alpha: 0,
         score_omega: 0,
         players: HashMap::new(),
+        ha: ha_ctx.clone(),
     }));
 
+    // Subscribe to Redis Pub/Sub for cross-pod HA fanout
+    {
+        let st = Arc::clone(&state);
+        ha_ctx.spawn_subscriber(REDIS_CHANNEL.to_string(), move |payload| {
+            broadcast_local(&st, payload, None);
+        });
+    }
+
     let addr = format!("0.0.0.0:{}", port);
-    let listener = TcpListener::bind(&addr).expect("Failed to bind Dilly Strike Rust server");
-    println!("[Dilly Strike Rust Server] Listening on ws://localhost:{}", port);
+    let listener = TcpListener::bind(&addr).expect("Failed to bind Dilly Strike HA server");
+    println!(
+        "[Dilly Strike HA Rust Server] Listening on ws://0.0.0.0:{} (pod: {})",
+        port, ha_ctx.pod_id
+    );
 
     for stream in listener.incoming().flatten() {
         let st = Arc::clone(&state);
@@ -82,14 +111,10 @@ fn handle_client(mut stream: TcpStream, state: Arc<Mutex<MatchState>>) {
     });
 
     let Some(key) = ws_key else {
-        let (cnt, sa, so) = {
+        let body = {
             let g = state.lock().unwrap();
-            (g.players.len(), g.score_alpha, g.score_omega)
+            g.ha.health_json("dilly-strike-server", g.players.len())
         };
-        let body = format!(
-            "{{\"name\":\"Dilly Strike Rust Server\",\"players\":{},\"alpha\":{},\"omega\":{}}}",
-            cnt, sa, so
-        );
         let resp = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             body.len(),
@@ -296,6 +321,15 @@ fn handle_msg(pid: &str, text: &str, state: &Arc<Mutex<MatchState>>) {
                     json_esc(&target_id), new_hp, new_armor, json_esc(&att_name), hs
                 );
                 let kill_m = if killed {
+                    g.ha.pg_exec_async(format!(
+                        "INSERT INTO dilly_strike_stats (callsign, kills, deaths, headshots, updated_at) \
+                         VALUES ('{}', 1, 0, {}, NOW()) \
+                         ON CONFLICT (callsign) DO UPDATE SET kills = dilly_strike_stats.kills + 1, headshots = dilly_strike_stats.headshots + {}, updated_at = NOW();\
+                         INSERT INTO dilly_strike_stats (callsign, kills, deaths, headshots, updated_at) \
+                         VALUES ('{}', 0, 1, 0, NOW()) \
+                         ON CONFLICT (callsign) DO UPDATE SET deaths = dilly_strike_stats.deaths + 1, updated_at = NOW();",
+                        pg_escape(&att_name), if hs { 1 } else { 0 }, if hs { 1 } else { 0 }, pg_escape(&vic_name)
+                    ));
                     Some(format!(
                         "{{\"type\":\"kill\",\"killer\":\"{}\",\"victim\":\"{}\",\"victimId\":\"{}\",\"weapon\":\"{}\",\"hs\":{},\"alpha\":{},\"omega\":{}}}",
                         json_esc(&att_name), json_esc(&vic_name), json_esc(&target_id),
@@ -347,13 +381,19 @@ fn send_to(state: &Arc<Mutex<MatchState>>, tid: &str, json: &str) {
     }
 }
 
-fn broadcast(state: &Arc<Mutex<MatchState>>, json: &str, except: Option<&str>) {
+fn broadcast_local(state: &Arc<Mutex<MatchState>>, json: &str, except: Option<&str>) {
     let frame = encode_frame(0x1, json.as_bytes());
     let mut g = state.lock().unwrap();
     for (id, p) in g.players.iter_mut() {
         if except.map_or(false, |e| e == id) { continue; }
         let _ = p.stream.write_all(&frame);
     }
+}
+
+fn broadcast(state: &Arc<Mutex<MatchState>>, json: &str, except: Option<&str>) {
+    broadcast_local(state, json, except);
+    let ha = state.lock().unwrap().ha.clone();
+    ha.publish(REDIS_CHANNEL, json);
 }
 
 /* ---------- RFC 6455 WebSocket + SHA-1 + Base64 + JSON Helpers ---------- */

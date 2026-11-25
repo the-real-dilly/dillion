@@ -1,0 +1,10 @@
+[package]
+name = "dilly-gone-mad-server"
+version = "1.0.0"
+edition = "2021"
+description = "HA Rust WebSocket multiplayer server for Dilly Gone Mad (Redis Pub/Sub + PostgreSQL + Kubernetes)"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
