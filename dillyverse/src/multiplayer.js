@@ -74,7 +74,7 @@ export class MultiplayerClient {
         if (!settled) {
           settled = true;
           this.disconnect();
-          reject(new Error('Connection timed out (start server with: node dillyverse/server/index.mjs)'));
+          reject(new Error('Connection timed out (start Rust server: cargo run --release --manifest-path dillyverse/server/Cargo.toml)'));
         }
       }, 4500);
 

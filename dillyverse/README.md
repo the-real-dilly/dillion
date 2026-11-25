@@ -1,6 +1,6 @@
 # DILLYVERSE — *Build. Explore. Survive.*
 
-An original, browser-based 3D voxel sandbox survival game built with **Three.js (WebGL 2)**, chunk-based meshing with ambient occlusion, procedural pixel-art textures, survival/crafting/furnace mechanics, original voxel creatures, IndexedDB world persistence, and a real zero-dependency Node.js WebSocket multiplayer server.
+An original, browser-based 3D voxel sandbox survival game built with **Three.js (WebGL 2)**, chunk-based meshing with ambient occlusion, procedural pixel-art textures, survival/crafting/furnace mechanics, original voxel creatures, IndexedDB world persistence, and a zero-dependency **Rust** WebSocket multiplayer server.
 
 ---
 
@@ -15,11 +15,11 @@ python3 -m http.server 8000
 
 Then open `http://localhost:8000/dillyverse/index.html` in a modern desktop browser.
 
-### Multiplayer Server (Optional)
-DillyVerse includes an authoritative, zero-dependency Node.js WebSocket server (`server/index.mjs`):
+### Multiplayer Server (Rust)
+DillyVerse includes an authoritative, zero-dependency **Rust** RFC 6455 WebSocket server (`dillyverse/server/src/main.rs`):
 
 ```bash
-node dillyverse/server/index.mjs 25565 DILLYVERSE-MP-01
+cargo run --release --manifest-path dillyverse/server/Cargo.toml -- 25565 DILLYVERSE-MP-01
 ```
 
 Then click **Multiplayer** in the DillyVerse main menu, enter your player name, and connect to `ws://localhost:25565`.

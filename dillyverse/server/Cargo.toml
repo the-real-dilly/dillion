@@ -1,0 +1,10 @@
+[package]
+name = "dillyverse-server"
+version = "0.1.0"
+edition = "2021"
+description = "Authoritative Rust WebSocket multiplayer server for DillyVerse"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
