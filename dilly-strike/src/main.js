@@ -1459,7 +1459,8 @@ const tr = {
   timeScale: 1,
   fired: new Set(),
   sparks: [],
-  crossfireCd: 0
+  crossfireCd: 0,
+  hook: null // external director (trailer.js): { update(dt), render(dt) }
 };
 
 function lerpAng(a, b, k) {
@@ -1605,6 +1606,7 @@ function startTrailerMode() {
 
 function stopTrailerMode(skipLobby = false) {
   tr.active = false;
+  tr.hook = null;
   tr.scene = null;
   tr.timeScale = 1;
   clearTrailerSceneObjects();
@@ -2057,7 +2059,7 @@ function loop(now) {
 
   if (!inMatch) {
     if (tr.active) {
-      updateTrailerDirector(dt);
+      if (tr.hook) tr.hook.update(dt); else updateTrailerDirector(dt);
       for (let i = tracers.length - 1; i >= 0; i--) {
         tracers[i].life -= dt;
         if (tracers[i].life <= 0) { scene.remove(tracers[i].line); tracers[i].line.geometry.dispose(); tracers.splice(i, 1); }
@@ -2067,7 +2069,7 @@ function loop(now) {
         if (smokes[i].life < 1.5) smokes[i].mesh.material.opacity = Math.max(0, smokes[i].life / 1.5) * 0.9;
         if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
       }
-      renderer.render(scene, camera);
+      if (tr.hook && tr.hook.render) tr.hook.render(dt); else renderer.render(scene, camera);
       return;
     }
     vmRoot.visible = false;
@@ -2143,7 +2145,20 @@ window.DillyStrike = {
     start: startTrailerMode,
     playScene: playTrailerScene,
     stop: stopTrailerMode,
-    isActive: () => tr.active
+    isActive: () => tr.active,
+    // Hooks for the scripted in-engine trailer director in trailer.js
+    setHook: (h) => { tr.hook = h || null; },
+    engine: {
+      renderer, scene, camera, vmRoot, me, WEAPONS, mapMeshes,
+      bots: () => bots,
+      spawnActor: spawnTrActor, clear: clearTrailerSceneObjects, updateActors: updateTrailerActors,
+      shoot: trShoot, tracer: spawnTracer, sparks: spawnImpactSparks,
+      hitmarker: showHitmarker, killfeed: addKillfeed, syncHud, drawRadar,
+      setScoped, equipWeapon, pov: drivePovFrame,
+      sfxTone, sfxNoise, playShot, playHeadshot,
+      setScore: (a, o) => { scoreAlpha = a; scoreOmega = o; },
+      setRoundTime: (t) => { roundTime = t; }
+    }
   },
   setBind: (act, code) => { if (act in BINDS) { BINDS[act] = code; saveBinds(); syncBindLabels(); renderKeybindsUI(); } },
   getBinds: () => Object.assign({}, BINDS),
