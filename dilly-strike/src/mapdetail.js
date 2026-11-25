@@ -73,8 +73,8 @@ export function chamferBox(w, h, d, c = 0.05) {
   g.rotateX(-Math.PI / 2); g.translate(0, -(h / 2 - c), 0);
   return g;
 }
-function uvScale(g, su, sv) { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv); return g; }
-function archShape(w, h, arch = true) {
+export function uvScale(g, su, sv) { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv); return g; }
+export function archShape(w, h, arch = true) {
   // opening shape centered on x, from y=0 to y=h; semicircular top if arch
   const s = new THREE.Shape(), r = w / 2;
   s.moveTo(-r, 0); s.lineTo(r, 0);
@@ -83,7 +83,7 @@ function archShape(w, h, arch = true) {
   return s;
 }
 // stone frame around an opening: outer = opening grown by t
-function archFrame(w, h, t, depth, arch = true) {
+export function archFrame(w, h, t, depth, arch = true) {
   const r = w / 2 + t, s = new THREE.Shape();
   s.moveTo(-r, 0); s.lineTo(r, 0);
   if (arch) { s.lineTo(r, h - w / 2); s.absarc(0, h - w / 2, r, 0, Math.PI, false); } else { s.lineTo(r, h + t); s.lineTo(-r, h + t); }
@@ -94,7 +94,7 @@ function archFrame(w, h, t, depth, arch = true) {
 }
 
 // static batch: merges geometry per material to keep draw calls low
-class Batch {
+export class Batch {
   constructor(scene, shadows = true) { this.scene = scene; this.by = new Map(); this.shadows = shadows; }
   add(geo, mat, pos, rot, scl, cast = true) {
     const g = geo.index ? geo.toNonIndexed() : geo.clone();
@@ -222,7 +222,7 @@ function sandDriftTex() {
     x.putImageData(id, 0, 0);
   });
 }
-function decalMat(map, opts = {}) {
+export function decalMat(map, opts = {}) {
   return new THREE.MeshStandardMaterial(Object.assign({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, roughness: 0.95, metalness: 0 }, opts));
 }
 

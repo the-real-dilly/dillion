@@ -239,7 +239,7 @@ function tick() {
   const now = performance.now(), bp = $('buy-phase'), left = Math.max(0, R.buyUntil - now);
   bp.classList.toggle('on', left > 0 && !R.ending);
   if (left > 0) $('buy-phase-t').textContent = `0:${String(Math.ceil(left / 1000)).padStart(2, '0')}`;
-  const bk = $('buy-kicker'); if (bk) bk.textContent = left > 0 ? `Buy phase · ${Math.ceil(left / 1000)}s left` : `Round ${R.round} · de_dustline`;
+  const bk = $('buy-kicker'); if (bk) bk.textContent = left > 0 ? `Buy phase · ${Math.ceil(left / 1000)}s left` : `Round ${R.round} · ${(DS() && DS().getMap) ? DS().getMap().code : 'de_dustline'}`;
   const key = $('buy-key'); if (key && d.getBinds) { const c = d.getBinds().buy || 'KeyB'; key.textContent = c.startsWith('Key') ? c.slice(3) : c; }
   if (R.ending) { R.lastSec = secs; return; }
   if (E.me.kills - R.k0 >= ELIMS) endRound(true, 'elim');

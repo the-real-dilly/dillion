@@ -40,7 +40,15 @@ function tex(canvas, srgb, rep = 1) {
   return t;
 }
 // build the three textures from float buffers: A (rgb 0..255), H (height 0..1), Ro (roughness 0..1), Me (metal 0..1 or null)
+// optional colour grade applied by finish(): set with withGrade() around a generator call
+let FIN = null;
+export function withGrade(g, fn) { FIN = g; try { return fn(); } finally { FIN = null; } }
 export function finish(S, A, H, Ro, Me, nStrength = 2.0) {
+  if (FIN) {
+    const sat = FIN.sat != null ? FIN.sat : 1, t = FIN.tint || [1, 1, 1];
+    for (let i = 0; i < S * S; i++) { const r = A[i * 3], g = A[i * 3 + 1], b = A[i * 3 + 2], l = r * 0.3 + g * 0.59 + b * 0.11;
+      A[i * 3] = (l + (r - l) * sat) * t[0]; A[i * 3 + 1] = (l + (g - l) * sat) * t[1]; A[i * 3 + 2] = (l + (b - l) * sat) * t[2]; }
+  }
   const ca = mkCanvas(S), cn = mkCanvas(S), cr = mkCanvas(S);
   const ia = ca.getContext('2d').createImageData(S, S), inn = cn.getContext('2d').createImageData(S, S), ir = cr.getContext('2d').createImageData(S, S);
   const da = ia.data, dn = inn.data, dr = ir.data;
@@ -315,4 +323,21 @@ export function gunSurface(seed = 71, kind = 'metal', S = 256) {
     for (let s = 0; s < len; s++) { x += Math.cos(a); y += Math.sin(a); const i = ((y | 0) % S + S) % S * S + (((x | 0) % S + S) % S); Ro[i] = 0.2; A[i * 3] = A[i * 3 + 1] = A[i * 3 + 2] = 255; }
   }
   return finish(S, A, H, Ro, null, kind === 'metal' ? 1.0 : 2.5);
+}
+
+/* ---------- glazed barrel roof tiles ---------- */
+export function roofTiles(seed = 91, base = 0x3f4a48, S = 512) {
+  const N = new Noise(seed), { A, H, Ro } = buffers(S), [br, bg, bb] = hexRGB(base), cols = 10, rows = 8;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const u = x / S, v = y / S, i = y * S + x;
+    const row = Math.floor(v * rows), fv = (v * rows) % 1, off = (row % 2) * 0.5;
+    const fu = (u * cols + off) % 1, bar = Math.abs(Math.sin(fu * Math.PI));
+    const lip = smooth(0.82, 1.0, fv), id = Math.floor(u * cols + off) * 13 + row * 7, rr = ((Math.sin(id * 12.9898) * 43758.5453) % 1 + 1) % 1;
+    const dirt = smooth(0.5, 0.8, N.fbm(u, v, 5, 4)) * 0.35 + (1 - bar) * 0.25;
+    const k = (0.78 + 0.25 * bar + 0.08 * rr) * (1 - dirt * 0.5) * (1 - lip * 0.35);
+    A[i * 3] = br * k; A[i * 3 + 1] = bg * k; A[i * 3 + 2] = bb * k;
+    H[i] = bar * 0.6 + fv * 0.25 - lip * 0.2;
+    Ro[i] = clamp01(0.38 + dirt * 0.5 + (1 - bar) * 0.2);
+  }
+  return finish(S, A, H, Ro, null, 4.0);
 }
