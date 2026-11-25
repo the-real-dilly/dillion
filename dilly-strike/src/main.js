@@ -5,6 +5,11 @@
    ========================================================================== */
 
 import * as THREE from 'three';
+import { initRender, renderFrame } from './render.js';
+import { enhanceDustline } from './mapdetail.js';
+import { createViewmodel } from './viewmodel.js';
+import { loadCharacters, charsReady, Operator } from './characters.js';
+loadCharacters().catch((e) => console.warn('character models unavailable, using fallback figures', e));
 
 const $ = (id) => document.getElementById(id);
 export const DILLY_STRIKE_WS = 'wss://apibuild.dillonmay.com/strike';
@@ -177,6 +182,7 @@ sun.shadow.camera.top = 42;
 sun.shadow.camera.bottom = -42;
 sun.shadow.bias = -0.0005;
 scene.add(sun);
+initRender(renderer, scene, camera, sun, hemi); // linear workflow, sky, env, post chain, quality
 
 // ---------- Procedural Dust2 PBR Textures ----------
 function makeTexture(size, drawFn, repeatX = 1, repeatY = 1) {
@@ -362,6 +368,7 @@ function buildDustlineMap() {
   }
 }
 buildDustlineMap();
+enhanceDustline({ scene, mapMeshes, renderer, mats: { MAT_SAND, MAT_WALL, MAT_WALL_DARK, MAT_CRATE, MAT_DOOR, MAT_BARREL } });
 
 // ---------- Detailed Multi-Part CS:GO 3D Weapon Viewmodels + Gloved Hands ----------
 const vmRoot = new THREE.Group();
@@ -480,7 +487,40 @@ muzzleFlash.position.set(0, 0.02, -0.68);
 vmRoot.add(muzzleFlash);
 
 // ---------- Upgraded CS:GO CT & T 3D Operative Models ----------
+function nameTagSprite(name, team) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 42;
+  const cx = c.getContext('2d');
+  cx.fillStyle = 'rgba(10,14,19,0.75)'; cx.fillRect(14, 4, 228, 34);
+  cx.font = 'bold 19px Arial Narrow, sans-serif';
+  cx.fillStyle = team === 'alpha' ? '#6eb3f7' : '#e3a73b';
+  cx.textAlign = 'center'; cx.fillText(name.slice(0, 16), 128, 28);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false }));
+  tag.scale.set(1.5, 0.25, 1); tag.position.y = 2.2;
+  return tag;
+}
+// skinned operator with team kit once the mannequin has loaded; blocky fallback before that
 function createAgentModel(name, team) {
+  if (charsReady()) {
+    const op = new Operator(name, team);
+    op.group.add(nameTagSprite(name, team));
+    return op;
+  }
+  return createBlockyAgent(name, team);
+}
+// swap any fallback figures for skinned operators as soon as the models are available
+function upgradeAgentModels(list) {
+  if (!charsReady()) return;
+  for (const a of list) {
+    if (!a.model || a.model.animate) continue;
+    const old = a.model, parent = old.group.parent, nm = createAgentModel(a.name, a.team);
+    nm.group.position.copy(old.group.position); nm.group.rotation.copy(old.group.rotation); nm.group.visible = old.group.visible;
+    old.group.traverse((o) => { if (o.isSprite && !o.visible) nm.group.traverse((q) => { if (q.isSprite) q.visible = false; }); });
+    if (parent) { parent.remove(old.group); parent.add(nm.group); }
+    a.model = nm;
+  }
+}
+function createBlockyAgent(name, team) {
   const g = new THREE.Group();
   const isCT = team === 'alpha';
   const suitCol = isCT ? 0x26384d : 0x5c4b37;
@@ -581,6 +621,9 @@ const remotes = new Map();
 let ws = null;
 let lastSync = 0;
 
+// CC0 gun models + gloved arms + animation layer (falls back to the box guns until loaded)
+const VM = createViewmodel({ vmRoot, camera, scene, me, weaponModels, oldParts: [rightArm, leftArm, muzzleFlash], team: me.team });
+
 // ---------- Weapon & Loadout Helpers ----------
 function equipWeapon(id) {
   if (!me.owned.has(id)) return;
@@ -666,6 +709,7 @@ function fireWeapon() {
   me.pitch = Math.min(Math.PI / 2 - 0.05, me.pitch + (w.recoil || 0.015) * (me.crouching ? 0.5 : 1.0));
   mfMat.opacity = w.melee || w.id === 'phantom' ? 0 : 0.95;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
+  VM.shot();
   playShot(w.id);
 
   const moveSpd = Math.hypot(me.vel.x, me.vel.z);
@@ -762,7 +806,7 @@ function damageBot(bot, dmg, isHS, wepName) {
     bot.hp = 0;
     bot.deaths++;
     bot.respawnTimer = 4.0;
-    bot.model.group.visible = false;
+    if (!bot.model.animate) bot.model.group.visible = false; // skinned operators play their death animation first
     me.kills++;
     me.cash = Math.min(16000, me.cash + (wepName === 'Dilly Fang' ? 1500 : 300));
     scoreAlpha++;
@@ -776,6 +820,7 @@ function updateBots(dt) {
   for (const b of bots) {
     if (b.respawnTimer > 0) {
       b.respawnTimer -= dt;
+      if (b.model.animate) { b.model.animate(dt, { dead: true }); if (b.respawnTimer < 1.3) b.model.group.visible = false; }
       if (b.respawnTimer <= 0) {
         b.hp = 100;
         b.pos.set(26 + (Math.random() - 0.5) * 6, 0, (Math.random() - 0.5) * 24);
@@ -808,6 +853,7 @@ function updateBots(dt) {
     const distP = toP.length();
     b.model.group.position.copy(b.pos);
     b.model.group.rotation.y = Math.atan2(toP.x, toP.z);
+    if (b.model.animate) b.model.animate(dt, { aim: distP < 34, pitch: Math.atan2(toP.y, Math.hypot(toP.x, toP.z)) });
 
     b.fireCd -= dt;
     if (distP < 34 && b.fireCd <= 0) {
@@ -817,7 +863,8 @@ function updateBots(dt) {
       const blocked = raycaster.intersectObjects(mapMeshes, false).length > 0;
       if (!blocked) {
         b.fireCd = 0.78 + Math.random() * 0.55;
-        spawnTracer(bOrigin, me.pos.clone().add(new THREE.Vector3(0, 1.3, 0)), 0xfde047);
+        if (b.model.fired) b.model.fired();
+        spawnTracer(b.model.muzzleWorld ? b.model.muzzleWorld() : bOrigin, me.pos.clone().add(new THREE.Vector3(0, 1.3, 0)), 0xfde047);
         sfxNoise(0.08, 900, 0.09);
         if (Math.random() < 0.32) {
           applyDamageToMe(14 + Math.floor(Math.random() * 8), b.name);
@@ -852,6 +899,7 @@ function respawnMe() {
   me.yaw = me.team === 'alpha' ? -1.18 : 1.95;
   me.pitch = 0;
   setScoped(false);
+  VM.setTeam(me.team);
   syncHud();
 }
 
@@ -932,6 +980,7 @@ function updatePlayer(dt) {
   me.recoilKick = Math.max(0, me.recoilKick - dt * 0.95);
   mfMat.opacity = Math.max(0, mfMat.opacity - dt * 22);
 
+  if (VM.update(dt)) return;
   const inspT = me.inspectTimer > 0 ? Math.sin((me.inspectTimer / 1.8) * Math.PI) : 0;
   vmRoot.position.set(
     0.24 + bobX - inspT * 0.08,
@@ -1556,6 +1605,7 @@ function trShoot({ actor, dmg = 38, head = false, wallPt = null }) {
   me.pitch = Math.min(1.2, me.pitch + (w.recoil || 0.015) * 0.55);
   mfMat.opacity = w.melee || w.id === 'phantom' ? 0 : 0.95;
   muzzleFlash.rotation.z = Math.random() * Math.PI;
+  VM.shot();
   playShot(w.id);
 
   const startPt = camera.position.clone().add(new THREE.Vector3(0.20, -0.14, -0.55).applyEuler(camera.rotation));
@@ -1735,6 +1785,7 @@ function playTrailerScene(sceneName) {
 function updateTrailerActors(dt) {
   for (const a of bots) {
     if (!a.model.group.visible) continue;
+    if (a.hp <= 0 && a.model.animate) { a.model.animate(dt, { dead: true }); continue; }
     if (a.hp <= 0) {
       if (a.fall < 1) {
         a.fall = Math.min(1, a.fall + dt * 4.2);
@@ -1765,6 +1816,7 @@ function updateTrailerActors(dt) {
     } else {
       a.model.group.rotation.y = Math.atan2(me.pos.x - a.pos.x, me.pos.z - a.pos.z);
     }
+    if (a.model.animate) a.model.animate(dt, { aim: true });
   }
 
   for (let i = tr.sparks.length - 1; i >= 0; i--) {
@@ -1828,12 +1880,14 @@ function drivePovFrame(dt, moveGoal, lookPt, moveSpd = 5.8, aimRate = 12) {
 
   const inspT = me.inspectTimer > 0 ? Math.sin((me.inspectTimer / 1.6) * Math.PI) : 0;
   vmRoot.visible = !me.scoped;
-  vmRoot.position.set(
-    0.24 + bobX - inspT * 0.08,
-    -0.22 - bobY - (me.reloadTimer > 0 ? 0.14 : 0) + inspT * 0.04,
-    -0.44 + me.recoilKick
-  );
-  vmRoot.rotation.set(me.recoilKick * 1.5 + inspT * 0.24, inspT * 0.88, inspT * 0.34);
+  if (!VM.update(dt)) {
+    vmRoot.position.set(
+      0.24 + bobX - inspT * 0.08,
+      -0.22 - bobY - (me.reloadTimer > 0 ? 0.14 : 0) + inspT * 0.04,
+      -0.44 + me.recoilKick
+    );
+    vmRoot.rotation.set(me.recoilKick * 1.5 + inspT * 0.24, inspT * 0.88, inspT * 0.34);
+  }
 
   drawRadar();
   roundTime = Math.max(1, roundTime - dt);
@@ -2056,6 +2110,7 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
+  if (charsReady() && (bots.some((b) => !b.model.animate) || [...remotes.values()].some((r) => !r.model.animate))) { upgradeAgentModels(bots); upgradeAgentModels([...remotes.values()]); }
 
   if (!inMatch) {
     if (tr.active) {
@@ -2069,14 +2124,14 @@ function loop(now) {
         if (smokes[i].life < 1.5) smokes[i].mesh.material.opacity = Math.max(0, smokes[i].life / 1.5) * 0.9;
         if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
       }
-      if (tr.hook && tr.hook.render) tr.hook.render(dt); else renderer.render(scene, camera);
+      if (tr.hook && tr.hook.render) tr.hook.render(dt); else renderFrame(scene, camera);
       return;
     }
     vmRoot.visible = false;
     menuYaw += dt * 0.14;
     camera.position.set(Math.cos(menuYaw) * 26, 11.5, Math.sin(menuYaw) * 26);
     camera.lookAt(0, 2.2, 0);
-    renderer.render(scene, camera);
+    renderFrame(scene, camera);
     return;
   }
   vmRoot.visible = !me.scoped;
@@ -2102,6 +2157,7 @@ function loop(now) {
     for (const r of remotes.values()) {
       r.model.group.position.lerp(r.targetPos, Math.min(1, dt * 14));
       r.model.group.rotation.y = r.targetYaw;
+      if (r.model.animate) r.model.animate(dt, { aim: true });
     }
 
     for (const k of ['q', 'e', 'c']) {
@@ -2122,7 +2178,7 @@ function loop(now) {
     if (smokes[i].life <= 0) { scene.remove(smokes[i].mesh); smokes.splice(i, 1); }
   }
 
-  renderer.render(scene, camera);
+  renderFrame(scene, camera);
 }
 
 window.addEventListener('resize', () => {
@@ -2162,6 +2218,7 @@ window.DillyStrike = {
   },
   setBind: (act, code) => { if (act in BINDS) { BINDS[act] = code; saveBinds(); syncBindLabels(); renderKeybindsUI(); } },
   getBinds: () => Object.assign({}, BINDS),
+  vm: VM,
   getState: () => ({ inMatch, trailerActive: tr.active, trailerScene: tr.scene, hp: me.hp, shield: me.shield, cash: me.cash, weapon: WEAPONS[me.weaponId].name, bots: bots.length })
 };
 
