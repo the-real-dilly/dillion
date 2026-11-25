@@ -48,6 +48,8 @@ function createAvatarMesh(name) {
   return group;
 }
 
+export const DILLYVERSE_WS_URL = 'wss://apibuild.dillonmay.com';
+
 export class MultiplayerClient {
   constructor(scene, callbacks = {}) {
     this.scene = scene;
@@ -60,7 +62,8 @@ export class MultiplayerClient {
     this.lastSync = 0;
   }
 
-  connect(url, username) {
+  connect(username) {
+    const url = DILLYVERSE_WS_URL;
     this.disconnect();
     this.username = (username || 'Explorer').trim().slice(0, 18) || 'Explorer';
     return new Promise((resolve, reject) => {
@@ -74,9 +77,9 @@ export class MultiplayerClient {
         if (!settled) {
           settled = true;
           this.disconnect();
-          reject(new Error('Connection timed out (start Rust server: cargo run --release --manifest-path dillyverse/server/Cargo.toml)'));
+          reject(new Error('Connection timed out reaching ' + url));
         }
-      }, 4500);
+      }, 5000);
 
       this.ws.onopen = () => {
         this.ws.send(JSON.stringify({ type: 'join', name: this.username }));

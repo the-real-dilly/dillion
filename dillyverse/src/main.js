@@ -670,14 +670,14 @@ $('btn-create-world').addEventListener('click', async () => {
 
 $('btn-mp-connect').addEventListener('click', async () => {
   const name = $('mp-name').value.trim() || 'DillyExplorer';
-  const url = $('mp-url').value.trim() || 'ws://localhost:25565';
+  const url = 'wss://apibuild.dillonmay.com';
   $('mp-status').textContent = 'Connecting to ' + url + '...';
   try {
-    const welcome = await mp.connect(url, name);
-    $('mp-status').textContent = 'Connected!';
+    const welcome = await mp.connect(name);
+    $('mp-status').textContent = 'Connected to ' + url + '!';
     await enterWorld({
       id: 'mp_' + Date.now(),
-      name: 'Multiplayer World',
+      name: 'DillyVerse Online',
       seed: welcome.seed || 'DILLYVERSE-MP-01',
       mode: 'survival',
       difficulty: 'normal',

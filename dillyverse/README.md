@@ -16,13 +16,13 @@ python3 -m http.server 8000
 Then open `http://localhost:8000/dillyverse/index.html` in a modern desktop browser.
 
 ### Multiplayer Server (Rust)
-DillyVerse includes an authoritative, zero-dependency **Rust** RFC 6455 WebSocket server (`dillyverse/server/src/main.rs`):
+The DillyVerse client connects directly to the official backend at **`wss://apibuild.dillonmay.com`**.
+
+To run the authoritative, zero-dependency **Rust** RFC 6455 WebSocket server (`dillyverse/server/src/main.rs`) on your host behind TLS (`apibuild.dillonmay.com`):
 
 ```bash
 cargo run --release --manifest-path dillyverse/server/Cargo.toml -- 25565 DILLYVERSE-MP-01
 ```
-
-Then click **Multiplayer** in the DillyVerse main menu, enter your player name, and connect to `ws://localhost:25565`.
 
 ---
 
