@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DILLY STRIKE — Tactical 3D FPS · Dilly Gaming</title>
+  <title>DILLY STRIKE — CS:GO Tactical 3D FPS · Dilly Gaming</title>
   <link rel="icon" href="../img/dilly-gaming-logo.png">
   <link rel="stylesheet" href="styles.css">
   <script type="importmap">{ "imports": { "three": "../vendor/three.module.js" } }</script>
@@ -12,112 +12,219 @@
   <canvas id="fps-canvas"></canvas>
   <div id="flash-fx"></div>
   <div id="hurt-fx"></div>
-  <div id="scope-overlay"></div>
 
-  <!-- TACTICAL HUD -->
+  <!-- AUTHENTIC CS:GO AWP SCOPE OVERLAY -->
+  <div id="scope-overlay">
+    <div class="scope-h"></div>
+    <div class="scope-v"></div>
+    <div class="scope-ticks"></div>
+  </div>
+
+  <!-- CS:GO TACTICAL HUD -->
   <div id="hud">
+    <!-- Classic CS:GO Dynamic Outlined Crosshair -->
     <div id="xhair">
-      <div class="xh t"></div><div class="xh b"></div><div class="xh l"></div><div class="xh r"></div>
+      <div class="xh t"></div><div class="xh b"></div><div class="xh l"></div><div class="xh r"></div><div class="xh dot"></div>
     </div>
     <div id="hitmarker"></div>
-    <div id="hs-banner">💀 HEADSHOT</div>
+    <div id="hs-banner">HEADSHOT</div>
 
-    <div id="top-score">
-      <span class="sc-alpha">ALPHA <b id="sc-a">0</b></span>
-      <span class="sc-mid" id="sc-mode">DUSTLINE CITADEL</span>
-      <span class="sc-omega"><b id="sc-o">0</b> OMEGA</span>
+    <!-- Top-Left: CS:GO Circular Radar + Callout + Cash -->
+    <div id="cs-radar-wrap">
+      <div class="radar-frame">
+        <canvas id="cs-radar" width="184" height="184"></canvas>
+      </div>
+      <div id="radar-callout">T SPAWN</div>
+      <div id="cs-cash-pill"><span class="cash-sym">$</span><strong id="hud-cash">1200</strong></div>
     </div>
 
+    <!-- Top-Center: CS:GO Round Timer + CT / T Alive Avatars & Scores -->
+    <div id="cs-top-bar">
+      <div class="team-avatars ct" id="av-ct"></div>
+      <div class="score-core">
+        <div class="team-score ct" id="sc-a">0</div>
+        <div class="round-clock">
+          <div id="round-timer">1:55</div>
+          <div id="sc-mode">DE_DUSTLINE</div>
+        </div>
+        <div class="team-score t" id="sc-o">0</div>
+      </div>
+      <div class="team-avatars t" id="av-t"></div>
+    </div>
+
+    <!-- Top-Right: CS:GO Killfeed -->
     <div id="killfeed"></div>
 
+    <!-- Mid-Left: CS:GO Chat -->
     <div id="chat-wrap">
       <div id="chat-log"></div>
-      <input type="text" id="chat-inp" placeholder="Press Enter to send team/all chat...">
+      <input type="text" id="chat-inp" placeholder="Say (ALL): Press Enter to send...">
     </div>
 
-    <div id="bot-left">
-      <div class="hud-box hp"><small>HEALTH</small><strong id="hud-hp">100</strong></div>
-      <div class="hud-box sh"><small>SHIELD</small><strong id="hud-sh">50</strong></div>
-      <div class="hud-box cash"><small>CREDITS</small><strong id="hud-cash">$800</strong></div>
+    <!-- Bottom-Left: CS:GO Health & Kevlar/Helmet Bar -->
+    <div id="cs-bot-left">
+      <div class="cs-stat hp">
+        <span class="cs-ico">✚</span>
+        <strong id="hud-hp">100</strong>
+        <div class="cs-bar"><div id="hp-fill" style="width:100%"></div></div>
+      </div>
+      <div class="cs-stat arm">
+        <span class="cs-ico">🛡</span>
+        <strong id="hud-sh">100</strong>
+        <div class="cs-bar"><div id="sh-fill" style="width:100%"></div></div>
+      </div>
     </div>
 
+    <!-- Bottom-Center: Tactical Utility Strip (Flash / Smoke / Dash) -->
     <div id="bot-mid">
-      <div class="ab-chip ready" id="ab-q"><b>[Q]</b><span>Flash</span><small id="cd-q">READY</small></div>
-      <div class="ab-chip ready" id="ab-e"><b>[E]</b><span>Smoke</span><small id="cd-e">READY</small></div>
-      <div class="ab-chip ready" id="ab-c"><b>[C]</b><span>Dash</span><small id="cd-c">READY</small></div>
+      <div class="ab-chip ready" id="ab-q"><b>Q</b><span>FLASHBANG</span><small id="cd-q">READY</small></div>
+      <div class="ab-chip ready" id="ab-e"><b>E</b><span>SMOKE</span><small id="cd-e">READY</small></div>
+      <div class="ab-chip ready" id="ab-c"><b>C</b><span>DASH</span><small id="cd-c">READY</small></div>
     </div>
 
-    <div id="bot-right">
-      <div id="wep-name">VANDAL</div>
-      <div id="wep-ammo">25 / 100</div>
-      <div id="wep-hint"><b>B</b> Buy Menu · <b>R</b> Reload · <b>Tab</b> Scoreboard</div>
+    <!-- Right-Edge: CS:GO Vertical Weapon Loadout Strip -->
+    <div id="cs-loadout"></div>
+
+    <!-- Bottom-Right: CS:GO Ammo Counter -->
+    <div id="cs-bot-right">
+      <div class="ammo-top">
+        <span id="wep-name">AK-47</span>
+        <span class="ammo-hint"><b>F</b> Inspect · <b>B</b> Buy · <b>R</b> Reload</span>
+      </div>
+      <div class="ammo-main">
+        <strong id="wep-mag">30</strong>
+        <span class="ammo-slash">/</span>
+        <span id="wep-res">90</span>
+      </div>
+      <div id="ammo-pips"></div>
     </div>
   </div>
 
-  <!-- MAIN LOBBY -->
+  <!-- CS:GO PANORAMA MAIN MENU LOBBY -->
   <div class="modal open" id="modal-lobby">
-    <div class="card">
-      <div class="logo-head">
-        <img src="../img/dilly-gaming-logo.png" alt="Dilly Gaming">
-        <h1>DILLY STRIKE</h1>
-        <p>Tactical 5v5-Style 3D FPS · CS:GO Gunplay · Valorant Abilities · Rust Multiplayer</p>
-      </div>
+    <div class="cs-panorama">
+      <aside class="pano-rail">
+        <img src="../img/dilly-gaming-logo.png" alt="Dilly Gaming" class="pano-logo">
+        <div class="pano-title">DILLY<span>STRIKE</span></div>
+        <div class="pano-sub">GLOBAL TACTICAL OFFENSIVE</div>
 
-      <label class="field">Agent Callsign
-        <input type="text" id="agent-name" value="DillyAgent" maxlength="16">
-      </label>
+        <div class="pano-profile">
+          <div class="rank-badge">GE</div>
+          <div>
+            <label class="pano-lbl">OPERATIVE CALLSIGN</label>
+            <input type="text" id="agent-name" value="DillyAgent" maxlength="16">
+          </div>
+        </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-        <button class="btn primary" id="btn-play-solo">🎯 Play Solo (vs Tactical Bots)</button>
-        <button class="btn omega" id="btn-play-mp">🌐 Join Multiplayer (Rust)</button>
-      </div>
+        <div class="pano-map-card">
+          <div class="map-tag">ACTIVE DUTY MAP</div>
+          <div class="map-name">de_dustline</div>
+          <div class="map-desc">3-Lane Desert Citadel · A-Site / Mid Doors / B-Site</div>
+        </div>
 
-      <div id="mp-msg" style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px;">
-        Official Rust Server: <code style="color:var(--omega);">wss://apibuild.dillonmay.com/strike</code>
-      </div>
+        <div class="pano-actions">
+          <button class="btn cs-green" id="btn-play-solo">▶ PLAY COMPETITIVE (VS BOTS)</button>
+          <button class="btn cs-blue" id="btn-play-mp">🌐 PLAY ONLINE (RUST SERVER)</button>
+          <button class="btn cs-ghost" id="btn-watch-trailer">🎬 WATCH CINEMATIC TRAILER</button>
+          <a class="btn cs-ghost" href="../index.html">← BACK TO DILLY GAMING</a>
+        </div>
 
-      <div style="font-size:12px;color:var(--muted);background:rgba(255,255,255,.04);padding:10px 12px;border-radius:8px;line-height:1.55;margin-bottom:14px;">
-        <b style="color:#fff;">Controls:</b> WASD Move · Space Jump · Ctrl Crouch (Tighter Spread) · LMB Fire · RMB Scope (Operator) · 1–5 Weapons · R Reload · B Buy Menu · Q Flash · E Smoke · C Dash · T Chat · Tab Scoreboard
-      </div>
+        <div id="mp-msg" class="pano-status">
+          Server: <code>wss://apibuild.dillonmay.com/strike</code>
+        </div>
+      </aside>
 
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <button class="btn" id="btn-watch-trailer">🎬 Watch Cinematic Trailer</button>
-        <a class="btn" href="../index.html">← Back to Dilly Gaming</a>
+      <div class="pano-info">
+        <div class="pano-controls">
+          <div class="ctrl-hdr">TACTICAL KEYBINDS</div>
+          <div class="ctrl-grid">
+            <span><b>WASD</b> Move</span>
+            <span><b>CTRL</b> Crouch (Tighter Spread)</span>
+            <span><b>LMB</b> Fire</span>
+            <span><b>RMB</b> AWP Scope</span>
+            <span><b>1–5</b> Weapons</span>
+            <span><b>B</b> CS:GO Buy Wheel</span>
+            <span><b>R</b> Reload</span>
+            <span><b>F</b> Inspect Weapon</span>
+            <span><b>Q / E / C</b> Flash / Smoke / Dash</span>
+            <span><b>TAB</b> Scoreboard · <b>T</b> Chat</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- BUY MENU (B) -->
+  <!-- CS:GO RADIAL BUY MENU (B) -->
   <div class="modal" id="modal-buy">
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2 style="margin:0;">🛒 Armory Buy Menu</h2>
-        <span style="font-weight:900;color:#ffd666;" id="buy-cash">$800</span>
+    <div class="cs-buy-wrap">
+      <div class="cs-buy-left">
+        <div class="cs-buy-hdr">
+          <div>
+            <div class="buy-kicker">BUY MENU · DE_DUSTLINE</div>
+            <h2>TACTICAL ARMORY</h2>
+          </div>
+          <div class="buy-wallet">
+            <small>FUNDS</small>
+            <strong id="buy-cash">$1200</strong>
+          </div>
+        </div>
+
+        <div class="cs-wheel" id="buy-wheel">
+          <div class="wheel-center">
+            <span class="wc-lbl">SELECT</span>
+            <strong id="wheel-cash">$1200</strong>
+            <button class="btn cs-ghost sm" id="btn-buy-close">ESC / B</button>
+          </div>
+        </div>
       </div>
-      <div class="buy-grid" id="buy-grid"></div>
-      <button class="btn primary" id="btn-buy-close" style="width:100%;">✕ Close Armory (B)</button>
+
+      <div class="cs-buy-right" id="buy-inspector">
+        <div class="insp-tag">WEAPON TELEMETRY</div>
+        <h3 id="insp-name">AK-47</h3>
+        <p id="insp-desc">High-caliber assault rifle. Iconic 1-tap headshot lethality.</p>
+        <div class="insp-price" id="insp-price">$2700</div>
+        <div class="insp-bars" id="insp-bars"></div>
+        <div class="insp-hint">Click any slice on the Buy Wheel or press <b>B</b> to close.</div>
+      </div>
     </div>
   </div>
 
-  <!-- SCOREBOARD (TAB) -->
+  <!-- CS:GO SPLIT SCOREBOARD (TAB) -->
   <div class="modal" id="modal-sb">
-    <div class="card">
-      <h2 style="margin:0 0 6px;">📊 Match Scoreboard — Dustline Citadel</h2>
+    <div class="cs-sb-card">
+      <div class="sb-top">
+        <div>
+          <div class="sb-map">COMPETITIVE · DE_DUSTLINE</div>
+          <h2>MATCH SCOREBOARD</h2>
+        </div>
+        <div class="sb-totals">
+          <span class="ct-col">CT <b id="sb-ct-score">0</b></span>
+          <span class="sb-vs">VS</span>
+          <span class="t-col"><b id="sb-t-score">0</b> T</span>
+        </div>
+      </div>
+      <div class="sb-team-hdr ct">COUNTER-TERRORISTS (ALPHA)</div>
       <table class="sb">
-        <thead><tr><th>Agent</th><th>Team</th><th>Kills</th><th>Deaths</th></tr></thead>
-        <tbody id="sb-body"></tbody>
+        <thead><tr><th>PLAYER</th><th>K</th><th>D</th><th>K/D</th><th>CASH</th><th>PING</th></tr></thead>
+        <tbody id="sb-ct-body"></tbody>
+      </table>
+      <div class="sb-team-hdr t" style="margin-top:14px;">TERRORISTS (OMEGA)</div>
+      <table class="sb">
+        <thead><tr><th>PLAYER</th><th>K</th><th>D</th><th>K/D</th><th>CASH</th><th>PING</th></tr></thead>
+        <tbody id="sb-t-body"></tbody>
       </table>
     </div>
   </div>
 
   <!-- PAUSE MENU (ESC) -->
   <div class="modal" id="modal-pause">
-    <div class="card" style="max-width:400px;text-align:center;">
-      <h2 style="margin:0 0 14px;">⏸ Match Paused</h2>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <button class="btn primary" id="btn-resume">▶ Resume Match</button>
-        <button class="btn" id="btn-open-buy">🛒 Armory Buy Menu (B)</button>
-        <button class="btn danger" id="btn-leave">↩ Leave to Lobby</button>
+    <div class="cs-pause-card">
+      <div class="buy-kicker">DE_DUSTLINE</div>
+      <h2>MATCH PAUSED</h2>
+      <div class="pano-actions">
+        <button class="btn cs-green" id="btn-resume">▶ RESUME MATCH</button>
+        <button class="btn cs-blue" id="btn-open-buy">🛒 OPEN BUY WHEEL (B)</button>
+        <button class="btn cs-danger" id="btn-leave">↩ DISCONNECT TO LOBBY</button>
       </div>
     </div>
   </div>

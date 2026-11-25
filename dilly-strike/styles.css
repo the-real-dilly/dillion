@@ -1,184 +1,381 @@
 /* ==========================================================================
-   DILLY STRIKE — CS:GO / Valorant-Inspired 3D Tactical FPS UI
+   DILLY STRIKE — Authentic CS:GO Panorama UI & Tactical HUD
    ========================================================================== */
 :root {
-  --bg: #080b12;
-  --panel: rgba(13, 18, 28, 0.94);
-  --line: rgba(255, 255, 255, 0.12);
-  --alpha: #f5b82e;
-  --omega: #38bdf8;
-  --danger: #f43f5e;
-  --text: #f3f6fc;
-  --muted: #94a3b8;
+  --bg: #0c0f14;
+  --panel: rgba(15, 20, 27, 0.88);
+  --hud-bg: rgba(10, 14, 19, 0.72);
+  --line: rgba(255, 255, 255, 0.14);
+  --ct: #6eb3f7;
+  --ct-dim: rgba(91, 155, 213, 0.22);
+  --t: #e3a73b;
+  --t-dim: rgba(222, 155, 53, 0.22);
+  --cs-green: #6ee755;
+  --cs-green-btn: #4b9c38;
+  --danger: #e5484d;
+  --text: #eef3f8;
+  --muted: #93a1b2;
 }
 * { box-sizing: border-box; user-select: none; }
 html, body {
   margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
   background: var(--bg); color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'DIN Condensed', 'Arial Narrow', 'Roboto Condensed', 'Segoe UI', system-ui, sans-serif;
 }
 canvas#fps-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
-/* Overlays */
-#flash-fx { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 45; transition: opacity .15s; }
-#hurt-fx { position: fixed; inset: 0; background: radial-gradient(circle, transparent 48%, rgba(244,63,94,.58) 100%); opacity: 0; pointer-events: none; z-index: 40; transition: opacity .15s; }
+/* Flash & Damage Overlays */
+#flash-fx { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 45; transition: opacity .18s; }
+#hurt-fx {
+  position: fixed; inset: 0; opacity: 0; pointer-events: none; z-index: 40; transition: opacity .14s;
+  background: radial-gradient(circle, transparent 46%, rgba(215, 38, 48, 0.62) 100%);
+}
 
-/* Operator Sniper Scope */
+/* Authentic CS:GO AWP Sniper Scope */
 #scope-overlay {
   position: fixed; inset: 0; z-index: 35; pointer-events: none; display: none;
-  background: radial-gradient(circle at 50% 50%, transparent 32%, rgba(4,6,10,0.97) 33%);
+  background: radial-gradient(circle at 50% 50%, transparent 33.5%, rgba(0, 0, 0, 0.55) 35.5%, #000 37%);
 }
 #scope-overlay.on { display: block; }
-#scope-overlay::before, #scope-overlay::after { content: ""; position: absolute; background: rgba(244,63,94,0.8); }
-#scope-overlay::before { left: 50%; top: 15%; bottom: 15%; width: 1px; }
-#scope-overlay::after { top: 50%; left: 25%; right: 25%; height: 1px; }
+.scope-h { position: absolute; left: 0; right: 0; top: 50%; height: 1.5px; background: rgba(0, 0, 0, 0.92); transform: translateY(-50%); }
+.scope-v { position: absolute; top: 0; bottom: 0; left: 50%; width: 1.5px; background: rgba(0, 0, 0, 0.92); transform: translateX(-50%); }
+.scope-ticks {
+  position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 18px, rgba(0,0,0,.8) 18px 20px) center / 160px 8px no-repeat,
+    repeating-linear-gradient(0deg, transparent 0 18px, rgba(0,0,0,.8) 18px 20px) center / 8px 160px no-repeat;
+}
 
-/* Tactical HUD */
+/* ==========================================================================
+   CS:GO IN-GAME HUD
+   ========================================================================== */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 30; display: none; }
 #hud.active { display: block; }
 
-/* Dynamic Crosshair */
+/* Classic CS:GO Green Outlined Dynamic Crosshair (cl_crosshairstyle 4/5) */
 #xhair { position: fixed; top: 50%; left: 50%; width: 0; height: 0; }
-.xh { position: absolute; background: #4ade80; box-shadow: 0 0 3px #000; }
-.xh.t { width: 2px; height: 8px; left: -1px; bottom: var(--gap, 5px); }
-.xh.b { width: 2px; height: 8px; left: -1px; top: var(--gap, 5px); }
-.xh.l { height: 2px; width: 8px; top: -1px; right: var(--gap, 5px); }
-.xh.r { height: 2px; width: 8px; top: -1px; left: var(--gap, 5px); }
+.xh { position: absolute; background: #00ff3c; border: 1px solid rgba(0, 0, 0, 0.92); }
+.xh.t { width: 3.5px; height: 10px; left: -1.75px; bottom: var(--gap, 4px); }
+.xh.b { width: 3.5px; height: 10px; left: -1.75px; top: var(--gap, 4px); }
+.xh.l { height: 3.5px; width: 10px; top: -1.75px; right: var(--gap, 4px); }
+.xh.r { height: 3.5px; width: 10px; top: -1.75px; left: var(--gap, 4px); }
+.xh.dot { width: 3px; height: 3px; left: -1.5px; top: -1.5px; border-radius: 50%; opacity: 0.9; }
 
 #hitmarker {
-  position: fixed; top: 50%; left: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%) rotate(45deg);
-  opacity: 0; transition: opacity .12s; pointer-events: none;
+  position: fixed; top: 50%; left: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%) rotate(45deg);
+  opacity: 0; transition: opacity .1s; pointer-events: none;
 }
-#hitmarker::before, #hitmarker::after { content: ""; position: absolute; background: #fff; }
-#hitmarker.hs::before, #hitmarker.hs::after { background: #f43f5e; }
-#hitmarker::before { left: 11px; top: 0; width: 2px; height: 24px; }
-#hitmarker::after { top: 11px; left: 0; width: 24px; height: 2px; }
+#hitmarker::before, #hitmarker::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 3px #000; }
+#hitmarker.hs::before, #hitmarker.hs::after { background: #ff3b45; }
+#hitmarker::before { left: 10px; top: 0; width: 2px; height: 22px; }
+#hitmarker::after { top: 10px; left: 0; width: 22px; height: 2px; }
 
 #hs-banner {
-  position: fixed; top: 24%; left: 50%; transform: translateX(-50%);
-  font: 900 18px/1 system-ui, sans-serif; letter-spacing: .16em; color: #f43f5e;
-  text-shadow: 0 2px 12px rgba(0,0,0,.9); opacity: 0; transition: opacity .2s;
+  position: fixed; top: 22%; left: 50%; transform: translateX(-50%);
+  font: 900 18px/1 'Arial Narrow', sans-serif; letter-spacing: .24em; color: #ff4757;
+  text-shadow: 0 2px 10px rgba(0,0,0,.95); opacity: 0; transition: opacity .18s;
 }
 
-/* Top Match Scoreboard */
-#top-score {
-  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 14px; padding: 7px 18px; border-radius: 10px;
-  background: rgba(10, 14, 22, 0.84); border: 1px solid var(--line);
-  font-weight: 900; font-size: 16px; letter-spacing: .06em;
+/* Top-Left: CS:GO Circular Radar + Callout + Cash */
+#cs-radar-wrap {
+  position: fixed; top: 14px; left: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
 }
-.sc-alpha { color: var(--alpha); }
-.sc-omega { color: var(--omega); }
-.sc-mid { font-size: 12px; color: var(--muted); font-family: monospace; }
+.radar-frame {
+  width: 184px; height: 184px; border-radius: 50%; overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55), 0 10px 30px rgba(0, 0, 0, 0.65);
+  background: rgba(12, 17, 22, 0.85);
+}
+#cs-radar { display: block; width: 184px; height: 184px; }
+#radar-callout {
+  background: var(--hud-bg); border-left: 3px solid var(--t); padding: 3px 10px;
+  font-size: 13px; font-weight: 800; letter-spacing: .12em; color: #f4f7fa; text-transform: uppercase;
+}
+#cs-cash-pill {
+  background: var(--hud-bg); padding: 4px 12px; border-left: 3px solid var(--cs-green);
+  font-size: 22px; font-weight: 900; color: var(--cs-green); letter-spacing: .04em;
+  text-shadow: 0 1px 4px rgba(0,0,0,.85);
+}
+#cs-cash-pill .cash-sym { opacity: 0.85; margin-right: 1px; }
 
-/* Killfeed */
+/* Top-Center: CS:GO Scoreboard Strip + Avatars */
+#cs-top-bar {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.team-avatars { display: flex; gap: 4px; padding-top: 2px; }
+.av-slot {
+  width: 34px; height: 38px; border-radius: 2px; background: rgba(10, 14, 19, 0.78);
+  border-top: 2px solid var(--ct); display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: #dbeafe; position: relative;
+}
+.team-avatars.t .av-slot { border-top-color: var(--t); color: #fef3c7; }
+.av-slot.dead { opacity: 0.34; filter: grayscale(1); }
+.av-slot .av-hp { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,.15); }
+.av-slot .av-hp i { display: block; height: 100%; background: var(--cs-green); }
+
+.score-core {
+  display: flex; align-items: stretch; background: rgba(10, 14, 19, 0.84);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.14); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+.team-score {
+  min-width: 44px; padding: 6px 10px; font-size: 26px; font-weight: 900; text-align: center; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.team-score.ct { color: var(--ct); background: linear-gradient(180deg, rgba(91,155,213,.22), transparent); }
+.team-score.t { color: var(--t); background: linear-gradient(180deg, rgba(222,155,53,.22), transparent); }
+.round-clock {
+  padding: 5px 14px; text-align: center; border-left: 1px solid rgba(255,255,255,.08); border-right: 1px solid rgba(255,255,255,.08);
+}
+#round-timer { font-size: 20px; font-weight: 900; letter-spacing: .06em; color: #fff; line-height: 1.05; }
+#sc-mode { font-size: 9.5px; letter-spacing: .16em; color: var(--muted); font-weight: 700; }
+
+/* Top-Right: Authentic CS:GO Killfeed */
 #killfeed {
-  position: fixed; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;
+  position: fixed; top: 14px; right: 16px; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;
 }
 .kf-row {
-  background: rgba(10, 14, 22, 0.84); border-right: 3px solid var(--alpha);
-  padding: 5px 10px; border-radius: 5px; font-size: 12.5px; font-weight: 700;
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(10, 13, 18, 0.78); padding: 4px 10px; border-radius: 2px;
+  font-size: 13px; font-weight: 800; letter-spacing: .03em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
-.kf-row.hs { border-right-color: var(--danger); }
+.kf-row.mine { border: 1.5px solid #e5484d; background: rgba(24, 12, 14, 0.86); }
+.kf-ct { color: var(--ct); }
+.kf-t { color: var(--t); }
+.kf-wep {
+  font-size: 11px; color: #e2e8f0; background: rgba(255,255,255,.1); padding: 1px 6px; border-radius: 2px;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.kf-hs { color: #ff4757; font-size: 14px; font-weight: 900; }
 
-/* Bottom Tactical Bars */
-#bot-left {
-  position: fixed; bottom: 16px; left: 18px; display: flex; gap: 10px; align-items: stretch;
+/* Bottom-Left: CS:GO Health & Armor Bar */
+#cs-bot-left {
+  position: fixed; bottom: 16px; left: 16px; display: flex; gap: 10px; align-items: center;
+  background: linear-gradient(90deg, rgba(10,14,19,.86), rgba(10,14,19,.55));
+  padding: 9px 16px; border-left: 3px solid rgba(255,255,255,.35);
 }
-.hud-box {
-  background: rgba(10, 14, 22, 0.84); border: 1px solid var(--line); border-radius: 10px;
-  padding: 9px 14px; min-width: 84px;
-}
-.hud-box small { display: block; font-size: 10px; letter-spacing: .16em; color: var(--muted); font-weight: 700; }
-.hud-box strong { font-size: 26px; font-weight: 900; line-height: 1.1; }
-.hud-box.hp strong { color: #4ade80; }
-.hud-box.sh strong { color: #38bdf8; }
-.hud-box.cash strong { color: #ffd666; }
+.cs-stat { display: flex; align-items: center; gap: 8px; }
+.cs-stat .cs-ico { font-size: 18px; opacity: 0.9; }
+.cs-stat.hp .cs-ico, .cs-stat.hp strong { color: #f8fafc; }
+.cs-stat.arm .cs-ico, .cs-stat.arm strong { color: #cbd5e1; }
+.cs-stat strong { font-size: 32px; font-weight: 900; line-height: 1; min-width: 48px; }
+.cs-bar { width: 58px; height: 6px; background: rgba(255,255,255,.16); overflow: hidden; }
+.cs-bar > div { height: 100%; background: #f8fafc; transition: width .12s; }
+.cs-stat.arm .cs-bar > div { background: var(--ct); }
+.cs-stat.hp.low strong { color: #ff4757; }
+.cs-stat.hp.low .cs-bar > div { background: #ff4757; }
 
+/* Bottom-Center: Tactical Utility Strip */
 #bot-mid {
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 8px;
+  display: flex; gap: 6px;
 }
 .ab-chip {
-  background: rgba(10, 14, 22, 0.86); border: 1px solid rgba(255,255,255,.16); border-radius: 9px;
-  padding: 7px 12px; text-align: center; min-width: 78px;
+  background: var(--hud-bg); border-bottom: 2px solid rgba(255,255,255,.18);
+  padding: 5px 12px; text-align: center; min-width: 76px;
 }
-.ab-chip.ready { border-color: var(--alpha); }
-.ab-chip b { display: block; font-size: 11px; color: var(--alpha); }
-.ab-chip span { display: block; font-size: 12px; font-weight: 800; }
-.ab-chip small { font-size: 10px; color: var(--muted); }
+.ab-chip.ready { border-bottom-color: var(--t); }
+.ab-chip b { display: inline-block; font-size: 11px; color: var(--t); margin-right: 4px; }
+.ab-chip span { font-size: 11.5px; font-weight: 800; letter-spacing: .08em; }
+.ab-chip small { display: block; font-size: 10px; color: var(--muted); }
 
-#bot-right {
-  position: fixed; bottom: 16px; right: 18px; text-align: right;
-  background: rgba(10, 14, 22, 0.84); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px;
+/* Right-Edge: CS:GO Vertical Weapon Loadout Strip */
+#cs-loadout {
+  position: fixed; right: 16px; bottom: 108px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
 }
-#wep-name { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--alpha); text-transform: uppercase; }
-#wep-ammo { font-size: 28px; font-weight: 900; line-height: 1.1; }
-#wep-hint { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.lo-slot {
+  display: flex; align-items: center; gap: 10px; padding: 5px 12px; min-width: 148px; justify-content: flex-end;
+  background: rgba(10, 14, 19, 0.56); border-right: 3px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.55); font-size: 13px; font-weight: 800; letter-spacing: .08em;
+}
+.lo-slot.active {
+  background: linear-gradient(90deg, rgba(10,14,19,.4), rgba(227,167,59,.28));
+  border-right-color: #fff; color: #fff;
+}
+.lo-slot .lo-num { font-size: 11px; opacity: 0.7; width: 12px; text-align: right; }
+
+/* Bottom-Right: CS:GO Ammo Counter */
+#cs-bot-right {
+  position: fixed; bottom: 16px; right: 16px; text-align: right;
+  background: linear-gradient(270deg, rgba(10,14,19,.88), rgba(10,14,19,.52));
+  padding: 9px 16px; border-right: 3px solid rgba(255,255,255,.35); min-width: 210px;
+}
+.ammo-top { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 2px; }
+#wep-name { font-size: 13px; font-weight: 900; letter-spacing: .12em; color: var(--t); text-transform: uppercase; }
+.ammo-hint { font-size: 10.5px; color: var(--muted); }
+.ammo-main { display: flex; align-items: baseline; justify-content: flex-end; gap: 5px; line-height: 1; }
+#wep-mag { font-size: 36px; font-weight: 900; color: #fff; }
+.ammo-slash { font-size: 20px; color: var(--muted); }
+#wep-res { font-size: 20px; font-weight: 800; color: #cbd5e1; }
+#ammo-pips { display: flex; gap: 2px; justify-content: flex-end; margin-top: 5px; height: 8px; }
+.pip { width: 3px; height: 8px; background: rgba(255, 255, 255, 0.85); }
+.pip.empty { background: rgba(255, 255, 255, 0.14); }
 
 /* Chat */
-#chat-wrap { position: fixed; left: 18px; bottom: 96px; width: 320px; z-index: 32; pointer-events: none; }
-#chat-log { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
-.c-line { background: rgba(8, 11, 18, 0.78); padding: 4px 8px; border-radius: 5px; font-size: 12px; }
-.c-line b { color: var(--alpha); }
+#chat-wrap { position: fixed; left: 16px; bottom: 96px; width: 330px; z-index: 32; pointer-events: none; }
+#chat-log { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.c-line { background: rgba(8, 11, 16, 0.72); padding: 4px 8px; font-size: 13px; border-left: 2px solid var(--t); }
+.c-line b { color: var(--t); }
 #chat-inp {
-  width: 100%; pointer-events: auto; display: none; padding: 8px 10px; border-radius: 6px;
-  background: rgba(10,14,22,.94); border: 1px solid var(--alpha); color: #fff; font-size: 13px; outline: none;
+  width: 100%; pointer-events: auto; display: none; padding: 8px 10px;
+  background: rgba(10,14,22,.94); border: 1px solid var(--t); color: #fff; font-size: 13px; outline: none;
 }
 #chat-inp.open { display: block; }
 
-/* Modals (Lobby / Buy Menu / Scoreboard / Pause) */
+/* ==========================================================================
+   MODALS: CS:GO PANORAMA LOBBY, RADIAL BUY WHEEL, SCOREBOARD, PAUSE
+   ========================================================================== */
 .modal {
   position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center;
-  background: rgba(5, 8, 14, 0.84); backdrop-filter: blur(8px); padding: 18px;
+  background: rgba(8, 12, 18, 0.62); backdrop-filter: blur(5px);
 }
 .modal.open { display: flex; }
-.card {
-  width: min(640px, 95vw); max-height: 90vh; overflow-y: auto;
-  background: var(--panel); border: 1.5px solid rgba(245,184,46,.35); border-radius: 16px;
-  padding: 24px 26px; box-shadow: 0 28px 90px rgba(0,0,0,.85);
-}
-.logo-head { text-align: center; margin-bottom: 18px; }
-.logo-head img { height: 50px; width: auto; margin-bottom: 6px; }
-.logo-head h1 {
-  margin: 0; font-size: clamp(32px, 5vw, 46px); font-weight: 900; letter-spacing: .1em;
-  background: linear-gradient(90deg, #fff 0%, #ffd666 55%, #f43f5e 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-.logo-head p { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); }
 
+/* CS:GO Panorama Lobby */
+.cs-panorama { width: 100%; height: 100%; display: flex; align-items: stretch; justify-content: space-between; }
+.pano-rail {
+  width: min(410px, 92vw); height: 100%; padding: 28px 26px;
+  background: linear-gradient(180deg, rgba(16, 22, 30, 0.94), rgba(10, 14, 20, 0.96));
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex; flex-direction: column; gap: 14px; overflow-y: auto;
+  box-shadow: 16px 0 60px rgba(0, 0, 0, 0.65);
+}
+.pano-logo { height: 42px; width: auto; align-self: flex-start; }
+.pano-title { font-size: 42px; font-weight: 900; letter-spacing: .08em; line-height: .95; color: #fff; }
+.pano-title span { color: var(--t); margin-left: 6px; }
+.pano-sub { font-size: 12px; letter-spacing: .26em; color: var(--muted); font-weight: 700; margin-top: -8px; }
+
+.pano-profile {
+  display: flex; align-items: center; gap: 12px; padding: 12px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rank-badge {
+  width: 46px; height: 46px; border-radius: 4px; flex-shrink: 0;
+  background: linear-gradient(135deg, #facc15, #b45309); color: #090d12;
+  display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900;
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+}
+.pano-lbl { display: block; font-size: 10px; letter-spacing: .18em; color: var(--muted); font-weight: 800; margin-bottom: 4px; }
+.pano-profile input[type="text"] {
+  width: 100%; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff; padding: 7px 10px; font-size: 14px; font-weight: 700; outline: none;
+}
+.pano-profile input[type="text"]:focus { border-color: var(--t); }
+
+.pano-map-card {
+  padding: 12px 14px; background: linear-gradient(135deg, rgba(227,167,59,.14), rgba(15,20,27,.8));
+  border-left: 3px solid var(--t);
+}
+.map-tag { font-size: 10px; letter-spacing: .2em; color: var(--t); font-weight: 800; }
+.map-name { font-size: 22px; font-weight: 900; letter-spacing: .04em; color: #fff; }
+.map-desc { font-size: 12px; color: var(--muted); }
+
+.pano-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 11px 18px; border-radius: 9px; border: 1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.07); color: #fff; font-weight: 800; font-size: 13.5px;
-  cursor: pointer; text-decoration: none; transition: background .14s, border-color .14s, transform .1s;
+  padding: 12px 16px; border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06); color: #fff; font-weight: 900; font-size: 14px;
+  letter-spacing: .1em; cursor: pointer; text-decoration: none; transition: .12s;
 }
-.btn:hover:not(:disabled) { background: rgba(245,184,46,.18); border-color: var(--alpha); transform: translateY(-1px); }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn.primary { background: linear-gradient(180deg, #ffd15c, #e5a319); color: #090c12; border-color: #ffe28a; }
-.btn.omega { background: linear-gradient(180deg, #38bdf8, #0284c7); color: #041524; border-color: #7dd3fc; }
-.btn.danger { background: rgba(244,63,94,.2); border-color: rgba(244,63,94,.5); color: #fecdd3; }
+.btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.btn.cs-green { background: linear-gradient(180deg, #5eb846, #3d872b); border-color: #84e06c; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.btn.cs-blue { background: linear-gradient(180deg, #4f94d4, #2f6ca8); border-color: #84c1fa; color: #fff; }
+.btn.cs-ghost { background: rgba(255, 255, 255, 0.06); color: #dbe5f0; }
+.btn.cs-danger { background: rgba(229, 72, 77, 0.25); border-color: rgba(229, 72, 77, 0.6); color: #fecdd3; }
+.btn.sm { padding: 6px 12px; font-size: 11px; }
 
-label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 12px; }
-input[type="text"] {
-  background: rgba(6,10,16,.85); border: 1px solid rgba(255,255,255,.18); border-radius: 8px;
-  color: #fff; padding: 10px 12px; font-size: 14px; outline: none;
+.pano-status { font-size: 12px; color: var(--muted); margin-top: auto; }
+.pano-status code { color: var(--ct); }
+
+.pano-info { flex: 1; display: flex; align-items: flex-end; justify-content: flex-end; padding: 28px; pointer-events: none; }
+@media (max-width: 820px) { .pano-info { display: none; } }
+.pano-controls {
+  background: rgba(12, 16, 22, 0.82); border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 2px solid var(--t); padding: 14px 18px; max-width: 440px;
 }
-input[type="text"]:focus { border-color: var(--alpha); }
+.ctrl-hdr { font-size: 11px; letter-spacing: .2em; color: var(--t); font-weight: 900; margin-bottom: 8px; }
+.ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 12.5px; color: #cbd5e1; }
+.ctrl-grid b { color: #fff; margin-right: 4px; }
 
-.buy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 14px 0; }
-@media (max-width: 560px) { .buy-grid { grid-template-columns: 1fr; } }
-.buy-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 11px 13px; border-radius: 10px; background: rgba(255,255,255,.05);
-  border: 1.5px solid rgba(255,255,255,.12); color: #fff; cursor: pointer; text-align: left;
+/* CS:GO Radial Buy Menu */
+.cs-buy-wrap {
+  display: flex; gap: 22px; align-items: center; padding: 22px 26px; max-width: 96vw;
+  background: rgba(13, 18, 25, 0.94); border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.85);
 }
-.buy-item:hover:not(:disabled) { border-color: var(--alpha); background: rgba(245,184,46,.14); }
-.buy-item:disabled { opacity: .42; cursor: not-allowed; }
-.buy-item strong { display: block; font-size: 14px; }
-.buy-item small { color: var(--muted); font-size: 11.5px; }
-.buy-price { font-weight: 900; color: #ffd666; font-size: 14px; }
+@media (max-width: 820px) { .cs-buy-wrap { flex-direction: column; } }
+.cs-buy-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.buy-kicker { font-size: 11px; letter-spacing: .2em; color: var(--t); font-weight: 800; }
+.cs-buy-hdr h2 { margin: 2px 0 0; font-size: 24px; letter-spacing: .08em; }
+.buy-wallet { text-align: right; }
+.buy-wallet small { display: block; font-size: 10px; letter-spacing: .16em; color: var(--muted); }
+.buy-wallet strong { font-size: 28px; color: var(--cs-green); font-weight: 900; }
 
-table.sb { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
-table.sb th, table.sb td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.08); text-align: left; }
-table.sb th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+.cs-wheel {
+  position: relative; width: 390px; height: 390px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.04) 0 42%, rgba(255,255,255,.08) 42% 100%);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+}
+.wheel-center {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 136px; height: 136px; border-radius: 50%;
+  background: rgba(10, 14, 20, 0.96); border: 2px solid rgba(227, 167, 59, 0.55);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; z-index: 4;
+}
+.wc-lbl { font-size: 10px; letter-spacing: .2em; color: var(--muted); font-weight: 800; }
+#wheel-cash { font-size: 22px; color: var(--cs-green); font-weight: 900; }
+
+.wheel-node {
+  position: absolute; left: 50%; top: 50%; width: 118px; padding: 9px 8px;
+  transform: translate(-50%, -50%) translate(var(--tx), var(--ty));
+  background: rgba(18, 25, 34, 0.94); border: 1.5px solid rgba(255, 255, 255, 0.18);
+  color: #fff; cursor: pointer; text-align: center; transition: .12s; z-index: 3;
+}
+.wheel-node:hover:not(:disabled) { border-color: var(--t); background: rgba(227, 167, 59, 0.22); transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(1.06); }
+.wheel-node:disabled { opacity: 0.4; cursor: not-allowed; }
+.wheel-node.owned { border-color: var(--cs-green); }
+.wheel-node strong { display: block; font-size: 14px; letter-spacing: .06em; }
+.wheel-node span { display: block; font-size: 12px; font-weight: 900; color: var(--cs-green); margin-top: 2px; }
+.wheel-node small { display: block; font-size: 10px; color: var(--muted); }
+
+.cs-buy-right { width: 250px; padding: 14px 16px; background: rgba(255, 255, 255, 0.03); border-left: 2px solid var(--t); }
+.insp-tag { font-size: 10px; letter-spacing: .2em; color: var(--t); font-weight: 800; }
+.cs-buy-right h3 { margin: 4px 0 6px; font-size: 26px; letter-spacing: .06em; }
+.cs-buy-right p { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.insp-price { font-size: 24px; font-weight: 900; color: var(--cs-green); margin-bottom: 12px; }
+.insp-stat { margin-bottom: 8px; }
+.insp-stat label { display: flex; justify-content: space-between; font-size: 11px; color: #cbd5e1; font-weight: 700; margin-bottom: 3px; }
+.insp-track { height: 6px; background: rgba(255, 255, 255, 0.12); }
+.insp-fill { height: 100%; background: linear-gradient(90deg, var(--t), #fde047); }
+.insp-hint { margin-top: 14px; font-size: 11px; color: var(--muted); }
+
+/* CS:GO Split CT / T Scoreboard */
+.cs-sb-card {
+  width: min(740px, 95vw); padding: 20px 24px;
+  background: rgba(12, 16, 22, 0.94); border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.85);
+}
+.sb-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.sb-map { font-size: 11px; letter-spacing: .2em; color: var(--muted); font-weight: 800; }
+.sb-top h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: .08em; }
+.sb-totals { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 900; }
+.ct-col { color: var(--ct); }
+.t-col { color: var(--t); }
+.sb-vs { font-size: 12px; color: var(--muted); }
+.sb-team-hdr { font-size: 12px; font-weight: 900; letter-spacing: .16em; padding: 6px 10px; }
+.sb-team-hdr.ct { background: var(--ct-dim); color: var(--ct); border-left: 3px solid var(--ct); }
+.sb-team-hdr.t { background: var(--t-dim); color: var(--t); border-left: 3px solid var(--t); }
+table.sb { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.sb th, table.sb td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.07); text-align: left; }
+table.sb th { color: var(--muted); font-size: 11px; letter-spacing: .14em; }
+
+/* Pause Card */
+.cs-pause-card {
+  width: min(360px, 92vw); padding: 24px; text-align: center;
+  background: rgba(12, 16, 22, 0.96); border: 1px solid rgba(255, 255, 255, 0.18);
+  border-top: 3px solid var(--t);
+}
+.cs-pause-card h2 { margin: 4px 0 18px; font-size: 26px; letter-spacing: .1em; }
