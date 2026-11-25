@@ -9,39 +9,75 @@ import * as THREE from 'three';
 const $ = (id) => document.getElementById(id);
 export const DILLY_STRIKE_WS = 'wss://apibuild.dillonmay.com/strike';
 
-// ---------- CS:GO Weapon Registry (internal IDs match Rust server protocol) ----------
+// ---------- Weapon Registry (internal IDs match Rust server protocol) ----------
 const WEAPONS = {
   vandal: {
-    id: 'vandal', name: 'AK-47', slot: 1, cost: 2700, dmg: 36, hsMult: 4.0, rpm: 600,
+    id: 'vandal', name: 'Dill-47', slot: 1, cost: 2700, dmg: 36, hsMult: 4.0, rpm: 600,
     mag: 30, reserve: 90, auto: true, spread: 0.011, recoil: 0.023,
     stats: { dmg: 92, rpm: 76, pen: 94, acc: 78 },
-    desc: 'Powerful and reliable assault rifle. Iconic 1-tap headshot lethality through helmet.'
+    desc: 'Heavy-caliber assault rifle. Iconic 1-tap headshot lethality through helmet.'
   },
   phantom: {
-    id: 'phantom', name: 'M4A1-S', slot: 2, cost: 2900, dmg: 33, hsMult: 3.6, rpm: 660,
+    id: 'phantom', name: 'Viper-S', slot: 2, cost: 2900, dmg: 33, hsMult: 3.6, rpm: 660,
     mag: 25, reserve: 100, auto: true, spread: 0.007, recoil: 0.014,
     stats: { dmg: 80, rpm: 84, pen: 82, acc: 92 },
     desc: 'Silenced tactical carbine with laser-tight spray control and reduced muzzle signature.'
   },
   operator: {
-    id: 'operator', name: 'AWP', slot: 3, cost: 4750, dmg: 150, hsMult: 2.5, rpm: 42,
+    id: 'operator', name: 'Apex-50', slot: 3, cost: 4750, dmg: 150, hsMult: 2.5, rpm: 42,
     mag: 5, reserve: 30, auto: false, spread: 0.001, recoil: 0.075, scope: true,
     stats: { dmg: 100, rpm: 22, pen: 100, acc: 99 },
-    desc: 'High risk, high reward bolt-action sniper rifle. RMB 2× scope, 1-shot torso kill.'
+    desc: 'High-risk, high-reward bolt-action sniper rifle. RMB 2× scope, 1-shot torso kill.'
   },
   sheriff: {
-    id: 'sheriff', name: 'Desert Eagle', slot: 4, cost: 700, dmg: 53, hsMult: 3.2, rpm: 250,
+    id: 'sheriff', name: 'Kodiak .50', slot: 4, cost: 700, dmg: 53, hsMult: 3.2, rpm: 250,
     mag: 7, reserve: 35, auto: false, spread: 0.010, recoil: 0.044,
     stats: { dmg: 88, rpm: 48, pen: 93, acc: 80 },
-    desc: 'As expensive as it is powerful. Heavy .50 AE sidearm capable of long-range 1-deags.'
+    desc: 'Heavy .50 caliber brushed-chrome sidearm built for crisp long-range headshots.'
   },
   knife: {
-    id: 'knife', name: 'Karambit', slot: 5, cost: 0, dmg: 65, hsMult: 1.5, rpm: 145,
+    id: 'knife', name: 'Dilly Fang', slot: 5, cost: 0, dmg: 65, hsMult: 1.5, rpm: 145,
     mag: 0, reserve: 0, auto: false, melee: true,
     stats: { dmg: 65, rpm: 55, pen: 100, acc: 100 },
     desc: 'Curved tactical blade for maximum movement speed and silent close-quarters eliminations.'
   },
 };
+
+// ---------- Customizable Keybinds (Persisted in localStorage) ----------
+const BIND_META = [
+  ['fwd', 'Move Forward'], ['back', 'Move Backward'], ['left', 'Strafe Left'], ['right', 'Strafe Right'],
+  ['jump', 'Jump'], ['crouch', 'Crouch (Tighter Spread)'], ['reload', 'Reload Weapon'], ['inspect', 'Inspect Weapon'],
+  ['buy', 'Open Buy Wheel'], ['flash', 'Flashbang'], ['smoke', 'Smoke Grenade'], ['dash', 'Tactical Dash'],
+  ['chat', 'Team / All Chat'], ['scoreboard', 'Scoreboard'],
+  ['slot1', 'Slot 1 (Dill-47)'], ['slot2', 'Slot 2 (Viper-S)'], ['slot3', 'Slot 3 (Apex-50)'],
+  ['slot4', 'Slot 4 (Kodiak .50)'], ['slot5', 'Slot 5 (Dilly Fang)']
+];
+const DEFAULT_BINDS = {
+  fwd: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
+  jump: 'Space', crouch: 'ControlLeft', reload: 'KeyR', inspect: 'KeyF',
+  buy: 'KeyB', flash: 'KeyQ', smoke: 'KeyE', dash: 'KeyC',
+  chat: 'KeyT', scoreboard: 'Tab',
+  slot1: 'Digit1', slot2: 'Digit2', slot3: 'Digit3', slot4: 'Digit4', slot5: 'Digit5'
+};
+const BINDS = Object.assign({}, DEFAULT_BINDS);
+try {
+  const savedBinds = JSON.parse(localStorage.getItem('dilly_strike_binds_v1') || 'null');
+  if (savedBinds && typeof savedBinds === 'object') Object.assign(BINDS, savedBinds);
+} catch (_) {}
+
+function saveBinds() {
+  try { localStorage.setItem('dilly_strike_binds_v1', JSON.stringify(BINDS)); } catch (_) {}
+}
+function fmtKey(code) {
+  if (!code) return '---';
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code === 'ControlLeft' || code === 'ControlRight') return 'CTRL';
+  if (code === 'ShiftLeft' || code === 'ShiftRight') return 'SHIFT';
+  if (code === 'AltLeft' || code === 'AltRight') return 'ALT';
+  if (code === 'Space') return 'SPACE';
+  return code.toUpperCase();
+}
 
 // ---------- Procedural Web Audio SFX ----------
 let actx = null;
@@ -725,7 +761,7 @@ function damageBot(bot, dmg, isHS, wepName) {
     bot.respawnTimer = 4.0;
     bot.model.group.visible = false;
     me.kills++;
-    me.cash = Math.min(16000, me.cash + (wepName === 'Karambit' ? 1500 : 300));
+    me.cash = Math.min(16000, me.cash + (wepName === 'Dilly Fang' ? 1500 : 300));
     scoreAlpha++;
     addKillfeed(me.name, bot.name, wepName, isHS, me.team, bot.team, true);
     syncHud();
@@ -797,7 +833,7 @@ function applyDamageToMe(dmg, byName) {
   if (me.hp <= 0) {
     me.deaths++;
     scoreOmega++;
-    addKillfeed(byName, me.name, 'AK-47', false, 'omega', me.team, false);
+    addKillfeed(byName, me.name, 'Dill-47', false, 'omega', me.team, false);
     respawnMe();
   }
   syncHud();
@@ -836,9 +872,9 @@ function getCallout(x, z) {
 }
 
 function updatePlayer(dt) {
-  me.crouching = !!(me.keys['ControlLeft'] || me.keys['ControlRight']);
-  const fwd = (me.keys['KeyW'] ? 1 : 0) - (me.keys['KeyS'] ? 1 : 0);
-  const str = (me.keys['KeyD'] ? 1 : 0) - (me.keys['KeyA'] ? 1 : 0);
+  me.crouching = !!(me.keys[BINDS.crouch] || (BINDS.crouch === 'ControlLeft' && me.keys['ControlRight']));
+  const fwd = (me.keys[BINDS.fwd] ? 1 : 0) - (me.keys[BINDS.back] ? 1 : 0);
+  const str = (me.keys[BINDS.right] ? 1 : 0) - (me.keys[BINDS.left] ? 1 : 0);
 
   let spd = me.weaponId === 'knife' ? 8.4 : (me.scoped ? 3.2 : (me.crouching ? 3.3 : 6.4));
   const sinY = Math.sin(me.yaw), cosY = Math.cos(me.yaw);
@@ -850,7 +886,7 @@ function updatePlayer(dt) {
   me.vel.x = THREE.MathUtils.lerp(me.vel.x, mx * spd, Math.min(1, dt * 14));
   me.vel.z = THREE.MathUtils.lerp(me.vel.z, mz * spd, Math.min(1, dt * 14));
   me.vel.y -= 24 * dt;
-  if (me.keys['Space'] && me.onGround) { me.vel.y = 8.0; me.onGround = false; }
+  if (me.keys[BINDS.jump] && me.onGround) { me.vel.y = 8.0; me.onGround = false; }
 
   const nx = me.pos.x + me.vel.x * dt;
   if (!collides(nx, me.pos.y, me.pos.z)) me.pos.x = nx; else me.vel.x = 0;
@@ -1236,21 +1272,97 @@ $('btn-buy-close').onclick = () => { buyOpen = false; $('modal-buy').classList.r
 $('btn-resume').onclick = () => { paused = false; $('modal-pause').classList.remove('open'); canvas.requestPointerLock?.(); };
 $('btn-open-buy').onclick = () => { paused = false; $('modal-pause').classList.remove('open'); buyOpen = true; renderBuyMenu(); $('modal-buy').classList.add('open'); };
 $('btn-leave').onclick = () => {
-  inMatch = false; paused = false;
+  inMatch = false; paused = false; settingsOpen = false;
   if (ws) { try { ws.close(); } catch (_) {} ws = null; }
   $('hud').classList.remove('active');
   $('modal-pause').classList.remove('open');
+  $('modal-settings').classList.remove('open');
   $('modal-lobby').classList.add('open');
 };
 
+// ---------- Keybind Settings Modal Controller ----------
+let settingsOpen = false;
+let listeningAction = null;
+
+function syncBindLabels() {
+  const qEl = document.querySelector('#ab-q b');
+  const eEl = document.querySelector('#ab-e b');
+  const cEl = document.querySelector('#ab-c b');
+  if (qEl) qEl.textContent = fmtKey(BINDS.flash);
+  if (eEl) eEl.textContent = fmtKey(BINDS.smoke);
+  if (cEl) cEl.textContent = fmtKey(BINDS.dash);
+  const wh = $('wep-hints');
+  if (wh) wh.innerHTML = `<b>${fmtKey(BINDS.inspect)}</b> Inspect · <b>${fmtKey(BINDS.buy)}</b> Buy · <b>${fmtKey(BINDS.reload)}</b> Reload`;
+  const lb = $('lobby-binds');
+  if (lb) {
+    lb.innerHTML = `
+      <span><b>${fmtKey(BINDS.fwd)}${fmtKey(BINDS.left)}${fmtKey(BINDS.back)}${fmtKey(BINDS.right)}</b> Move</span>
+      <span><b>${fmtKey(BINDS.crouch)}</b> Crouch (Tighter Spread)</span>
+      <span><b>LMB</b> Fire · <b>RMB</b> Apex-50 Scope</span>
+      <span><b>${fmtKey(BINDS.slot1)}–${fmtKey(BINDS.slot5)}</b> Weapons</span>
+      <span><b>${fmtKey(BINDS.buy)}</b> Buy Wheel · <b>${fmtKey(BINDS.reload)}</b> Reload</span>
+      <span><b>${fmtKey(BINDS.inspect)}</b> Inspect Weapon</span>
+      <span><b>${fmtKey(BINDS.flash)} / ${fmtKey(BINDS.smoke)} / ${fmtKey(BINDS.dash)}</b> Flash / Smoke / Dash</span>
+      <span><b>${fmtKey(BINDS.scoreboard)}</b> Scoreboard · <b>${fmtKey(BINDS.chat)}</b> Chat</span>
+    `;
+  }
+}
+
+function renderKeybindsUI() {
+  const grid = $('kb-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (const [act, label] of BIND_META) {
+    const row = document.createElement('div');
+    row.className = 'kb-row';
+    const isListen = listeningAction === act;
+    row.innerHTML = `<span>${label}</span><button class="kb-btn${isListen ? ' listening' : ''}">${isListen ? 'PRESS KEY...' : fmtKey(BINDS[act])}</button>`;
+    row.querySelector('button').onclick = () => {
+      listeningAction = act;
+      renderKeybindsUI();
+    };
+    grid.appendChild(row);
+  }
+}
+
+function openSettings() {
+  settingsOpen = true;
+  listeningAction = null;
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('modal-pause').classList.remove('open');
+  renderKeybindsUI();
+  $('modal-settings').classList.add('open');
+}
+
+function closeSettings() {
+  settingsOpen = false;
+  listeningAction = null;
+  $('modal-settings').classList.remove('open');
+  syncBindLabels();
+  if (inMatch && paused) $('modal-pause').classList.add('open');
+}
+
+$('btn-settings-lobby').onclick = openSettings;
+$('btn-settings-pause').onclick = openSettings;
+$('btn-settings-close').onclick = closeSettings;
+$('btn-binds-done').onclick = closeSettings;
+$('btn-binds-reset').onclick = () => {
+  Object.assign(BINDS, DEFAULT_BINDS);
+  listeningAction = null;
+  saveBinds();
+  syncBindLabels();
+  renderKeybindsUI();
+};
+syncBindLabels();
+
 window.addEventListener('mousemove', (e) => {
-  if (!inMatch || paused || buyOpen || chatOpen || document.pointerLockElement !== canvas) return;
+  if (!inMatch || paused || buyOpen || chatOpen || settingsOpen || document.pointerLockElement !== canvas) return;
   const sens = me.scoped ? 0.0010 : 0.0022;
   me.yaw -= e.movementX * sens;
   me.pitch = Math.max(-1.45, Math.min(1.45, me.pitch - e.movementY * sens));
 });
 canvas.addEventListener('mousedown', (e) => {
-  if (!inMatch || paused || buyOpen || chatOpen) return;
+  if (!inMatch || paused || buyOpen || chatOpen || settingsOpen) return;
   if (document.pointerLockElement !== canvas) { canvas.requestPointerLock?.(); return; }
   if (e.button === 0) { mouseDown = true; fireWeapon(); }
   else if (e.button === 2) { setScoped(!me.scoped); }
@@ -1259,6 +1371,21 @@ window.addEventListener('mouseup', (e) => { if (e.button === 0) mouseDown = fals
 window.addEventListener('contextmenu', (e) => { if (inMatch) e.preventDefault(); });
 
 window.addEventListener('keydown', (e) => {
+  if (settingsOpen) {
+    e.preventDefault();
+    if (listeningAction) {
+      if (e.code !== 'Escape') {
+        BINDS[listeningAction] = e.code;
+        saveBinds();
+        syncBindLabels();
+      }
+      listeningAction = null;
+      renderKeybindsUI();
+    } else if (e.code === 'Escape') {
+      closeSettings();
+    }
+    return;
+  }
   if (!inMatch) return;
   if (chatOpen) {
     if (e.code === 'Enter') {
@@ -1272,14 +1399,14 @@ window.addEventListener('keydown', (e) => {
     } else if (e.code === 'Escape') { $('chat-inp').classList.remove('open'); chatOpen = false; }
     return;
   }
-  if (e.code === 'Tab') { e.preventDefault(); sbOpen = true; renderScoreboard(); $('modal-sb').classList.add('open'); return; }
-  if (e.code === 'KeyB' && !paused) {
+  if (e.code === BINDS.scoreboard) { e.preventDefault(); sbOpen = true; renderScoreboard(); $('modal-sb').classList.add('open'); return; }
+  if (e.code === BINDS.buy && !paused) {
     buyOpen = !buyOpen;
     if (buyOpen) { if (document.pointerLockElement) document.exitPointerLock(); renderBuyMenu(); $('modal-buy').classList.add('open'); }
     else { $('modal-buy').classList.remove('open'); canvas.requestPointerLock?.(); }
     return;
   }
-  if (e.code === 'KeyT' && !paused && !buyOpen) {
+  if (e.code === BINDS.chat && !paused && !buyOpen) {
     e.preventDefault(); chatOpen = true; me.keys = {};
     if (document.pointerLockElement) document.exitPointerLock();
     $('chat-inp').classList.add('open'); $('chat-inp').focus(); return;
@@ -1294,20 +1421,20 @@ window.addEventListener('keydown', (e) => {
   if (paused || buyOpen) return;
 
   me.keys[e.code] = true;
-  if (e.code === 'KeyR') startReload();
-  else if (e.code === 'KeyF') me.inspectTimer = 1.8; // CS:GO Weapon Inspect!
-  else if (e.code === 'KeyQ') useFlash();
-  else if (e.code === 'KeyE') useSmoke();
-  else if (e.code === 'KeyC') useDash();
-  else if (e.code === 'Digit1') equipWeapon('vandal');
-  else if (e.code === 'Digit2') equipWeapon('phantom');
-  else if (e.code === 'Digit3') equipWeapon('operator');
-  else if (e.code === 'Digit4') equipWeapon('sheriff');
-  else if (e.code === 'Digit5') equipWeapon('knife');
+  if (e.code === BINDS.reload) startReload();
+  else if (e.code === BINDS.inspect) me.inspectTimer = 1.8;
+  else if (e.code === BINDS.flash) useFlash();
+  else if (e.code === BINDS.smoke) useSmoke();
+  else if (e.code === BINDS.dash) useDash();
+  else if (e.code === BINDS.slot1) equipWeapon('vandal');
+  else if (e.code === BINDS.slot2) equipWeapon('phantom');
+  else if (e.code === BINDS.slot3) equipWeapon('operator');
+  else if (e.code === BINDS.slot4) equipWeapon('sheriff');
+  else if (e.code === BINDS.slot5) equipWeapon('knife');
 });
 window.addEventListener('keyup', (e) => {
   me.keys[e.code] = false;
-  if (e.code === 'Tab') { sbOpen = false; $('modal-sb').classList.remove('open'); }
+  if (e.code === BINDS.scoreboard) { sbOpen = false; $('modal-sb').classList.remove('open'); }
 });
 
 // ---------- Main Render Loop ----------
@@ -1328,7 +1455,7 @@ function loop(now) {
   }
   vmRoot.visible = !me.scoped;
 
-  if (!paused && !buyOpen) {
+  if (!paused && !buyOpen && !settingsOpen) {
     updatePlayer(dt);
     updateBots(dt);
     drawRadar();
@@ -1385,6 +1512,10 @@ window.DillyStrike = {
   openBuy: () => { buyOpen = true; renderBuyMenu(); $('modal-buy').classList.add('open'); },
   closeBuy: () => { buyOpen = false; $('modal-buy').classList.remove('open'); },
   openScoreboard: (on) => { sbOpen = !!on; if (on) renderScoreboard(); $('modal-sb').classList.toggle('open', !!on); },
+  openSettings,
+  closeSettings,
+  setBind: (act, code) => { if (act in BINDS) { BINDS[act] = code; saveBinds(); syncBindLabels(); renderKeybindsUI(); } },
+  getBinds: () => Object.assign({}, BINDS),
   getState: () => ({ inMatch, hp: me.hp, shield: me.shield, cash: me.cash, weapon: WEAPONS[me.weaponId].name, bots: bots.length })
 };
 

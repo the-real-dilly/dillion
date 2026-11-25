@@ -88,8 +88,8 @@
     <!-- Bottom-Right: CS:GO Ammo Counter -->
     <div id="cs-bot-right">
       <div class="ammo-top">
-        <span id="wep-name">AK-47</span>
-        <span class="ammo-hint"><b>F</b> Inspect · <b>B</b> Buy · <b>R</b> Reload</span>
+        <span id="wep-name">DILL-47</span>
+        <span class="ammo-hint" id="wep-hints"><b>F</b> Inspect · <b>B</b> Buy · <b>R</b> Reload</span>
       </div>
       <div class="ammo-main">
         <strong id="wep-mag">30</strong>
@@ -125,6 +125,7 @@
         <div class="pano-actions">
           <button class="btn cs-green" id="btn-play-solo">▶ PLAY COMPETITIVE (VS BOTS)</button>
           <button class="btn cs-blue" id="btn-play-mp">🌐 PLAY ONLINE (RUST SERVER)</button>
+          <button class="btn cs-ghost" id="btn-settings-lobby">⚙ SETTINGS &amp; KEYBINDS</button>
           <button class="btn cs-ghost" id="btn-watch-trailer">🎬 WATCH CINEMATIC TRAILER</button>
           <a class="btn cs-ghost" href="../index.html">← BACK TO DILLY GAMING</a>
         </div>
@@ -137,18 +138,7 @@
       <div class="pano-info">
         <div class="pano-controls">
           <div class="ctrl-hdr">TACTICAL KEYBINDS</div>
-          <div class="ctrl-grid">
-            <span><b>WASD</b> Move</span>
-            <span><b>CTRL</b> Crouch (Tighter Spread)</span>
-            <span><b>LMB</b> Fire</span>
-            <span><b>RMB</b> AWP Scope</span>
-            <span><b>1–5</b> Weapons</span>
-            <span><b>B</b> CS:GO Buy Wheel</span>
-            <span><b>R</b> Reload</span>
-            <span><b>F</b> Inspect Weapon</span>
-            <span><b>Q / E / C</b> Flash / Smoke / Dash</span>
-            <span><b>TAB</b> Scoreboard · <b>T</b> Chat</span>
-          </div>
+          <div class="ctrl-grid" id="lobby-binds"></div>
         </div>
       </div>
     </div>
@@ -180,7 +170,7 @@
 
       <div class="cs-buy-right" id="buy-inspector">
         <div class="insp-tag">WEAPON TELEMETRY</div>
-        <h3 id="insp-name">AK-47</h3>
+        <h3 id="insp-name">Dill-47</h3>
         <p id="insp-desc">High-caliber assault rifle. Iconic 1-tap headshot lethality.</p>
         <div class="insp-price" id="insp-price">$2700</div>
         <div class="insp-bars" id="insp-bars"></div>
@@ -223,8 +213,28 @@
       <h2>MATCH PAUSED</h2>
       <div class="pano-actions">
         <button class="btn cs-green" id="btn-resume">▶ RESUME MATCH</button>
-        <button class="btn cs-blue" id="btn-open-buy">🛒 OPEN BUY WHEEL (B)</button>
+        <button class="btn cs-blue" id="btn-open-buy">🛒 OPEN BUY WHEEL</button>
+        <button class="btn cs-ghost" id="btn-settings-pause">⚙ SETTINGS &amp; KEYBINDS</button>
         <button class="btn cs-danger" id="btn-leave">↩ DISCONNECT TO LOBBY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KEYBIND SETTINGS MODAL -->
+  <div class="modal" id="modal-settings">
+    <div class="cs-settings-card">
+      <div class="sb-top">
+        <div>
+          <div class="sb-map">CONTROLS · KEYBOARD</div>
+          <h2>KEYBIND SETTINGS</h2>
+        </div>
+        <button class="btn cs-ghost sm" id="btn-settings-close">✕ CLOSE</button>
+      </div>
+      <div class="kb-hint">Click any binding and press a new key. Press <b>ESC</b> to cancel rebinding.</div>
+      <div class="kb-grid" id="kb-grid"></div>
+      <div class="kb-foot">
+        <button class="btn cs-danger sm" id="btn-binds-reset">↺ RESET DEFAULTS</button>
+        <button class="btn cs-green sm" id="btn-binds-done">✓ SAVE &amp; CLOSE</button>
       </div>
     </div>
   </div>

@@ -379,3 +379,33 @@ table.sb th { color: var(--muted); font-size: 11px; letter-spacing: .14em; }
   border-top: 3px solid var(--t);
 }
 .cs-pause-card h2 { margin: 4px 0 18px; font-size: 26px; letter-spacing: .1em; }
+
+/* Keybind Settings Modal */
+.cs-settings-card {
+  width: min(720px, 95vw); max-height: 90vh; display: flex; flex-direction: column;
+  padding: 20px 24px; background: rgba(12, 16, 22, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.16); border-top: 3px solid var(--ct);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.85);
+}
+.kb-hint { font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+.kb-hint b { color: #fff; }
+.kb-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px;
+  overflow-y: auto; padding-right: 4px; margin-bottom: 14px;
+}
+@media (max-width: 600px) { .kb-grid { grid-template-columns: 1fr; } }
+.kb-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 11px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.kb-row span { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: #dbe5f0; }
+.kb-btn {
+  min-width: 96px; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(10, 14, 20, 0.92); color: var(--t); font: 900 12px/1 'Arial Narrow', sans-serif;
+  letter-spacing: .08em; cursor: pointer; text-transform: uppercase; transition: .12s;
+}
+.kb-btn:hover { border-color: var(--t); background: rgba(227, 167, 59, 0.16); }
+.kb-btn.listening { border-color: var(--cs-green); background: rgba(110, 231, 85, 0.2); color: var(--cs-green); animation: kbPulse .7s infinite alternate; }
+@keyframes kbPulse { from { opacity: .65; } to { opacity: 1; } }
+.kb-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+
