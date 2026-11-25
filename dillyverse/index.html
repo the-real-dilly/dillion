@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DILLYVERSE — Build. Explore. Survive.</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">{ "imports": { "three": "../vendor/three.module.js" } }</script>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  <div id="water-tint"></div>
+  <div id="hurt-tint"></div>
+
+  <!-- MAIN MENU -->
+  <div class="screen open" id="screen-main">
+    <div class="card">
+      <div class="dv-logo">
+        <h1>DILLYVERSE</h1>
+        <div class="tagline">Build. Explore. Survive.</div>
+      </div>
+      <div class="menu-stack">
+        <button class="btn primary" id="btn-sp">🌍 Singleplayer</button>
+        <button class="btn" id="btn-mp">🌐 Multiplayer</button>
+        <button class="btn" id="btn-settings">⚙️ Settings</button>
+        <button class="btn" id="btn-credits">✨ Credits</button>
+        <button class="btn danger" id="btn-exit">↩ Exit to Dilly Arcade</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORLD SELECTION / CREATE WORLD -->
+  <div class="screen" id="screen-worlds">
+    <div class="card wide">
+      <div class="row between" style="margin-bottom:10px;">
+        <h2 style="margin:0;">🌍 Singleplayer Worlds</h2>
+        <button class="btn sm" data-back="screen-main">← Back</button>
+      </div>
+
+      <div class="world-list" id="world-list"></div>
+
+      <hr style="border:0;border-top:1px solid rgba(255,255,255,.12);margin:14px 0;">
+      <h3 style="margin:0 0 10px;color:var(--accent);">Create New World</h3>
+      <div class="grid2">
+        <label class="field">World Name
+          <input type="text" id="new-world-name" value="New DillyVerse" maxlength="28">
+        </label>
+        <label class="field">World Seed
+          <div class="row">
+            <input type="text" id="new-world-seed" style="flex:1;" placeholder="Random seed">
+            <button class="btn sm" id="btn-rand-seed" type="button">🎲</button>
+          </div>
+        </label>
+        <label class="field">Game Mode
+          <select id="new-world-mode">
+            <option value="survival">Survival (Health, Hunger, Threats)</option>
+            <option value="creative">Creative (Flight, Unlimited Blocks)</option>
+          </select>
+        </label>
+        <label class="field">Difficulty
+          <select id="new-world-diff">
+            <option value="normal">Normal</option>
+            <option value="peaceful">Peaceful (No Hostile Attacks)</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
+      </div>
+      <button class="btn primary" id="btn-create-world" style="width:100%;margin-top:6px;">▶ Create &amp; Enter World</button>
+    </div>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-mp">
+    <div class="card">
+      <div class="row between" style="margin-bottom:12px;">
+        <h2 style="margin:0;">🌐 Multiplayer</h2>
+        <button class="btn sm" data-back="screen-main">← Back</button>
+      </div>
+      <label class="field">Player Name
+        <input type="text" id="mp-name" value="DillyExplorer" maxlength="18">
+      </label>
+      <label class="field">Server WebSocket URL
+        <input type="text" id="mp-url" value="ws://localhost:25565">
+      </label>
+      <div id="mp-status" style="font-size:12.5px;color:var(--muted);margin-bottom:12px;min-height:18px;">
+        Start an authoritative server locally with: <code>node dillyverse/server/index.mjs</code>
+      </div>
+      <button class="btn primary" id="btn-mp-connect" style="width:100%;">🔗 Connect &amp; Join Server</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="screen-settings">
+    <div class="card">
+      <div class="row between" style="margin-bottom:12px;">
+        <h2 style="margin:0;">⚙️ Settings</h2>
+        <button class="btn sm" id="btn-settings-close">← Back</button>
+      </div>
+      <label class="field">Render Distance: <span id="val-rd">4</span> chunks
+        <input type="range" id="opt-rd" min="2" max="7" value="4">
+      </label>
+      <label class="field">Field of View (FOV): <span id="val-fov">75</span>°
+        <input type="range" id="opt-fov" min="60" max="100" value="75">
+      </label>
+      <label class="field">Mouse Sensitivity: <span id="val-sens">1.0</span>x
+        <input type="range" id="opt-sens" min="0.4" max="2.5" step="0.1" value="1.0">
+      </label>
+      <label class="field">Audio Volume: <span id="val-vol">60</span>%
+        <input type="range" id="opt-vol" min="0" max="100" value="60">
+      </label>
+      <label class="field">Dynamic Weather
+        <select id="opt-weather">
+          <option value="on">Enabled (Clear / Rain / Snow)</option>
+          <option value="off">Always Clear</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- CREDITS -->
+  <div class="screen" id="screen-credits">
+    <div class="card">
+      <div class="row between" style="margin-bottom:12px;">
+        <h2 style="margin:0;">✨ Credits</h2>
+        <button class="btn sm" data-back="screen-main">← Back</button>
+      </div>
+      <p style="line-height:1.6;color:var(--muted);margin:0 0 12px;">
+        <strong style="color:#fff;">DILLYVERSE</strong> — An original 3D voxel sandbox survival game built with Three.js WebGL 2, custom chunk meshing with ambient occlusion, procedural textures, Web Audio synthesis, IndexedDB world persistence, and a real Node.js WebSocket multiplayer server.
+      </p>
+      <p style="font-size:13px;color:var(--gold);margin:0;">Controls: WASD Move · Space Jump (2× Fly in Creative) · Shift Sprint · Ctrl Crouch · LMB Mine/Attack · RMB Place/Use · E Inventory · Q Drop · T Chat · Esc Pause</p>
+    </div>
+  </div>
+
+  <!-- PAUSE MENU -->
+  <div class="screen" id="screen-pause">
+    <div class="card">
+      <h2 style="margin:0 0 14px;text-align:center;">⏸ Game Paused</h2>
+      <div class="menu-stack">
+        <button class="btn primary" id="btn-resume">▶ Resume Game</button>
+        <button class="btn" id="btn-save-now">💾 Save World Now</button>
+        <button class="btn" id="btn-pause-settings">⚙️ Settings</button>
+        <button class="btn danger" id="btn-save-quit">🏠 Save &amp; Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEATH SCREEN -->
+  <div class="screen" id="screen-death">
+    <div class="card" style="text-align:center;">
+      <h2 style="margin:0 0 8px;color:var(--danger);font-size:32px;">💀 You Died</h2>
+      <p id="death-reason" style="color:var(--muted);margin:0 0 18px;"></p>
+      <div class="menu-stack">
+        <button class="btn primary" id="btn-respawn">↺ Respawn at World Spawn</button>
+        <button class="btn" id="btn-death-menu">🏠 Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INVENTORY / CRAFTING / FURNACE / CREATIVE MODAL -->
+  <div class="screen" id="screen-inv">
+    <div class="card wide">
+      <div class="row between" style="margin-bottom:10px;">
+        <h2 style="margin:0;" id="inv-title">🎒 Inventory &amp; Crafting</h2>
+        <button class="btn sm" id="btn-inv-close">✕ Close (E)</button>
+      </div>
+      <div class="inv-layout">
+        <div>
+          <div class="armor-row">
+            <span style="font-size:12px;color:var(--muted);font-weight:700;">ARMOR:</span>
+            <div class="slot" data-armor="0" title="Helmet"></div>
+            <div class="slot" data-armor="1" title="Chestplate"></div>
+            <div class="slot" data-armor="2" title="Leggings"></div>
+            <div class="slot" data-armor="3" title="Boots"></div>
+            <span id="armor-stat" style="font-size:12px;color:#9cd6ff;margin-left:6px;">DEF 0</span>
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-bottom:5px;">Left-click pick/place · Right-click split stack · Click armor slot to equip</div>
+          <div class="inv-grid" id="inv-main-grid"></div>
+          <div style="height:8px;"></div>
+          <div class="inv-grid" id="inv-hotbar-grid"></div>
+        </div>
+
+        <div id="inv-right-pane">
+          <!-- Crafting / Furnace / Creative injected dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IN-GAME HUD -->
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="top-info"></div>
+    <div id="top-hint">
+      <b>E</b> Inventory · <b>T</b> Chat · <b>Q</b> Drop · <b>Esc</b> Pause
+    </div>
+    <div id="chat-box">
+      <div id="chat-log"></div>
+      <input type="text" id="chat-input" placeholder="Press Enter to send chat...">
+    </div>
+    <div id="bottom-hud">
+      <div id="held-label"></div>
+      <div id="bars">
+        <div class="bar-group">
+          <div class="stat-label"><span>❤ Health</span><span id="hp-txt">20/20</span></div>
+          <div class="stat-bar"><div class="stat-fill hp" id="hp-fill" style="width:100%"></div></div>
+        </div>
+        <div class="bar-group">
+          <div class="stat-label"><span>🍗 Hunger</span><span id="hun-txt">20/20</span></div>
+          <div class="stat-bar"><div class="stat-fill hunger" id="hun-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+      <div id="hotbar"></div>
+    </div>
+  </div>
+
+  <div id="cursor-item"></div>
+  <div id="tooltip"></div>
+  <div id="save-toast">💾 World Saved</div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
