@@ -9,10 +9,11 @@ const bestOf = (H, k) => H.store.get("games", {})[k];
 /* ---------- hub ---------- */
 V.games = H => {
   const g = [
+    ["dillystrike", "Dilly Strike", "CS:GO + Valorant-style 3D tactical FPS with buy menu, abilities, tactical bots & Rust WebSocket multiplayer.", "🎯", "dilly-strike/index.html"],
     ["dillyverse", "DillyVerse", "Build. Explore. Survive. — 3D voxel sandbox survival, crafting, biomes, caves, creatures & multiplayer.", "🧊", "dillyverse/index.html"],
     ["dillyfortress", "Dilly Fortress", "Tactical tower defense — 3 maps, 6 upgradeable turrets, commander abilities, boss waves & endless mode.", "🏰", "dilly-fortress/index.html"],
-    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261125012915#play"],
-    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261125012915"],
+    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261125014047#play"],
+    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261125014047"],
     ["crossword", "Mini Crossword", "A 5×5 cosmic crossword. A new grid each day.", "✚"],
     ["scramble", "Orbit Scramble", "Unjumble five space words before the clock runs out.", "🌀"],
     ["rescue", "Rover Rescue", "Guess the word before the rover runs out of oxygen.", "🤖"],

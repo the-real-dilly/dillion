@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DILLY STRIKE — Tactical 3D FPS · Dilly Gaming</title>
+  <link rel="icon" href="../img/dilly-gaming-logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">{ "imports": { "three": "../vendor/three.module.js" } }</script>
+</head>
+<body>
+  <canvas id="fps-canvas"></canvas>
+  <div id="flash-fx"></div>
+  <div id="hurt-fx"></div>
+  <div id="scope-overlay"></div>
+
+  <!-- TACTICAL HUD -->
+  <div id="hud">
+    <div id="xhair">
+      <div class="xh t"></div><div class="xh b"></div><div class="xh l"></div><div class="xh r"></div>
+    </div>
+    <div id="hitmarker"></div>
+    <div id="hs-banner">💀 HEADSHOT</div>
+
+    <div id="top-score">
+      <span class="sc-alpha">ALPHA <b id="sc-a">0</b></span>
+      <span class="sc-mid" id="sc-mode">DUSTLINE CITADEL</span>
+      <span class="sc-omega"><b id="sc-o">0</b> OMEGA</span>
+    </div>
+
+    <div id="killfeed"></div>
+
+    <div id="chat-wrap">
+      <div id="chat-log"></div>
+      <input type="text" id="chat-inp" placeholder="Press Enter to send team/all chat...">
+    </div>
+
+    <div id="bot-left">
+      <div class="hud-box hp"><small>HEALTH</small><strong id="hud-hp">100</strong></div>
+      <div class="hud-box sh"><small>SHIELD</small><strong id="hud-sh">50</strong></div>
+      <div class="hud-box cash"><small>CREDITS</small><strong id="hud-cash">$800</strong></div>
+    </div>
+
+    <div id="bot-mid">
+      <div class="ab-chip ready" id="ab-q"><b>[Q]</b><span>Flash</span><small id="cd-q">READY</small></div>
+      <div class="ab-chip ready" id="ab-e"><b>[E]</b><span>Smoke</span><small id="cd-e">READY</small></div>
+      <div class="ab-chip ready" id="ab-c"><b>[C]</b><span>Dash</span><small id="cd-c">READY</small></div>
+    </div>
+
+    <div id="bot-right">
+      <div id="wep-name">VANDAL</div>
+      <div id="wep-ammo">25 / 100</div>
+      <div id="wep-hint"><b>B</b> Buy Menu · <b>R</b> Reload · <b>Tab</b> Scoreboard</div>
+    </div>
+  </div>
+
+  <!-- MAIN LOBBY -->
+  <div class="modal open" id="modal-lobby">
+    <div class="card">
+      <div class="logo-head">
+        <img src="../img/dilly-gaming-logo.png" alt="Dilly Gaming">
+        <h1>DILLY STRIKE</h1>
+        <p>Tactical 5v5-Style 3D FPS · CS:GO Gunplay · Valorant Abilities · Rust Multiplayer</p>
+      </div>
+
+      <label class="field">Agent Callsign
+        <input type="text" id="agent-name" value="DillyAgent" maxlength="16">
+      </label>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <button class="btn primary" id="btn-play-solo">🎯 Play Solo (vs Tactical Bots)</button>
+        <button class="btn omega" id="btn-play-mp">🌐 Join Multiplayer (Rust)</button>
+      </div>
+
+      <div id="mp-msg" style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px;">
+        Official Rust Server: <code style="color:var(--omega);">wss://apibuild.dillonmay.com/strike</code>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);background:rgba(255,255,255,.04);padding:10px 12px;border-radius:8px;line-height:1.55;margin-bottom:14px;">
+        <b style="color:#fff;">Controls:</b> WASD Move · Space Jump · Ctrl Crouch (Tighter Spread) · LMB Fire · RMB Scope (Operator) · 1–5 Weapons · R Reload · B Buy Menu · Q Flash · E Smoke · C Dash · T Chat · Tab Scoreboard
+      </div>
+
+      <div style="text-align:center;">
+        <a class="btn" href="../index.html">← Back to Dilly Gaming</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUY MENU (B) -->
+  <div class="modal" id="modal-buy">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;">🛒 Armory Buy Menu</h2>
+        <span style="font-weight:900;color:#ffd666;" id="buy-cash">$800</span>
+      </div>
+      <div class="buy-grid" id="buy-grid"></div>
+      <button class="btn primary" id="btn-buy-close" style="width:100%;">✕ Close Armory (B)</button>
+    </div>
+  </div>
+
+  <!-- SCOREBOARD (TAB) -->
+  <div class="modal" id="modal-sb">
+    <div class="card">
+      <h2 style="margin:0 0 6px;">📊 Match Scoreboard — Dustline Citadel</h2>
+      <table class="sb">
+        <thead><tr><th>Agent</th><th>Team</th><th>Kills</th><th>Deaths</th></tr></thead>
+        <tbody id="sb-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAUSE MENU (ESC) -->
+  <div class="modal" id="modal-pause">
+    <div class="card" style="max-width:400px;text-align:center;">
+      <h2 style="margin:0 0 14px;">⏸ Match Paused</h2>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn primary" id="btn-resume">▶ Resume Match</button>
+        <button class="btn" id="btn-open-buy">🛒 Armory Buy Menu (B)</button>
+        <button class="btn danger" id="btn-leave">↩ Leave to Lobby</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

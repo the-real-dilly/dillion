@@ -67,7 +67,7 @@ views.home = () => {
       <a class="btn ghost" href="dillyverse/index.html">🧊 Launch DillyVerse</a>
     </div>
     <div class="dg-stats">
-      <div><strong>5</strong><span>Flagship Titles</span></div>
+      <div><strong>6</strong><span>Flagship Titles</span></div>
       <div><strong>0 MB</strong><span>Instant Play</span></div>
       <div><strong>WebGL 2</strong><span>&amp; Rust Powered</span></div>
       <div><strong>100%</strong><span>Free to Play</span></div>
@@ -85,16 +85,31 @@ views.home = () => {
 
     <div class="dg-grid">
       <article class="dg-game featured">
+        <a class="dg-shot" href="dilly-strike/index.html">
+          <img src="img/dilly-strike.png" width="1280" height="800" alt="Dilly Strike 3D tactical FPS">
+          <span class="dg-badge gold">NEW · 3D TACTICAL FPS</span>
+        </a>
+        <div class="dg-body">
+          <div class="dg-meta">CS:GO + Valorant Style · Rust WebSocket Multiplayer</div>
+          <h3>DILLY STRIKE</h3>
+          <p>Competitive 3D tactical shooter on Dustline Citadel. Buy Vandals, Phantoms &amp; scoped Operators, deploy Flashbangs, Smokes &amp; Dashes, and battle Tactical Bots or live players on the Rust backend.</p>
+          <div class="dg-actions">
+            <a class="btn big" href="dilly-strike/index.html">▶ Play Now</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="dg-game">
         <a class="dg-shot" href="dillyverse/index.html">
-          <img src="img/dillyverse.png" width="1280" height="800" alt="DillyVerse 3D voxel sandbox survival world">
-          <span class="dg-badge gold">NEW · 3D SANDBOX</span>
+          <img src="img/dillyverse.png" width="1280" height="800" loading="lazy" alt="DillyVerse 3D voxel sandbox survival world">
+          <span class="dg-badge gold">3D SANDBOX</span>
         </a>
         <div class="dg-body">
           <div class="dg-meta">Voxel Survival · Creative · Rust Multiplayer</div>
           <h3>DILLYVERSE</h3>
           <p>Build. Explore. Survive. Infinite chunk-based 3D worlds with 5 biomes, 3D caves, ores, 3×3 crafting, furnaces, creatures, IndexedDB saves, and an authoritative Rust WebSocket backend.</p>
           <div class="dg-actions">
-            <a class="btn big" href="dillyverse/index.html">▶ Play Now</a>
+            <a class="btn" href="dillyverse/index.html">▶ Play Now</a>
           </div>
         </div>
       </article>
