@@ -8,6 +8,10 @@
       this.map = new PT.FarmMap(PT.MAP_SIZE);
       this.guests = [];
       this.staff = [];
+      this.pickles = [];
+      this.pickleRaidTimer = 30; // First Dill Pickle Raid arrives after 30s!
+      this.pickleWaveActive = false;
+      this.pickleWaveNum = 0;
       this.tractor = null;
       this.boatDock = null;
       this.floatTexts = [];
@@ -694,6 +698,29 @@
         s.update(simDt, this);
       }
 
+      // Update Dill Pickle Raiders & Periodic Raid Waves
+      this.pickleRaidTimer -= dt;
+      if (this.pickleRaidTimer <= 0 && this.pickles.length === 0) {
+        this.pickleWaveNum++;
+        const count = Math.min(6, 3 + Math.floor(this.pickleWaveNum / 2));
+        const hasBoss = this.pickleWaveNum >= 2 && (this.pickleWaveNum % 2 === 0);
+        this.spawnPickleRaid(count, hasBoss);
+        this.pickleRaidTimer = 50 + Math.random() * 20;
+      }
+      if (this.pickles.length > 0) {
+        for (let i = this.pickles.length - 1; i >= 0; i--) {
+          const alive = this.pickles[i].update(simDt, this);
+          if (!alive) {
+            this.pickles.splice(i, 1);
+          }
+        }
+        if (this.pickles.length === 0 && this.pickleWaveActive) {
+          this.pickleWaveActive = false;
+          this.addCash(120, 'milestones', this.map.entrance.x, this.map.entrance.y);
+          this.setTicker('🎉 DILL PICKLE RAID REPELLED! +$120 Farm Defense Bonus!');
+        }
+      }
+
       // Update Tractor Wagon Ride
       if (this.tractor) {
         this.tractor.update(simDt, this);
@@ -1319,7 +1346,50 @@
       return out;
     }
 
+    spawnPickleRaid(count = 4, withBoss = false) {
+      if (!PT.PickleRaider) return;
+      const gx = this.map.entrance.x;
+      const gy = this.map.entrance.y;
+      for (let i = 0; i < count; i++) {
+        const isBoss = withBoss && i === 0;
+        const ox = (Math.random() - 0.5) * 2.2;
+        const oy = 0.6 + i * 0.45;
+        const p = new PT.PickleRaider(gx + 0.5 + ox, gy + oy, isBoss);
+        this.pickles.push(p);
+      }
+      this.pickleWaveActive = true;
+      if (PT.audio && PT.audio.error) PT.audio.error();
+      const bossMsg = withBoss ? ' + 👑 KING DILL BOSS' : '';
+      this.setTicker(`🥒 DILL PICKLE RAID! ${count} Pickle Raiders${bossMsg} are storming your trees — CLICK them to BONK for $45+ bounty!`);
+    }
+
+    pickPickleNear(screenX, screenY, hitRadius = 34) {
+      if (!this.renderer || !this.pickles || this.pickles.length === 0) return null;
+      let best = null;
+      let bestD = hitRadius;
+      for (let i = 0; i < this.pickles.length; i++) {
+        const p = this.pickles[i];
+        const w = this.map.posToWorld(p.x, p.y, this.cam.rot);
+        const s = this.renderer.worldToScreen(w.wx, w.wy);
+        const d = Math.hypot(screenX - s.sx, screenY - (s.sy - 14 * this.cam.zoom));
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return best;
+    }
+
     applyToolAt(tile, screenX, screenY, hitRadius = 20) {
+      // Always allow clicking/tapping a Dill Pickle Raider to BONK it immediately in any tool mode!
+      const pIdx = this.pickPickleNear(screenX, screenY, Math.max(hitRadius + 14, 34));
+      if (pIdx !== null) {
+        const raider = this.pickles[pIdx];
+        const alive = raider.bonk(this, false);
+        if (!alive) this.pickles.splice(pIdx, 1);
+        return;
+      }
+
       if (this.tool.mode === 'inspect') {
         // Check if clicking a peep near cursor first!
         const picked = this.pickEntityNear(screenX, screenY, hitRadius);

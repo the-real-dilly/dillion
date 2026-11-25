@@ -59,6 +59,18 @@
       white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
     }
     #dilly-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #pickle-raid-banner {
+      position: fixed; top: 56px; left: 50%; transform: translateX(-50%);
+      z-index: 940; display: none; align-items: center; gap: 10px;
+      background: linear-gradient(90deg, #1b5e18, #388e24, #1b5e18);
+      color: #fff; border: 2px solid #9dff5c; border-radius: 999px; padding: 7px 16px;
+      font: 800 13px/1.2 system-ui, sans-serif; letter-spacing: .02em;
+      box-shadow: 0 8px 26px rgba(0,0,0,.62), 0 0 18px rgba(125,255,77,.45);
+      animation: picklePulse 1.1s ease-in-out infinite;
+    }
+    #pickle-raid-banner.show { display: inline-flex; }
+    @keyframes picklePulse { 0%,100% { box-shadow: 0 8px 26px rgba(0,0,0,.62), 0 0 14px rgba(125,255,77,.35); } 50% { box-shadow: 0 8px 26px rgba(0,0,0,.62), 0 0 28px rgba(255,225,77,.7); } }
   `;
   document.head.appendChild(style);
 
@@ -373,6 +385,10 @@
         <div>🎯 Pie Richard Vance!<small>Splat the developer's SUV for viral cash &amp; rating</small></div>
         <span class="dl-tag">+$250</span>
       </button>
+      <button class="dl-act" id="dl-raid">
+        <div>🥒 Summon Pickle Raid!<small>Unleash Dill Pickle Raiders + 👑 King Dill Boss!</small></div>
+        <span class="dl-tag">RAID!</span>
+      </button>
       <button class="dl-act" id="dl-movie">
         <div>🎬 Watch Dilly's Movie Scene<small>Jump to Act VII: Enter The Real Dilly!</small></div>
         <span class="dl-tag">PLAY ▶</span>
@@ -380,28 +396,54 @@
     `;
     document.body.appendChild(dock);
 
+    const raidBanner = document.createElement("div");
+    raidBanner.id = "pickle-raid-banner";
+    document.body.appendChild(raidBanner);
+
     pill.addEventListener("click", () => dock.classList.toggle("open"));
     dock.querySelector("#dl-close").addEventListener("click", () => dock.classList.remove("open"));
     dock.querySelector("#dl-drift").addEventListener("click", (e) => triggerDrift(e.currentTarget));
     dock.querySelector("#dl-pie").addEventListener("click", (e) => triggerPieGrow(e.currentTarget));
     dock.querySelector("#dl-cash").addEventListener("click", (e) => triggerCashRain(e.currentTarget));
     dock.querySelector("#dl-vance").addEventListener("click", (e) => triggerPieVance(e.currentTarget));
+    dock.querySelector("#dl-raid").addEventListener("click", () => {
+      dock.classList.remove("open");
+      const g = window.pinecrestGame;
+      if (g && typeof g.spawnPickleRaid === "function") {
+        g.spawnPickleRaid(5, true);
+      }
+    });
     dock.querySelector("#dl-movie").addEventListener("click", () => {
       dock.classList.remove("open");
       if (window.PTStory) window.PTStory.playAct(6);
     });
+
+    // Live Dill Pickle Raid HUD Banner updater
+    setInterval(() => {
+      const g = window.pinecrestGame;
+      if (!g || !g.pickles || g.pickles.length === 0) {
+        raidBanner.classList.remove("show");
+        return;
+      }
+      const n = g.pickles.length;
+      const boss = g.pickles.some((p) => p.isBoss);
+      raidBanner.textContent = boss
+        ? `🥒 DILL PICKLE RAID! ${n} Raiders + 👑 KING DILL — CLICK PICKLES TO BONK! ($45–$150 Bounty)`
+        : `🥒 DILL PICKLE RAID! ${n} Raider${n === 1 ? "" : "s"} Storming Your Trees — CLICK TO BONK ($45 Bounty!)`;
+      raidBanner.classList.add("show");
+    }, 250);
 
     // Periodic ambient Dilly Twist ticker quips
     const QUIPS = [
       "🤪 Dilly just tipped the Hot Cocoa stand $100 and asked for extra marshmallows!",
       "🚗 Spotting: A purple sports car with Christmas lights just did a donut by the barn!",
       "🥧 Rumor has it Richard Vance is still wiping whipped cream off his Range Rover!",
-      "👑 THE REAL DILLY rated Pinecrest Tree Farm 10/10 — 'Best pines in the valley!'"
+      "🥒 Watch the entrance road — Dill Pickle Raiders love stealing fresh Christmas trees!"
     ];
     let qIdx = 0;
     setInterval(() => {
       const g = window.pinecrestGame;
-      if (g && !g.paused) {
+      if (g && !g.paused && (!g.pickles || g.pickles.length === 0)) {
         g.ticker = QUIPS[qIdx % QUIPS.length];
         qIdx++;
       }

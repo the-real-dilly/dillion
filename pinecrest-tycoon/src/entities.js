@@ -1579,9 +1579,164 @@
     }
   }
 
+  class PickleRaider {
+    constructor(x, y, isBoss = false) {
+      this.kind = 'pickle';
+      this.id = 'pkl_' + Math.random().toString(36).slice(2, 8);
+      this.x = x;
+      this.y = y;
+      this.isBoss = !!isBoss;
+      this.maxHp = isBoss ? 3 : 1;
+      this.hp = this.maxHp;
+      this.speed = isBoss ? 1.55 : (2.15 + Math.random() * 0.45);
+      this.walkPhase = Math.random() * 10;
+      this.state = 'raiding'; // raiding | chopping | fleeing
+      this.targetTile = null;
+      this.chopTimer = 0;
+      this.carryingTree = null;
+      this.hitFlash = 0;
+      this.staffBonkCd = 0;
+      this.dirX = 0;
+      this.dirY = -1;
+    }
+
+    pickTargetTree(game) {
+      const candidates = [];
+      for (let y = 0; y < game.map.size; y++) {
+        for (let x = 0; x < game.map.size; x++) {
+          const t = game.map.tiles[y][x];
+          if (t.owned && t.tree) candidates.push(t);
+        }
+      }
+      if (candidates.length === 0) return null;
+      // Prefer mature trees first, then closest
+      candidates.sort((a, b) => {
+        const ma = a.tree.growth >= 95 ? 0 : 1;
+        const mb = b.tree.growth >= 95 ? 0 : 1;
+        if (ma !== mb) return ma - mb;
+        return Math.hypot(a.x - this.x, a.y - this.y) - Math.hypot(b.x - this.x, b.y - this.y);
+      });
+      const pool = candidates.slice(0, Math.min(5, candidates.length));
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    bonk(game, byStaff = false) {
+      this.hp--;
+      this.hitFlash = 0.28;
+      game.spawnSparkles(this.x, this.y, '#7dff4d', this.isBoss ? 12 : 8);
+      if (PT.audio && PT.audio.chop) PT.audio.chop();
+
+      if (this.hp <= 0) {
+        const bounty = this.isBoss ? 150 : 45;
+        const treeRefund = this.carryingTree ? 60 : 0;
+        const total = bounty + treeRefund;
+        game.addCash(total, 'milestones', this.x, this.y);
+        game.spawnSparkles(this.x, this.y, '#ffe14d', 14);
+        const label = this.isBoss
+          ? `👑 KING DILL BONKED! +$${total}`
+          : (treeRefund ? `🥒 TREE SAVED! +$${total}` : `🥒 BONK! +$${total}`);
+        game.addFloatText(this.x, this.y, label, '#9dff5c');
+        game.stats.picklesBonked = (game.stats.picklesBonked || 0) + 1;
+        if (byStaff) {
+          game.setTicker(`👷 Your farm staff bonked a Dill Pickle Raider! (+$${total} bounty)`);
+        }
+        return false; // defeated
+      } else {
+        game.addFloatText(this.x, this.y, `💥 ${this.hp} HP LEFT!`, '#ffe169');
+        return true;
+      }
+    }
+
+    update(dt, game) {
+      if (this.hitFlash > 0) this.hitFlash = Math.max(0, this.hitFlash - dt);
+      if (this.staffBonkCd > 0) this.staffBonkCd = Math.max(0, this.staffBonkCd - dt);
+      this.walkPhase += dt * (this.state === 'chopping' ? 14 : 7.5);
+
+      // Hired farm staff automatically defend against nearby Dill Pickle Raiders!
+      if (this.staffBonkCd <= 0 && game.staff && game.staff.length > 0) {
+        for (const s of game.staff) {
+          if (Math.hypot(s.x - this.x, s.y - this.y) < 1.85) {
+            this.staffBonkCd = 1.4;
+            const alive = this.bonk(game, true);
+            if (!alive) return false;
+            break;
+          }
+        }
+      }
+
+      const gateX = game.map.entrance.x + 0.5;
+      const gateY = game.map.entrance.y + 1.5;
+
+      if (this.state === 'raiding') {
+        if (!this.targetTile || !this.targetTile.tree) {
+          this.targetTile = this.pickTargetTree(game);
+          if (!this.targetTile) {
+            this.state = 'fleeing';
+            return true;
+          }
+        }
+        const tx = this.targetTile.x + 0.5;
+        const ty = this.targetTile.y + 0.5;
+        const dx = tx - this.x;
+        const dy = ty - this.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 0.35) {
+          this.state = 'chopping';
+          this.chopTimer = this.isBoss ? 1.8 : 2.5;
+        } else {
+          this.dirX = dx / dist;
+          this.dirY = dy / dist;
+          const step = Math.min(dist, this.speed * dt);
+          this.x += this.dirX * step;
+          this.y += this.dirY * step;
+        }
+      } else if (this.state === 'chopping') {
+        if (!this.targetTile || !this.targetTile.tree) {
+          this.state = 'raiding';
+          this.targetTile = null;
+          return true;
+        }
+        this.chopTimer -= dt;
+        if (Math.random() < dt * 4) {
+          game.spawnSparkles(this.targetTile.x + 0.5, this.targetTile.y + 0.5, '#86ff5c', 1);
+        }
+        if (this.chopTimer <= 0) {
+          const def = PT.TREES[this.targetTile.tree.type];
+          this.carryingTree = def || { name: 'Christmas Tree' };
+          this.targetTile.tree = null;
+          this.targetTile.stump = true;
+          game.map.bumpRevision();
+          game.addFloatText(this.x, this.y, '🥒 YOINKED A TREE!', '#ff6b6b');
+          game.setTicker(`🥒 A Dill Pickle Raider uprooted a ${this.carryingTree.name}! Click it before it escapes!`);
+          this.state = 'fleeing';
+        }
+      } else if (this.state === 'fleeing') {
+        const dx = gateX - this.x;
+        const dy = gateY - this.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 0.45) {
+          if (this.carryingTree) {
+            game.setTicker(`🥒 OH NO! A Dill Pickle Raider escaped with your ${this.carryingTree.name}!`);
+            game.farmRating = Math.max(100, game.farmRating - 12);
+          }
+          return false; // left map
+        }
+        this.dirX = dx / dist;
+        this.dirY = dy / dist;
+        const fleeSpeed = this.speed * (this.carryingTree ? 0.92 : 1.15);
+        const step = Math.min(dist, fleeSpeed * dt);
+        this.x += this.dirX * step;
+        this.y += this.dirY * step;
+      }
+
+      return true;
+    }
+  }
+
   PT.Guest = Guest;
   PT.Staff = Staff;
   PT.Tractor = Tractor;
   PT.Boat = Boat;
   PT.BoatDock = BoatDock;
+  PT.PickleRaider = PickleRaider;
 })();

@@ -200,6 +200,9 @@
         if (g.state !== 'riding_tractor' && g.state !== 'paddling_boat') addPeep(g);
       }
       for (let i = 0; i < game.staff.length; i++) addPeep(game.staff[i]);
+      if (game.pickles) {
+        for (let i = 0; i < game.pickles.length; i++) addPeep(game.pickles[i]);
+      }
       if (game.tractor) {
         const ew = this._tractorEngineWrap;
         ew.ref = game.tractor; ew.x = game.tractor.x; ew.y = game.tractor.y;
@@ -1036,7 +1039,141 @@
       ctx.restore();
     }
 
+    drawPickleRaider(ctx, p, rot) {
+      const w = this.game.map.posToWorld(p.x, p.y, rot);
+      const wx = Math.round(w.wx);
+      const wy = Math.round(w.wy);
+      const sc = p.isBoss ? 1.38 : 1.05;
+      const bob = Math.abs(Math.sin(p.walkPhase)) * 2.6;
+      const swing = Math.sin(p.walkPhase) * 3.5;
+
+      ctx.save();
+      ctx.translate(wx, wy);
+
+      // Ground shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.34)';
+      ctx.beginPath();
+      ctx.ellipse(0, 1, 9 * sc, 4.5 * sc, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Stubby running boots
+      ctx.fillStyle = '#241812';
+      ctx.fillRect(-5 * sc, -4 * sc + swing * 0.4, 3.5 * sc, 4.5 * sc);
+      ctx.fillRect(1.5 * sc, -4 * sc - swing * 0.4, 3.5 * sc, 4.5 * sc);
+
+      ctx.translate(0, -bob);
+      if (p.state === 'chopping') ctx.rotate(Math.sin(p.walkPhase * 1.4) * 0.18);
+
+      // Bumpy Dill Pickle body
+      ctx.fillStyle = p.hitFlash > 0 ? '#ffffff' : '#3a8c28';
+      ctx.strokeStyle = '#183d10';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.roundRect(-7 * sc, -25 * sc, 14 * sc, 22 * sc, 7 * sc);
+      ctx.fill();
+      ctx.stroke();
+
+      // Lime sheen & pickle warts/bumps
+      if (p.hitFlash <= 0) {
+        ctx.fillStyle = '#62b844';
+        ctx.beginPath();
+        ctx.roundRect(-4.5 * sc, -22 * sc, 4 * sc, 15 * sc, 2 * sc);
+        ctx.fill();
+        ctx.fillStyle = '#245e18';
+        for (const [bx, by] of [[-4, -10], [3.5, -13], [-3.5, -18], [4, -7], [1, -21]]) {
+          ctx.beginPath();
+          ctx.arc(bx * sc, by * sc, 1.3 * sc, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Red bandit mask across eyes
+      ctx.fillStyle = p.isBoss ? '#22152b' : '#c42228';
+      ctx.fillRect(-7.2 * sc, -19.5 * sc, 14.4 * sc, 4.8 * sc);
+      // Angry white eyes & pupils
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-4.6 * sc, -18.4 * sc, 3.2 * sc, 2.5 * sc);
+      ctx.fillRect(1.4 * sc, -18.4 * sc, 3.2 * sc, 2.5 * sc);
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(-3.2 * sc, -17.8 * sc, 1.4 * sc, 1.6 * sc);
+      ctx.fillRect(2.2 * sc, -17.8 * sc, 1.4 * sc, 1.6 * sc);
+      // Angry furrowed eyebrows
+      ctx.strokeStyle = '#111111';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-5.2 * sc, -19.2 * sc); ctx.lineTo(-1.2 * sc, -18.0 * sc);
+      ctx.moveTo(5.2 * sc, -19.2 * sc); ctx.lineTo(1.2 * sc, -18.0 * sc);
+      ctx.stroke();
+
+      // Golden Crown for KING DILL BOSS, or tiny stem for regular raider
+      if (p.isBoss) {
+        ctx.fillStyle = '#ffd447';
+        ctx.strokeStyle = '#7a4f00';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(-6 * sc, -25 * sc);
+        ctx.lineTo(-7 * sc, -31 * sc);
+        ctx.lineTo(-2.5 * sc, -27.5 * sc);
+        ctx.lineTo(0, -32.5 * sc);
+        ctx.lineTo(2.5 * sc, -27.5 * sc);
+        ctx.lineTo(7 * sc, -31 * sc);
+        ctx.lineTo(6 * sc, -25 * sc);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#225216';
+        ctx.fillRect(-1.5 * sc, -27.5 * sc, 3 * sc, 3 * sc);
+      }
+
+      // Stolen Christmas Tree carried on back OR tiny wooden raid club
+      if (p.carryingTree) {
+        ctx.save();
+        ctx.translate(7 * sc, -14 * sc);
+        ctx.rotate(0.45);
+        ctx.fillStyle = '#6b4226';
+        ctx.fillRect(-1.5, 2, 3, 5);
+        ctx.fillStyle = '#1e6e2e';
+        ctx.beginPath();
+        ctx.moveTo(0, -14); ctx.lineTo(-8, 3); ctx.lineTo(8, 3); ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffd447';
+        ctx.beginPath(); ctx.arc(0, -14, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      } else {
+        // Tiny raid axe/club
+        ctx.save();
+        ctx.translate(7.5 * sc, -13 * sc);
+        ctx.rotate(p.state === 'chopping' ? -0.8 + Math.sin(p.walkPhase * 2) * 0.9 : 0.3);
+        ctx.fillStyle = '#7a4c28';
+        ctx.fillRect(-1.2, -9, 2.4, 10);
+        ctx.fillStyle = '#d0dce5';
+        ctx.fillRect(0, -9, 5, 4);
+        ctx.restore();
+      }
+
+      // Floating HP bar for Boss or pulsing '!' bonk alert
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.01);
+      if (p.isBoss) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(-14, -39 * sc, 28, 5);
+        ctx.fillStyle = '#7dff4d';
+        ctx.fillRect(-13, -38 * sc, 26 * (p.hp / p.maxHp), 3);
+      } else {
+        ctx.fillStyle = pulse > 0.5 ? '#ff3b3b' : '#ffe14d';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('!', 0, -30 * sc);
+      }
+
+      ctx.restore();
+    }
+
     drawPeep(ctx, e, rot) {
+      if (e.kind === 'pickle') {
+        this.drawPickleRaider(ctx, e, rot);
+        return;
+      }
       if (e.kind === 'tractor_engine' || e.kind === 'tractor_wagon') {
         this.drawTractorPart(ctx, e.kind, e.ref, rot);
         return;

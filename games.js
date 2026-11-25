@@ -9,9 +9,9 @@ const bestOf = (H, k) => H.store.get("games", {})[k];
 /* ---------- hub ---------- */
 V.games = H => {
   const g = [
-    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261125003538#play"],
-    ["pinecrest", "Pinecrest Tycoon", "Created by King · Build and manage a 2.5D isometric Christmas tree farm — plant trees, build stalls, hire staff & welcome guests.", "🌲", "pinecrest-tycoon/index.html?v=20261125003538"],
-    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261125003538"],
+    ["dgm", "Dilly Gone Mad", "Out now · cinematic 3D open-world driving through Los Pepinos.", "🎬", "dilly-gone-mad.html?v=20261125004252#play"],
+    ["pinecrest", "Pinecrest Tycoon", "Created by King · Build and manage a 2.5D isometric Christmas tree farm — plant trees, build stalls, hire staff & welcome guests.", "🌲", "pinecrest-tycoon/index.html?v=20261125004252"],
+    ["dilly", "Dilly Goes Wild", "Steal cars, bonk for cash, outrun the cops. A top-down city romp starring Dilly the pickle.", "🥒", "dilly-goes-wild.html?v=20261125004252"],
     ["crossword", "Mini Crossword", "A 5×5 cosmic crossword. A new grid each day.", "✚"],
     ["scramble", "Orbit Scramble", "Unjumble five space words before the clock runs out.", "🌀"],
     ["rescue", "Rover Rescue", "Guess the word before the rover runs out of oxygen.", "🤖"],
