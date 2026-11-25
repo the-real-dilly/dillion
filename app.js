@@ -67,7 +67,7 @@ views.home = () => {
       <a class="btn ghost" href="dillyverse/index.html">🧊 Launch DillyVerse</a>
     </div>
     <div class="dg-stats">
-      <div><strong>5</strong><span>Flagship Titles</span></div>
+      <div><strong>4</strong><span>Flagship Titles</span></div>
       <div><strong>0 MB</strong><span>Instant Play</span></div>
       <div><strong>WebGL 2</strong><span>&amp; Rust Powered</span></div>
       <div><strong>100%</strong><span>Free to Play</span></div>
@@ -111,21 +111,6 @@ views.home = () => {
           <div class="dg-actions">
             <a class="btn" href="dilly-gone-mad.html#play">▶ Play Now</a>
             <a class="btn ghost small" href="dilly-gone-mad.html#trailer">Trailer</a>
-          </div>
-        </div>
-      </article>
-
-      <article class="dg-game">
-        <a class="dg-shot" href="pinecrest-tycoon/index.html">
-          <img src="img/pinecrest-tycoon.png" width="1280" height="640" loading="lazy" alt="Pinecrest Tycoon isometric Christmas tree farm">
-          <span class="dg-badge">CREATED BY KING</span>
-        </a>
-        <div class="dg-body">
-          <div class="dg-meta">2.5D Isometric Tycoon · Created by King</div>
-          <h3>Pinecrest Tycoon</h3>
-          <p>Run your own snowy Christmas tree farm, watch the 9-Act Hallmark-style holiday movie, defend your pines from Dill Pickle Raiders, and unleash The Dilly Twist.</p>
-          <div class="dg-actions">
-            <a class="btn" href="pinecrest-tycoon/index.html">▶ Play Now</a>
           </div>
         </div>
       </article>
