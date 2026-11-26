@@ -7,7 +7,7 @@
   <link rel="icon" href="../img/dilly-gaming-logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ranked.css"><!-- RANKED -->
   <script type="importmap">{ "imports": { "three": "../vendor/three.module.js" } }</script>
@@ -37,6 +37,8 @@
       <symbol id="i-ab-smoke" viewBox="0 0 24 24"><path fill="currentColor" d="M7.5 9.5a5 5 0 0 1 9.6-1.6A4.2 4.2 0 1 1 18 16.3H6.4a3.4 3.4 0 0 1 1.1-6.8zM4 18.5h16V20H4zm3 2.5h10v1H7z"/></symbol>
       <symbol id="i-ab-dash" viewBox="0 0 24 24"><path fill="currentColor" d="M2 5h5l7 7-7 7H2l7-7zm9 0h5l7 7-7 7h-5l7-7z"/></symbol>
       <symbol id="i-minimap" viewBox="0 0 160 110"><rect x="0" y="0" width="160" height="110" fill="#0f1923"/><rect x="72" y="8" width="18" height="40" fill="#3a4a58"/><rect x="72" y="62" width="18" height="40" fill="#3a4a58"/><rect x="60" y="51" width="40" height="8" fill="#2f5d56"/><rect x="88" y="14" width="28" height="7" fill="#3a4a58"/><rect x="44" y="89" width="28" height="7" fill="#3a4a58"/><rect x="22" y="22" width="10" height="10" fill="#5b6a77"/><rect x="128" y="78" width="10" height="10" fill="#5b6a77"/><rect x="18" y="40" width="5" height="30" fill="#3a4a58"/><rect x="137" y="40" width="5" height="30" fill="#3a4a58"/><path d="M71 8h18l-4 18H67z" fill="#ff4655" opacity=".35"/><text x="80" y="21" font-size="12" font-weight="700" fill="#ece8e1" text-anchor="middle" font-family="sans-serif">A</text><path d="M71 84h18l-4 18H67z" fill="#4cd5b5" opacity=".35"/><text x="80" y="97" font-size="12" font-weight="700" fill="#ece8e1" text-anchor="middle" font-family="sans-serif">B</text></symbol>
+      <symbol id="i-core" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1 20 6v12l-8 5-8-5V6zm0 4.5L7.8 8v8l4.2 2.5 4.2-2.5V8zM12 9l2.6 3L12 15l-2.6-3z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z"/></symbol>
     </defs>
   </svg>
 
@@ -59,7 +61,7 @@
     <div id="hitmarker"></div>
     <div id="hs-banner">HEADSHOT</div>
 
-    <!-- top-left: minimap + callout + credits -->
+    <!-- top-left: round minimap (rotates with the player) + callout + credits (buy phase only) -->
     <div id="minimap-wrap">
       <div class="minimap-frame">
         <canvas id="minimap" width="196" height="196"></canvas>
@@ -68,12 +70,13 @@
       <div id="hud-credits"><strong id="hud-cash">1200</strong></div>
     </div>
 
-    <!-- top-centre: ally portraits · ally score · round clock · enemy score · enemy portraits -->
+    <!-- top-centre: ally pips · ally score · clock/objective · enemy score · enemy pips -->
     <div id="top-bar">
       <div class="team-avatars ally" id="av-ct"></div>
       <div class="score-core">
         <div class="team-score ally" id="sc-a">0</div>
         <div class="round-clock">
+          <i class="obj-ico" aria-hidden="true"><svg><use href="#i-core"/></svg></i>
           <div id="round-timer">1:55</div>
           <div id="sc-mode">Dustline</div>
         </div>
@@ -82,49 +85,51 @@
       <div class="team-avatars enemy" id="av-t"></div>
       <div class="round-strip" id="round-strip">
         <span class="rs-wins ally" id="rs-ct">0</span>
-        <span class="rs-obj" id="rs-obj"><svg><use href="#i-target"/></svg><b id="rs-obj-txt">Eliminate</b></span>
+        <span class="rs-obj" id="rs-obj"><b id="rs-obj-txt">Eliminate</b></span>
         <span class="rs-wins enemy" id="rs-t">0</span>
       </div>
-      <div class="buy-phase" id="buy-phase"><b>Buy phase</b><span id="buy-phase-t">0:12</span><small>Press <kbd id="buy-key">B</kbd></small></div>
+      <div class="buy-phase" id="buy-phase"><b>Buy phase</b><span id="buy-phase-t">0:12</span><small>Press <kbd id="buy-key">B</kbd> to shop</small></div>
     </div>
 
-    <!-- top-right: killfeed -->
+    <!-- top-right: kill feed -->
     <div id="killfeed"></div>
 
-    <!-- chat -->
+    <!-- bottom-left: chat with team / all tabs -->
     <div id="chat-wrap">
       <div id="chat-log"></div>
-      <input type="text" id="chat-inp" placeholder="Say (all) — Enter to send">
+      <div class="chat-tabs" id="chat-tabs"><button data-ch="team">Team</button><button class="on" data-ch="all">All</button><small><kbd>Tab</kbd> switch</small></div>
+      <input type="text" id="chat-inp" placeholder="Say (all) — Enter to send" maxlength="120">
     </div>
 
-    <!-- bottom-centre: agent · shield / health · abilities (keybind under each slot) -->
+    <!-- bottom-centre: agent · shield + health · ability bar (C Q E + signature ring) -->
     <div id="hud-bottom">
       <div id="vitals">
         <div class="hud-agent" id="hud-agent" aria-hidden="true"></div>
         <div class="vital-col">
-          <div class="vital hp">
-            <svg class="vital-ico"><use href="#i-health"/></svg>
-            <strong id="hud-hp">100</strong>
-            <div class="vital-bar"><div id="hp-fill" style="width:100%"></div></div>
-          </div>
           <div class="vital arm">
             <svg class="vital-ico"><use href="#i-shield"/></svg>
             <strong id="hud-sh">100</strong>
             <div class="vital-bar"><div id="sh-fill" style="width:100%"></div></div>
           </div>
+          <div class="vital hp">
+            <svg class="vital-ico"><use href="#i-health"/></svg>
+            <strong id="hud-hp">100</strong>
+            <div class="vital-bar"><div id="hp-fill" style="width:100%"></div></div>
+          </div>
         </div>
       </div>
       <div id="bot-mid">
-        <div class="ab-chip ready" id="ab-q"><svg class="ab-ico"><use href="#i-ab-flash"/></svg><b>Q</b><span>Flare</span><small id="cd-q">READY</small></div>
-        <div class="ab-chip ready" id="ab-e"><svg class="ab-ico"><use href="#i-ab-smoke"/></svg><b>E</b><span>Smoke</span><small id="cd-e">READY</small></div>
-        <div class="ab-chip ready" id="ab-c"><svg class="ab-ico"><use href="#i-ab-dash"/></svg><b>C</b><span>Dash</span><small id="cd-c">READY</small></div>
+        <div class="ab-chip ready" id="ab-c"><svg class="ab-ico"><use href="#i-ab-dash"/></svg><b>C</b><span>Dash</span><small id="cd-c">READY</small><i class="ab-pip"></i></div>
+        <div class="ab-chip ready" id="ab-q"><svg class="ab-ico"><use href="#i-ab-flash"/></svg><b>Q</b><span>Flare</span><small id="cd-q">READY</small><i class="ab-pip"></i></div>
+        <div class="ab-chip ready" id="ab-e"><svg class="ab-ico"><use href="#i-ab-smoke"/></svg><b>E</b><span>Smoke</span><small id="cd-e">READY</small><i class="ab-pip"></i></div>
+        <div class="ab-chip ult" id="ab-x" title="Signature charge (earned from eliminations)"><div class="ult-wrap" id="ult-ring"></div><b>X</b><span>Signature</span><small id="ult-n">0/7</small></div>
       </div>
     </div>
 
-    <!-- right edge: weapon slots -->
+    <!-- right edge: weapon list -->
     <div id="wep-slots"></div>
 
-    <!-- bottom-right: weapon + ammo -->
+    <!-- bottom-right: ammo -->
     <div id="ammo-box">
       <div class="ammo-main">
         <strong id="wep-mag">30</strong>
@@ -140,116 +145,136 @@
   </div>
 
   <!-- ======================================================================
-       MAIN MENU (tactical-shooter style: top nav, home / play / loadout / agents)
-       All IDs used by src/main.js are preserved.
+       MAIN MENU — live agent stage behind a top nav (PLAY centre-top),
+       collapsed social rail on the right. IDs used by src/main.js and
+       src/ranked.js are preserved.
        ====================================================================== -->
   <div class="modal open" id="modal-lobby">
     <div class="mm" data-view="home">
+      <div class="mm-bg" aria-hidden="true">
+        <div class="mm-bg-slab s1"></div><div class="mm-bg-slab s2"></div>
+        <div class="mm-bg-name" id="mm-bg-name">Sprig</div>
+        <div class="mm-bg-lines"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="mm-stage" id="mm-stage"><div class="mm-stage-fallback" id="home-hero"></div></div>
+        <div class="mm-bg-vig"></div>
+      </div>
+
       <header class="mm-top">
         <div class="mm-brand">
           <img src="../img/dilly-gaming-logo.png" alt="Dilly Gaming" class="mm-logo">
           <div class="mm-word">DILLY<b>STRIKE</b></div>
         </div>
-        <nav class="mm-nav" id="mm-nav">
-          <button class="mm-tab active" data-view="home"><svg><use href="#i-home"/></svg><span>Home</span></button>
-          <button class="mm-tab play" data-view="play"><svg><use href="#i-play"/></svg><span>Play</span></button>
-          <button class="mm-tab" data-view="loadout"><svg><use href="#i-loadout"/></svg><span>Collection</span></button>
-          <button class="mm-tab" data-view="agents"><svg><use href="#i-agent"/></svg><span>Agents</span></button>
-          <button class="mm-tab" data-view="ranked"><svg><use href="#i-chevrons"/></svg><span>Career</span></button><!-- RANKED -->
-          <button class="mm-tab" id="btn-settings-lobby"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
-          <button class="mm-tab" id="btn-watch-trailer"><svg><use href="#i-film"/></svg><span>Trailer</span></button>
+        <nav class="mm-nav left" id="mm-nav">
+          <button class="mm-tab active" data-view="home"><span>Home</span></button>
+          <button class="mm-tab" data-view="agents"><span>Agents</span></button>
+          <button class="mm-tab" data-view="loadout"><span>Collection</span></button>
+        </nav>
+        <button class="mm-tab play" data-view="play"><span>Play</span></button>
+        <nav class="mm-nav right">
+          <button class="mm-tab" data-view="ranked"><span>Career</span></button><!-- RANKED -->
+          <button class="mm-tab" id="btn-watch-trailer"><span>Trailer</span></button>
         </nav>
         <div class="mm-profile">
-          <div class="mm-rank" title="Skill group"><svg><use href="#i-chevrons"/></svg></div>
-          <div class="mm-id">
-            <label class="mm-lbl" for="agent-name">Callsign</label>
-            <input type="text" id="agent-name" value="DillyAgent" maxlength="16" spellcheck="false">
-            <div class="mm-xp"><i id="mm-xp-fill"></i></div>
+          <div class="mm-wallet" title="Credits"><svg><use href="#i-coin"/></svg><span id="mm-credits">0</span></div>
+          <button class="mm-icon" id="btn-settings-lobby" title="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+          <div class="mm-card">
+            <div class="mm-rank" title="Account level"><span id="mm-level">1</span></div>
+            <div class="mm-id">
+              <label class="mm-lbl" for="agent-name">Callsign</label>
+              <input type="text" id="agent-name" value="DillyAgent" maxlength="16" spellcheck="false">
+              <div class="mm-xp"><i id="mm-xp-fill"></i></div>
+            </div>
           </div>
-          <div class="mm-wallet"><svg><use href="#i-coin"/></svg><span id="mm-credits">0</span></div>
         </div>
       </header>
 
+      <!-- collapsed social rail -->
+      <aside class="mm-social" id="mm-social">
+        <button class="soc-toggle" id="soc-toggle" aria-expanded="false"><svg><use href="#i-agent"/></svg><span>Social</span><b>1</b></button>
+        <div class="soc-panel">
+          <div class="soc-h">Party <small>1 / 5</small></div>
+          <div class="soc-me"><div class="soc-av" id="soc-av"></div><div><b id="soc-name">DillyAgent</b><small>In menus · Leader</small></div></div>
+          <div class="soc-h">Online services</div>
+          <div class="soc-row"><i class="dot"></i><div><b>Dedicated server</b><small id="mp-msg">Server: <code>wss://apibuild.dillonmay.com/strike</code></small></div></div>
+          <p class="soc-note">Friends and party invites arrive with hub accounts. Queue Ranked from the Career tab.</p>
+        </div>
+      </aside>
+
       <!-- HOME -->
       <section class="mm-view" data-view="home">
-        <div class="home-hero" id="home-hero" aria-hidden="true"></div>
-        <div class="home-left">
-          <div class="home-kicker">Season 01 · Operation Dustline</div>
-          <h1 class="home-title">DILLY<span>STRIKE</span></h1>
-          <p class="home-sub">5v5 tactical shooter. Two maps, five agents, every round counts.</p>
-          <div class="home-cards">
-            <button class="news-card" data-go="trailer">
-              <span class="nc-tag">New</span>
-              <strong>Official Trailer</strong>
-              <small>Captured in-engine · 60 seconds</small>
-              <svg class="nc-ic"><use href="#i-film"/></svg>
-            </button>
-            <div class="news-card static">
-              <span class="nc-tag blue">Online</span>
-              <strong>Dedicated server</strong>
-              <small id="mp-msg">Server: <code>wss://apibuild.dillonmay.com/strike</code></small>
-              <svg class="nc-ic"><use href="#i-globe"/></svg>
+        <div class="hm-left">
+          <div class="hm-feature" id="hm-feature">
+            <div class="hm-slides" id="hm-slides">
+              <article class="hm-slide on" data-i="0">
+                <div class="hm-slide-art map"><div class="map-card"><div class="map-art"><svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg></div></div></div>
+                <div class="hm-slide-body">
+                  <div class="home-kicker">Season 01 · Operation Dustline</div>
+                  <b class="map-name">Dustline</b>
+                  <small class="map-desc">Desert citadel · A site · Mid doors · B site</small>
+                </div>
+              </article>
+              <article class="hm-slide" data-i="1" data-go="trailer">
+                <div class="hm-slide-art trailer"><svg><use href="#i-film"/></svg></div>
+                <div class="hm-slide-body"><div class="hm-k">New · in-engine</div><b>Official trailer</b><small>Sixty seconds captured straight from the game.</small></div>
+              </article>
+              <article class="hm-slide" data-i="2" data-go="agents">
+                <div class="hm-slide-art roster" id="hm-roster-art"></div>
+                <div class="hm-slide-body"><div class="hm-k">Roster</div><b>Five agents</b><small>Duelist, controller, sentinel and two initiators. Pick yours.</small></div>
+              </article>
             </div>
+            <div class="hm-dots" id="hm-dots"><button class="on" data-i="0"></button><button data-i="1"></button><button data-i="2"></button></div>
           </div>
+          <div class="hm-pass" id="hm-pass">
+            <div class="hm-pass-top"><span>Season contract</span><b>Level <i id="hm-lvl">1</i></b></div>
+            <div class="hm-tiers" id="hm-tiers"></div>
+            <div class="hm-pass-xp"><i id="hm-xp-fill"></i></div>
+            <small id="hm-xp-txt">0 / 1000 XP</small>
+          </div>
+          <details class="hm-manual">
+            <summary>Field manual · controls</summary>
+            <div class="ctrl-grid" id="lobby-binds"></div>
+          </details>
           <a class="mm-back" href="../index.html"><svg><use href="#i-back"/></svg>Back to Dilly Gaming</a>
         </div>
-        <div class="home-right">
-          <div class="map-card">
-            <div class="map-art" aria-hidden="true"><svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg></div>
-            <div class="map-meta">
-              <div class="map-tag">Active duty map</div>
-              <div class="map-name">Dustline</div>
-              <div class="map-desc">Desert citadel · A site · Mid doors · B site</div>
-            </div>
-          </div>
-          <div class="pano-controls">
-            <div class="ctrl-hdr">Controls</div>
-            <div class="ctrl-grid" id="lobby-binds"></div>
-          </div>
-          <button class="btn-play" data-go="play"><span>Play</span><svg><use href="#i-play"/></svg></button>
+        <div class="hm-agent" id="hm-agent">
+          <small id="hm-agent-role">Duelist</small>
+          <b id="hm-agent-name">Sprig</b>
+          <button class="hm-agent-btn" data-go="agents">Change agent</button>
         </div>
       </section>
 
-      <!-- PLAY / MODE SELECT -->
+      <!-- PLAY: mode tabs · map · party banners · START -->
       <section class="mm-view" data-view="play">
-        <div class="view-hd"><div class="view-kicker">Select mode</div><h2>Play</h2></div>
-        <div class="mode-grid">
-          <button class="mode-card" id="btn-play-solo">
-            <div class="mode-art bots"><svg><use href="#i-bot"/></svg></div>
-            <div class="mode-body">
-              <div class="mode-tag">Offline · vs bots</div>
-              <strong>Competitive</strong>
-              <small>First to 7 rounds. Eliminate all five hostiles or survive the clock. Buy phase every round.</small>
-            </div>
-            <span class="mode-go">Start<svg><use href="#i-play"/></svg></span>
-          </button>
-          <button class="mode-card" id="btn-play-mp">
-            <div class="mode-art online"><svg><use href="#i-globe"/></svg></div>
-            <div class="mode-body">
-              <div class="mode-tag blue">Online · Rust server</div>
-              <strong>Casual Online</strong>
-              <small>Drop into the authoritative server with other players on the map you pick below. Team chat, live killfeed.</small>
-            </div>
-            <span class="mode-go">Connect<svg><use href="#i-play"/></svg></span>
-          </button>
-          <!-- RANKED (src/ranked.js) -->
-          <button class="mode-card" id="btn-play-ranked" data-go="ranked">
-            <div class="mode-art ranked"><svg><use href="#i-chevrons"/></svg></div>
-            <div class="mode-body">
-              <div class="mode-tag rk-tag">Online · Hub account</div>
-              <strong>Ranked</strong>
-              <small>5v5 first to 13. Five placement matches, then climb from Seedling to Legend.</small>
-            </div>
-            <span class="mode-go">Ranked<svg><use href="#i-play"/></svg></span>
-          </button>
+        <nav class="pl-tabs" id="pl-tabs">
+          <button class="pl-tab active" data-mode="bots">Bot match</button>
+          <button class="pl-tab" data-mode="online">Casual</button>
+          <button class="pl-tab" data-mode="ranked">Ranked</button>
+          <button class="pl-tab" data-mode="custom">Custom</button>
+        </nav>
+        <div class="pl-head">
+          <div class="pl-kicker" id="pl-kicker">Offline · vs bots</div>
+          <h2 id="pl-title">Bot match</h2>
+          <p id="pl-desc">First to 7 rounds against five hostiles. Buy phase every round, eliminate them all or hold until time.</p>
+          <div class="pl-rules" id="pl-rules"></div>
         </div>
-        <div class="map-strip">
-          <div class="map-chip active"><svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg><span>Dustline</span></div>
-          <div class="map-chip locked"><span>More maps soon</span></div>
+        <div class="pl-maps">
+          <div class="pl-maps-h">Map</div>
+          <div class="map-strip"></div>
+        </div>
+        <div class="pl-party" id="pl-party"></div>
+        <div class="pl-start">
+          <div class="pl-mm" id="pl-mm"><small id="pl-mm-l">Ready</small><b id="pl-mm-t"></b></div>
+          <button class="btn-start" id="pl-start"><span id="pl-start-l">Start</span></button>
+        </div>
+        <!-- mode actions (wired by main.js / ui.js / ranked.js); triggered by START -->
+        <div class="pl-actions" hidden>
+          <button id="btn-play-solo">Bot match</button>
+          <button id="btn-play-mp">Casual online</button>
+          <button id="btn-play-ranked" data-go="ranked">Ranked</button><!-- RANKED -->
         </div>
       </section>
 
-      <!-- LOADOUT -->
+      <!-- COLLECTION -->
       <section class="mm-view" data-view="loadout">
         <div class="view-hd"><div class="view-kicker">Arsenal</div><h2>Collection</h2></div>
         <div class="lo-grid" id="mm-loadout"></div>
@@ -257,8 +282,11 @@
 
       <!-- AGENTS -->
       <section class="mm-view" data-view="agents">
-        <div class="view-hd"><div class="view-kicker">Roster</div><h2>Agents</h2></div>
-        <div class="ag-roster" id="mm-agents"></div>
+        <div class="ag-side">
+          <div class="view-hd"><div class="view-kicker">Roster · 5 agents</div><h2>Agents</h2></div>
+          <div class="ag-roster" id="mm-agents"></div>
+        </div>
+        <div class="ag-detail" id="ag-detail"></div>
       </section>
 
       <!-- RANKED (rendered by src/ranked.js) -->
@@ -271,73 +299,75 @@
 
   <!-- AGENT SELECT (pre-match) -->
   <div class="ui-screen" id="agent-select" aria-hidden="true">
+    <div class="as-bg" aria-hidden="true"><div class="as-bg-name" id="as-bg-name">Sprig</div><div class="as-stage" id="as-stage"><div class="as-portrait" id="as-portrait"></div></div></div>
     <div class="as-top">
       <div class="as-map"><small>Competitive · vs bots</small><b>Dustline</b></div>
-      <div class="as-title">Choose your agent</div>
-      <div class="as-timer"><span id="as-time">15</span><small>seconds</small></div>
+      <div class="as-center"><div class="as-timer"><span id="as-time">15</span></div><div class="as-title">Choose your agent</div></div>
+      <div class="as-side"><small>Your side</small><b>Defenders</b></div>
     </div>
-    <div class="as-main">
-      <div class="as-team" id="as-team"></div>
-      <div class="as-hero">
-        <div class="as-portrait" id="as-portrait"></div>
-        <div class="as-info">
-          <div class="as-role" id="as-role">Duelist</div>
-          <div class="as-name" id="as-name">Agent</div>
-          <p class="as-bio" id="as-bio"></p>
-          <div class="as-abil" id="as-abil"></div>
-        </div>
-      </div>
+    <div class="as-team" id="as-team"></div>
+    <div class="as-info">
+      <div class="as-role" id="as-role">Duelist</div>
+      <div class="as-name" id="as-name">Agent</div>
+      <p class="as-bio" id="as-bio"></p>
+      <div class="as-abil" id="as-abil"></div>
     </div>
     <div class="as-bottom">
       <div class="as-tiles" id="as-tiles"></div>
-      <div class="as-btns">
-        <button class="btn-lock" id="as-lock">Lock in</button>
-        <button class="as-cancel" id="as-cancel"><svg><use href="#i-back"/></svg>Back</button>
-      </div>
+      <button class="btn-lock" id="as-lock">Lock in</button>
+      <button class="as-cancel" id="as-cancel"><svg><use href="#i-back"/></svg>Leave</button>
     </div>
   </div>
 
-  <!-- MATCH LOADING -->
+  <!-- MATCH LOADING: map art strip + both teams' agent cards -->
   <div class="ui-screen" id="match-load" aria-hidden="true">
-    <div class="ml-map">Dustline</div>
-    <div class="ml-mode">Competitive · First to 7</div>
+    <div class="ml-strip" id="ml-strip">
+      <div class="ml-art" id="ml-art"></div>
+      <div class="ml-title"><small class="ml-mode">Competitive · First to 7</small><div class="ml-map">Dustline</div></div>
+    </div>
     <div class="ml-vs"><div class="ml-side ally" id="ml-ct"></div><div class="ml-x">VS</div><div class="ml-side enemy" id="ml-t"></div></div>
-    <div class="ml-bar"><i></i></div>
+    <div class="ml-foot"><small id="ml-tip">Tip: crouching tightens your spread.</small><div class="ml-bar"><i></i></div></div>
   </div>
 
   <!-- ROUND BANNER -->
   <div id="round-banner" aria-hidden="true">
+    <div class="rb-streaks"><i></i><i></i><i></i><i></i></div>
     <div class="rb-strip">
       <div class="rb-kicker" id="rb-kicker">Round 1</div>
       <div class="rb-title" id="rb-title">Round won</div>
       <div class="rb-sub" id="rb-sub"></div>
     </div>
-    <div class="rb-mvp" id="rb-mvp"><svg><use href="#i-star"/></svg><div><small>Round MVP</small><b id="rb-mvp-name">DillyAgent</b><span id="rb-mvp-why"></span></div></div>
+    <div class="rb-mvp" id="rb-mvp"><div class="rb-mvp-art" id="rb-mvp-art"></div><div><small>Round MVP</small><b id="rb-mvp-name">DillyAgent</b><span id="rb-mvp-why"></span></div></div>
     <div class="rb-cash cr" id="rb-cash">+3250</div>
   </div>
 
   <!-- END OF MATCH -->
   <div class="ui-screen" id="match-end" aria-hidden="true">
-    <div class="me-result" id="me-result">Victory</div>
-    <div class="me-score"><span class="ally" id="me-ct">7</span><i>:</i><span class="enemy" id="me-t">3</span></div>
-    <div class="me-map">Competitive · Dustline</div>
-    <div class="me-body">
+    <div class="me-hero">
+      <div class="me-left">
+        <div class="me-map">Competitive · Dustline</div>
+        <div class="me-result" id="me-result">Victory</div>
+        <div class="me-score"><span class="ally" id="me-ct">7</span><i>–</i><span class="enemy" id="me-t">3</span></div>
+      </div>
       <div class="me-mvp">
         <div class="me-mvp-art" id="me-mvp-art"></div>
-        <small>Match MVP</small>
-        <b id="me-mvp-name">DillyAgent</b>
-        <span id="me-mvp-agent"></span>
+        <div class="me-mvp-txt"><small>Match MVP</small><b id="me-mvp-name">DillyAgent</b><span id="me-mvp-agent"></span></div>
       </div>
-      <div class="me-stats" id="me-stats"></div>
     </div>
-    <div class="me-xp"><div class="me-xp-lbl"><span>Experience</span><b id="me-xp-gain">+0 XP</b></div><div class="me-xp-bar"><i id="me-xp-fill"></i></div></div>
+    <nav class="me-tabs" id="me-tabs"><button class="on" data-t="summary">Summary</button><button data-t="scoreboard">Scoreboard</button><button data-t="timeline">Timeline</button></nav>
+    <div class="me-pane on" data-t="summary">
+      <div class="me-stats" id="me-stats"></div>
+      <div class="me-xp"><div class="me-xp-lbl"><span>Account level</span><b id="me-xp-gain">+0 XP</b></div><div class="me-xp-bar"><i id="me-xp-fill"></i></div></div>
+    </div>
+    <div class="me-pane" data-t="scoreboard"><div class="me-sb" id="me-sb"></div></div>
+    <div class="me-pane" data-t="timeline"><div class="me-tl" id="me-tl"></div></div>
     <div class="me-btns">
       <button class="btn-play sm" id="me-again"><span>Play again</span><svg><use href="#i-play"/></svg></button>
       <button class="btn ghost" id="me-lobby">Main menu</button>
     </div>
   </div>
 
-  <!-- SHOP (B) -->
+  <!-- SHOP (B): full-screen grid -->
   <div class="modal" id="modal-buy">
     <div class="shop-wrap">
       <div class="shop-left">
@@ -350,15 +380,18 @@
             <small>Credits</small>
             <strong id="buy-cash">1200</strong>
           </div>
-          <button class="shop-close" id="btn-buy-close">Esc / B</button>
+          <button class="shop-close" id="btn-buy-close">Close <kbd>B</kbd></button>
         </div>
         <div class="shop-grid" id="buy-wheel">
           <div class="shop-col-h c1">Sidearms</div>
           <div class="shop-col-h c2">Rifles</div>
           <div class="shop-col-h c3">Snipers</div>
-          <div class="shop-col-h c4">Shields &amp; gear</div>
+          <div class="shop-col-h c4">Shields</div>
+          <div class="shop-col-h c5">Utility</div>
+          <div class="shop-fixed" id="shop-melee"></div>
           <span id="wheel-cash" hidden></span>
         </div>
+        <div class="shop-team" id="shop-team"></div>
       </div>
       <div class="shop-insp" id="buy-inspector">
         <div class="insp-tag">Weapon stats</div>
@@ -371,28 +404,28 @@
     </div>
   </div>
 
-  <!-- SCOREBOARD (TAB) -->
+  <!-- SCOREBOARD (TAB): full-width table -->
   <div class="modal" id="modal-sb">
     <div class="sb-card">
       <div class="sb-top">
-        <div>
+        <div class="sb-tl">
           <div class="sb-map">Competitive · Dustline</div>
           <h2>Scoreboard</h2>
         </div>
         <div class="sb-totals">
-          <span class="ally-col"><b id="sb-ct-score">0</b></span>
+          <span class="ally-col"><small>Alpha</small><b id="sb-ct-score">0</b></span>
           <span class="sb-vs" id="sb-round">Kills</span>
-          <span class="enemy-col"><b id="sb-t-score">0</b></span>
+          <span class="enemy-col"><b id="sb-t-score">0</b><small>Omega</small></span>
         </div>
       </div>
-      <div class="sb-team-hdr ally"><span>Alpha</span><small>Defenders</small></div>
       <table class="sb ally">
-        <thead><tr><th class="sb-hide-sm"></th><th>Player</th><th>ACS</th><th>K / D / A</th><th>Econ</th><th class="sb-hide-sm">Ult</th></tr></thead>
+        <colgroup><col class="c-ag"><col class="c-name"><col><col><col><col><col><col class="sb-hide-sm"><col class="sb-hide-sm"><col class="sb-hide-sm"></colgroup>
+        <thead><tr><th class="sb-ag-h"></th><th class="sb-name-h">Player</th><th>ACS</th><th>K</th><th>D</th><th>A</th><th>Econ</th><th class="sb-hide-sm">First bloods</th><th class="sb-hide-sm">Plants</th><th class="sb-hide-sm">Defuses</th></tr></thead>
         <tbody id="sb-ct-body"></tbody>
       </table>
-      <div class="sb-team-hdr enemy"><span>Omega</span><small>Attackers</small></div>
+      <div class="sb-gap"></div>
       <table class="sb enemy">
-        <thead><tr><th class="sb-hide-sm"></th><th>Player</th><th>ACS</th><th>K / D / A</th><th>Econ</th><th class="sb-hide-sm">Ult</th></tr></thead>
+        <colgroup><col class="c-ag"><col class="c-name"><col><col><col><col><col><col class="sb-hide-sm"><col class="sb-hide-sm"><col class="sb-hide-sm"></colgroup>
         <tbody id="sb-t-body"></tbody>
       </table>
     </div>
@@ -420,7 +453,7 @@
         <nav class="set-tabs" id="set-tabs">
           <button class="set-tab active" data-tab="controls">Controls</button>
           <button class="set-tab" data-tab="crosshair">Crosshair</button>
-          <button class="set-tab" data-tab="interface">Interface</button>
+          <button class="set-tab" data-tab="interface">General</button>
         </nav>
         <button class="set-x" id="btn-settings-close" aria-label="Close settings"><svg><use href="#i-x"/></svg></button>
       </div>

@@ -218,3 +218,38 @@ body:not(:has(#hud.active)) #rk-hud { display: none; }
 .rk-toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 95; max-width: min(560px, calc(100% - 32px)); padding: 12px 16px; background: rgba(15,25,35,.97); border: 1px solid var(--line-2); border-left: 3px solid var(--ally); color: var(--paper); font-size: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .rk-toast.bad { border-left-color: var(--red); }
 .rk-toast[hidden] { display: none; }
+
+/* ---- display-type pass: tall condensed headings + larger agent art (matches styles.css) ---- */
+.rk-accept-card h2 { font: 400 96px/1 var(--f-big); letter-spacing: .06em; }
+.rk-ring span { font: 400 50px/1 var(--f-big); }
+.rk-sel-top b { font: 400 34px/1.1 var(--f-big); letter-spacing: .06em; }
+.rk-sel-title { font: 600 15px/1 var(--f-disp); letter-spacing: .5em; color: var(--paper-dim); }
+.rk-sel-timer span { font: 400 64px/1 var(--f-big); }
+#rk-select { background: radial-gradient(ellipse 50% 70% at 40% 58%, rgba(76,213,181,.14), transparent 70%), linear-gradient(180deg, #0d1620, #080d13); }
+.rk-sel-main { grid-template-columns: 300px 1fr; }
+.rk-slot { height: 62px; padding: 0 12px 0 0; }
+.rk-slot .mini { width: 62px; height: 62px; }
+.rk-slot b { font: 400 19px/1.1 var(--f-big); letter-spacing: .06em; }
+.rk-sel-hero { gap: 40px; }
+.rk-hero-art { width: min(30vw, 420px); height: min(58vh, 600px); }
+.rk-hero-name { font: 400 128px/.88 var(--f-big); letter-spacing: .02em; margin: 8px 0 12px; }
+.rk-abil { flex-direction: column; }
+.rk-abil > div { max-width: 440px; min-width: 0; border: 0; box-shadow: inset 2px 0 0 var(--ac, var(--paper)); background: rgba(10,17,24,.72); padding: 10px 14px; }
+.rk-tile { width: 86px; height: 86px; }
+.rk-end-res { font: 400 clamp(84px, 13vw, 200px)/.9 var(--f-big); letter-spacing: .03em; }
+.rk-end-score { font: 400 64px/1 var(--f-big); gap: 18px; }
+.rk-end-score span { padding: 0; background: none !important; clip-path: none; }
+.rk-end-score .a { color: var(--ally); } .rk-end-score .b { color: var(--red); }
+.rk-end-score i { background: none; font-size: 30px; }
+.rk-end-label { font: 400 44px/1 var(--f-big); letter-spacing: .05em; }
+.rk-end-table td { height: 44px; font: 600 15px var(--f-disp); letter-spacing: .05em; }
+.rk-end-table td .mini { width: 44px; height: 44px; margin: -8px 10px -8px -8px; }
+.rk-end-table tr.ally td { background: linear-gradient(90deg, rgba(76,213,181,.18), rgba(15,25,35,.8) 50%); }
+.rk-end-table tr.enemy td { background: linear-gradient(90deg, rgba(255,70,85,.18), rgba(15,25,35,.8) 50%); }
+.rk-end-table tr.me td { background: linear-gradient(90deg, rgba(242,211,107,.32), rgba(242,211,107,.1) 50%); }
+@media (max-width: 860px) {
+  .rk-hero-art { width: 160px; height: 220px; } .rk-hero-name { font-size: 56px; }
+  .rk-sel-main { grid-template-columns: 1fr; }
+  .rk-tile { width: 60px; height: 60px; }
+  .rk-accept-card h2 { font-size: 56px; }
+}

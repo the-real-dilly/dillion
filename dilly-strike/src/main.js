@@ -1377,9 +1377,11 @@ function renderScoreboard() {
   ];
   const UIX = window.DillyStrikeUI, rounds = Math.max(1, (UIX && UIX.rounds ? UIX.rounds().round : 0) || 1);
   const rowHtml = (foe) => (r, i) => {
-    const acs = Math.round((r.kills * 150 + r.assists * 50 + r.deaths * 10) / rounds), ult = Math.min(7, r.kills + r.deaths);
-    const ag = UIX && UIX.face ? UIX.face(i, foe, !!r.me) : '';
-    return `<tr${r.me ? ' class="me"' : ''}><td class="sb-ag sb-hide-sm">${ag}</td><td><b>${r.name}</b></td><td>${acs}</td><td class="sb-kda">${r.kills}<i>/</i>${r.deaths}<i>/</i>${r.assists}</td><td class="sb-cr">${r.cash}</td><td class="sb-ult sb-hide-sm${ult >= 7 ? ' full' : ''}">${'<i class="on"></i>'.repeat(ult)}${'<i></i>'.repeat(7 - ult)}</td></tr>`;
+    // columns: agent · name + rank · ACS · K · D · A · econ · first bloods · plants · defuses (no objective in this mode)
+    const acs = Math.round((r.kills * 150 + r.assists * 50 + r.deaths * 10) / rounds);
+    const ag = UIX && UIX.face ? UIX.face(i, foe, !!r.me) : '', rk = UIX && UIX.rankIcon ? UIX.rankIcon(r) : '';
+    const fb = r.me && UIX && UIX.rounds ? (UIX.rounds().fb || 0) : 0;
+    return `<tr${r.me ? ' class="me"' : ''}><td class="sb-ag">${ag}</td><td class="sb-name"><div><b>${r.name}</b>${rk}</div></td><td class="sb-acs">${acs}</td><td>${r.kills}</td><td>${r.deaths}</td><td>${r.assists}</td><td class="sb-cr">${r.cash}</td><td class="sb-hide-sm">${fb}</td><td class="sb-hide-sm dim">0</td><td class="sb-hide-sm dim">0</td></tr>`;
   };
   $('sb-ct-body').innerHTML = all.filter(r => r.team === me.team).map(rowHtml(false)).join('');
   $('sb-t-body').innerHTML = all.filter(r => r.team !== me.team).map(rowHtml(true)).join('');
@@ -1782,7 +1784,7 @@ function playTrailerScene(sceneName) {
     spawnTrActor({ name: 'OMEGA-Adder', team: 'omega', x: 17.5, z: 3.8, tx: 6.4, tz: 3.0, speed: 3.9 });
     spawnTrActor({ name: 'OMEGA-Scythe', team: 'omega', x: 14.0, z: -14.0, tx: 2.8, tz: -15.2, speed: 3.7 });
     spawnTrActor({ name: 'OMEGA-Kodiak', team: 'omega', x: 18.5, z: -8.5, tx: 8.2, tz: -7.8, speed: 3.6 });
-    spawnTrActor({ name: 'OMEGA-Ghost', team: 'omega', x: 11.5, z: -20.5, tx: -1.0, tz: -20.5, speed: 3.8 });
+    spawnTrActor({ name: 'OMEGA-Thorn', team: 'omega', x: 11.5, z: -20.5, tx: -1.0, tz: -20.5, speed: 3.8 });
   } else if (sceneName === 'ak_entry') {
     scoreAlpha = 6; scoreOmega = 6; roundTime = 104;
     me.name = 'DillyAgent'; me.team = 'alpha';
@@ -1864,7 +1866,7 @@ function playTrailerScene(sceneName) {
     spawnTrActor({ name: 'OMEGA-Boss', team: 'omega', x: 9.5, z: -21.5, tx: 2.2, tz: -21.2, speed: 3.4 });
     spawnTrActor({ name: 'OMEGA-Adder', team: 'omega', x: 8.5, z: -14.2, tx: 2.5, tz: -14.5, speed: 3.6 });
     spawnTrActor({ name: 'OMEGA-Scythe', team: 'omega', x: 11.5, z: -18.5, tx: 5.5, tz: -19.8, speed: 3.3 });
-    spawnTrActor({ name: 'OMEGA-Ghost', team: 'omega', x: 6.5, z: -24.0, tx: 0.8, tz: -23.2, speed: 3.5 });
+    spawnTrActor({ name: 'OMEGA-Thorn', team: 'omega', x: 6.5, z: -24.0, tx: 0.8, tz: -23.2, speed: 3.5 });
     spawnSmoke(2.4, 1.9, -15.2);
   }
 }
@@ -2219,6 +2221,7 @@ function loop(now) {
     const mc = CUR_MAP.menuCam;
     camera.position.set(Math.cos(menuYaw) * mc.r, mc.h, Math.sin(menuYaw) * mc.r);
     camera.lookAt(mc.look[0], mc.look[1], mc.look[2]);
+    if (window.DillyMenu3D && window.DillyMenu3D.covers()) return; // the menu's own agent stage covers the screen (src/menuscene.js)
     renderFrame(scene, camera);
     return;
   }
