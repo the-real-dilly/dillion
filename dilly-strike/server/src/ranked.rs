@@ -437,6 +437,7 @@ impl Ranked {
         let (rows, updated, changes) = rate_match(&s, &records, &self.rules);
         let row = MatchRow {
             id: s.id.clone(),
+            map: s.map.to_string(),
             team_size: s.team_size,
             score: s.score,
             winner: s.winner.map(|w| if w == Team::A { 'a' } else { 'b' }),
@@ -476,9 +477,10 @@ impl Ranked {
             let Some(ch) = changes.get(&p.key) else { continue };
             let result = rows.iter().find(|r| r.key == p.key).map(|r| r.result).unwrap_or("loss");
             let msg = format!(
-                "{{\"type\":\"match_end\",\"match_id\":\"{}\",\"result\":\"{}\",\"your_team\":\"{}\",\"score\":[{},{}],\"rounds\":{},\"overtime\":{},\"forfeit\":{},\"abandoned\":{},\
+                "{{\"type\":\"match_end\",\"match_id\":\"{}\",\"map\":\"{}\",\"result\":\"{}\",\"your_team\":\"{}\",\"score\":[{},{}],\"rounds\":{},\"overtime\":{},\"forfeit\":{},\"abandoned\":{},\
                  \"rank_before\":{},\"rank_after\":{},\"rr_delta\":{},\"mmr_delta\":{:.1},\"promoted\":{},\"demoted\":{},\"revealed\":{},\"saved\":{},\"players\":[{}]}}",
                 json_esc(&s.id),
+                s.map,
                 result,
                 p.team.code(),
                 s.score[0],
@@ -500,8 +502,9 @@ impl Ranked {
             self.deliver(&p.key, &msg);
         }
         let ev = format!(
-            "{{\"type\":\"ranked_match_end\",\"match_id\":\"{}\",\"score\":[{},{}],\"winner\":{},\"team_size\":{},\"players\":[{}]}}",
+            "{{\"type\":\"ranked_match_end\",\"match_id\":\"{}\",\"map\":\"{}\",\"score\":[{},{}],\"winner\":{},\"team_size\":{},\"players\":[{}]}}",
             json_esc(&s.id),
+            s.map,
             s.score[0],
             s.score[1],
             s.winner.map(|w| format!("\"{}\"", w.code())).unwrap_or_else(|| "null".into()),
@@ -688,8 +691,9 @@ impl Ranked {
                         .map(|i| {
                             let my = if i.row.team == 'a' { 0 } else { 1 };
                             format!(
-                                "{{\"match_id\":\"{}\",\"ended_ms\":{},\"result\":\"{}\",\"score\":[{},{}],\"team_size\":{},\"agent\":\"{}\",\"kills\":{},\"deaths\":{},\"headshots\":{},\"damage\":{},\"mvps\":{},\"rr_delta\":{},\"rr_after\":{},\"placement\":{},\"abandoned\":{}}}",
+                                "{{\"match_id\":\"{}\",\"map\":\"{}\",\"ended_ms\":{},\"result\":\"{}\",\"score\":[{},{}],\"team_size\":{},\"agent\":\"{}\",\"kills\":{},\"deaths\":{},\"headshots\":{},\"damage\":{},\"mvps\":{},\"rr_delta\":{},\"rr_after\":{},\"placement\":{},\"abandoned\":{}}}",
                                 json_esc(&i.match_id),
+                                json_esc(&i.map),
                                 i.ended_ms,
                                 i.row.result,
                                 i.score[my],
@@ -963,6 +967,7 @@ mod tests {
     fn rate_match_win_loss_and_leaver() {
         let s = MatchSummary {
             id: "m".into(),
+            map: "brinepeak",
             team_size: 2,
             score: [13, 7],
             winner: Some(Team::A),

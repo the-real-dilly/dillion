@@ -4,7 +4,9 @@
    sites, spawns (playerSpawn/botSpawn/botRespawn), bot navigation
    (waypoints for straight-line bots, or nav.path/randomTarget for A*),
    callout(x, z), menuCam, build(ctx) for geometry + colliders and
-   dress(ctx) for the realism detail. online: whether the Rust server runs it.
+   dress(ctx) for the realism detail. online: whether the Rust server runs it
+   (server/src/maps.rs mirrors bounds + spawns; online/ranked load the map the
+   server names, see resolveMapId).
    ========================================================================== */
 import dustline from './dustline.js';
 import brinepeak from './brinepeak.js';
@@ -19,3 +21,11 @@ export function savedMapId() {
   return 'dustline';
 }
 export function saveMapId(id) { try { localStorage.setItem(KEY, id); } catch (_) { /* private mode */ } }
+// Map named by the server (id "brinepeak" or code "de_brinepeak"); missing/unknown -> dustline.
+export function resolveMapId(v) {
+  if (typeof v !== 'string' || !v) return 'dustline';
+  const k = v.trim().toLowerCase();
+  if (MAPS[k]) return k;
+  const m = Object.values(MAPS).find((x) => x.code === k);
+  return m ? m.id : 'dustline';
+}

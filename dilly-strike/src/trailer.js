@@ -369,7 +369,7 @@ const distToA = (a) => (a ? distTo(a.pos.x, 1.4, a.pos.z) : 10);
 /* =====================================================================
    the shot list
    ===================================================================== */
-const CT5 = ['DillyAgent', 'CT-Falcon', 'CT-Frost', 'CT-Warden', 'CT-Striker'];
+const SQUAD = ['DillyAgent', 'Falcon', 'Frost', 'Warden', 'Striker'];
 const SHOTS = [
   // 0 — dawn crane: over the shoulders of the T squad, rising over spawn cover to reveal the citadel
   { t0: 0, tod: 'dawn', weather: 'dust', dof: 0.3,
@@ -384,11 +384,11 @@ const SHOTS = [
     enter() { actor('BOT-Ghost', 'omega', -5, -22.2, { tx: 11, tz: -22.6, speed: 1.9, look: V(30, 0, -22.6) }); },
     cam(lt) { setCam(-4.2 + lt * 1.25, 0.42 + lt * 0.06, -4.6, 3.8, 1.9, -17.6, 50 - lt * 1.6); },
     focus(lt) { return lerp(2.4, 13, ease((lt - 1.4) / 1.2)); } },
-  // 2 — hero reveal: the CT squad walks out of spawn, low tracking shot
+  // 2 — hero reveal: the defender squad walks out of spawn, low tracking shot
   { t0: 9.0, tod: 'noon', dof: 0.4,
     enter() {
       const L = V(20, 0, -8), pos = [[-23.5, -8], [-24.9, -10.2], [-24.9, -5.8], [-26.3, -12.4], [-26.3, -3.6]];
-      CT5.forEach((n, i) => actor(n, 'alpha', pos[i][0], pos[i][1], { tx: pos[i][0] + 9.5, tz: pos[i][1], speed: 1.6, look: L }));
+      SQUAD.forEach((n, i) => actor(n, 'alpha', pos[i][0], pos[i][1], { tx: pos[i][0] + 9.5, tz: pos[i][1], speed: 1.6, look: L }));
     },
     cam(lt) { const d = byName('DillyAgent'); setCam(-15.6 + lt * 0.9, 0.8 + lt * 0.05, -7.0, d.pos.x, 1.35, d.pos.z - 0.3, 42); },
     focus() { return distToA(byName('DillyAgent')); } },
@@ -417,7 +417,7 @@ const SHOTS = [
   { t0: 21.4, tod: 'noon', dof: 0, mb: 0.2,
     enter() {
       const cts = [[-24, -22, -5, -22.4], [-24, -24.6, -7, -24.8], [-24, 9.4, -6, 10.2], [-25, 2.5, -12.5, 2.6]];
-      cts.forEach(([x, z, tx, tz], i) => actor(CT5[i], 'alpha', x, z, { tx, tz, speed: 3.9, look: V(tx + 10, 0, tz) }));
+      cts.forEach(([x, z, tx, tz], i) => actor(SQUAD[i], 'alpha', x, z, { tx, tz, speed: 3.9, look: V(tx + 10, 0, tz) }));
       const ts = [[25, -12, 12, -12.2], [26, -3, 13, -3], [25, 22.4, 8, 22.6], [26, 8.2, 14, 8.2]];
       ts.forEach(([x, z, tx, tz], i) => actor(['BOT-Phoenix', 'BOT-Viper', 'BOT-Kodiak', 'BOT-Ghost'][i], 'omega', x, z, { tx, tz, speed: 3.8, look: V(tx - 10, 0, tz) }));
     },
@@ -428,13 +428,13 @@ const SHOTS = [
   // 6 — SMOKE: over-the-shoulder throw, the cloud blooms in slow motion
   { t0: DROP, tod: 'golden', weather: 'dust', mb: 0.3, dof: 0.5,
     enter() {
-      actor('CT-Frost', 'alpha', -15.4, 8.6, { look: V(0, 0, 8.8) });
+      actor('Frost', 'alpha', -15.4, 8.6, { look: V(0, 0, 8.8) });
       actor('BOT-Viper', 'omega', 6.5, 9.2, { tx: -2.5, tz: 9.6, speed: 3.2, look: V(-15, 0, 9) });
     },
     slow(lt) { return lt < 1.15 ? 1 : lerp(1, 0.42, ease((lt - 1.15) / 0.35)); },
     update(lt) { once('throw', lt, 0.22, () => nade('smoke', V(-15.0, 1.75, 8.7), V(-5.0, 0.08, 9.2), 0.9, 2.4, (n) => smokeCloud(n.p1.x + 0.6, n.p1.z))); },
     cam(lt) { const e = ease(lt / 2.8); setCam(-18.3 + e * 0.9, 1.72, 9.9 - e * 0.15, -5.6, 1.4, 8.8, 44 - e * 3); },
-    focus(lt) { return lt < 0.9 ? distToA(byName('CT-Frost')) : distTo(-5, 1.4, 9.2); } },
+    focus(lt) { return lt < 0.9 ? distToA(byName('Frost')) : distTo(-5, 1.4, 9.2); } },
   // 7 — FLASH: the grenade sails over the camera onto A; Ts blinded
   { t0: 29.2125, tod: 'golden', weather: 'dust', mb: 0.25, dof: 0.35,
     enter() { const L = V(-10, 0, -10); actor('BOT-Phoenix', 'omega', 10.4, -13.4, { look: L }); actor('BOT-Viper', 'omega', 12.6, -12.3, { look: L }); actor('BOT-Reaper', 'omega', 13.2, -14.6, { look: L }); },
@@ -452,7 +452,7 @@ const SHOTS = [
       actor('BOT-Phoenix', 'omega', 10.6, -13.6, { look: V(-10, 0, -10), kills: 9, deaths: 10 });
       actor('BOT-Viper', 'omega', 12.8, -12.2, { look: V(-10, 0, -10), kills: 8, deaths: 10 });
       actor('BOT-Reaper', 'omega', 13.6, -19.8, { tx: 11.6, tz: -19.9, speed: 2.4, look: V(-4, 0, -12), kills: 7, deaths: 11 });
-      actor('CT-Falcon', 'alpha', -12, -3, { kills: 9, deaths: 8 }).model.group.visible = false;
+      actor('Falcon', 'alpha', -12, -3, { kills: 9, deaths: 8 }).model.group.visible = false;
       E.syncHud();
     },
     update(lt, dt) {
@@ -493,27 +493,27 @@ const SHOTS = [
     },
     cam(lt) { const e = ease(lt / 2.8); setCam(lerp(-0.7, 0.05, e), lerp(0.42, 0.34, e), lerp(19.15, 19.85, e), 1.3, 0.22, 21.45, lerp(34, 29, e)); },
     focus(lt) { return lt < 0.9 ? distToA(byName('BOT-Kodiak')) : distTo(1.3, 0.15, 21.4); } },
-  // 11 — RETAKE: night falls, high wide move over B as the CTs push in under fire
+  // 11 — RETAKE: night falls, high wide move over B as the defenders push in under fire
   { t0: 41.4, tod: 'night', mb: 0.28, dof: 0.2,
     enter() {
       P.charge.visible = true; P.charge.position.set(1.3, 0, 21.4); P.charge.rotation.set(0, 0.5, 0); P.chargeState = 'armed';
       actor('BOT-Kodiak', 'omega', 2.8, 25.2, { look: V(0, 0, 12) }); actor('BOT-Ghost', 'omega', 5.6, 25.4, { look: V(3, 0, 12) }); actor('BOT-Viper', 'omega', -12.2, 20.6, { look: V(-4, 0, 12) });
       actor('DillyAgent', 'alpha', -0.8, 9.6, { tx: -0.4, tz: 13.6, speed: 2.6, look: V(2.8, 0, 25) });
-      actor('CT-Frost', 'alpha', 3.2, 8.8, { tx: 4.0, tz: 13.0, speed: 2.4, look: V(5.6, 0, 25) });
-      actor('CT-Falcon', 'alpha', -6.2, 9.4, { tx: -4.6, tz: 13.4, speed: 2.2, look: V(-12, 0, 20.6) });
+      actor('Frost', 'alpha', 3.2, 8.8, { tx: 4.0, tz: 13.0, speed: 2.4, look: V(5.6, 0, 25) });
+      actor('Falcon', 'alpha', -6.2, 9.4, { tx: -4.6, tz: 13.4, speed: 2.2, look: V(-12, 0, 20.6) });
     },
     update(lt) {
-      const pairs = [['DillyAgent', 'BOT-Kodiak'], ['CT-Frost', 'BOT-Ghost'], ['CT-Falcon', 'BOT-Viper']];
+      const pairs = [['DillyAgent', 'BOT-Kodiak'], ['Frost', 'BOT-Ghost'], ['Falcon', 'BOT-Viper']];
       if (Math.random() < 0.3) { const [a, b] = pairs[Math.floor(Math.random() * 3)], A = byName(a), B = byName(b); if (A.hp > 0 && B.hp > 0) { if (Math.random() < 0.55) actorFire(A, B, { sfx: Math.random() < 0.5 }); else actorFire(B, A, { sfx: Math.random() < 0.5 }); } }
-      once('k1', lt, 1.55, () => actorFire(byName('CT-Frost'), byName('BOT-Ghost'), { head: true, kill: true }));
-      once('k2', lt, 2.3, () => actorFire(byName('CT-Falcon'), byName('BOT-Viper'), { kill: true }));
+      once('k1', lt, 1.55, () => actorFire(byName('Frost'), byName('BOT-Ghost'), { head: true, kill: true }));
+      once('k2', lt, 2.3, () => actorFire(byName('Falcon'), byName('BOT-Viper'), { kill: true }));
     },
     cam(lt) { const e = ease(lt / 2.8); setCam(lerp(-14.5, -7.5, e), lerp(7.6, 4.9, e), lerp(8.6, 6.8, e), lerp(-1, 1.2, e), 0.6, 19.2, 46); } },
   // 12 — CLUTCH: first-person Apex-50, real 2x scope overlay, slow-mo zoom punch
   { t0: 44.2125, tod: 'night', hud: true, pov: true, dof: 0,
     enter() {
       setMe({ pos: [6.2, 9.2], look: [-8, 1.6, 14.5], wep: 'operator', owned: ['operator', 'sheriff', 'knife'], state: { hp: 23, shield: 0, cash: 5600, kills: 19, deaths: 8 }, ammo: { operator: [3, 25] }, score: [12, 12], time: 9 });
-      for (const n of CT5.slice(1)) actor(n, 'alpha', -20, -20, { hp: 0, kills: 9, deaths: 11 });
+      for (const n of SQUAD.slice(1)) actor(n, 'alpha', -20, -20, { hp: 0, kills: 9, deaths: 11 });
       actor('BOT-Ghost', 'omega', 30, 0, { hp: 0, kills: 11, deaths: 12 }); actor('BOT-Viper', 'omega', 30, 2, { hp: 0, kills: 10, deaths: 12 });
       actor('BOT-Kodiak', 'omega', 30, 4, { hp: 0, kills: 12, deaths: 11 }); actor('BOT-Phoenix', 'omega', 30, 6, { hp: 0, kills: 9, deaths: 13 });
       actor('BOT-Reaper', 'omega', -13.9, 15.4, { tx: -12.7, tz: 13.8, speed: 1.1, look: V(6.2, 0, 9.2), kills: 13, deaths: 10 });
@@ -551,7 +551,7 @@ const SHOTS = [
   { t0: 50.775, tod: 'storm', weather: 'storm', mb: 0.3, dof: 0.35,
     enter() {
       const L = V(-12, 0, -12), pos = [[11, -12], [12.4, -13.8], [12.4, -10.2], [13.8, -15.0], [13.8, -8.6]];
-      CT5.forEach((n, i) => actor(n, 'alpha', pos[i][0], pos[i][1], { tx: pos[i][0] - 9, tz: pos[i][1], speed: 1.7, look: L }));
+      SQUAD.forEach((n, i) => actor(n, 'alpha', pos[i][0], pos[i][1], { tx: pos[i][0] - 9, tz: pos[i][1], speed: 1.7, look: L }));
     },
     slow() { return 0.55; },
     cam(lt) { setCam(-1.4 - lt * 0.25, 0.72, -11.7, 9, 1.55, -12.2, 40); },
@@ -560,7 +560,7 @@ const SHOTS = [
   { t0: LOGO_T, tod: 'golden', weather: 'dust', dof: 0.25,
     enter() {
       const L = V(14, 0, -6);
-      actor('DillyAgent', 'alpha', -15.8, 11.6, { look: L }); actor('CT-Falcon', 'alpha', -17.4, 13.2, { look: L }); actor('CT-Frost', 'alpha', -17.6, 10.0, { look: L });
+      actor('DillyAgent', 'alpha', -15.8, 11.6, { look: L }); actor('Falcon', 'alpha', -17.4, 13.2, { look: L }); actor('Frost', 'alpha', -17.6, 10.0, { look: L });
     },
     cam(lt) { const e = ease(lt / 6); setCam(-21.5 - e * 2.5, 1.7 + e * 6.5, 15.5 + e * 6, 12, 5 + e * 2, -12, 46); },
     focus() { return 26; } }

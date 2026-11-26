@@ -71,10 +71,14 @@ struct Client {
 
 impl Client {
     fn connect(port: u16) -> Client {
+        Client::connect_path(port, "/strike/ranked")
+    }
+    fn connect_path(port: u16, path: &str) -> Client {
         let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
         s.write_all(
             format!(
-                "GET /strike/ranked HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+                "GET {} HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n",
+                path
             )
             .as_bytes(),
         )
@@ -187,6 +191,9 @@ fn play_match(a: &mut Client, b: &mut Client, a_name: &str, b_name: &str) -> (Js
     b.send("{\"type\":\"pick\",\"agent\":\"ember\"}"); // other team: same agent allowed
     b.send("{\"type\":\"lock\"}");
     let ms = a.expect("match_start", 5);
+    let map = ms.str_of("map").expect("match_start carries the map");
+    assert!(map == "dustline" || map == "brinepeak", "{}", map);
+    assert_eq!(ms.str_of("map_code"), Some(format!("de_{}", map).as_str()));
     let players = match ms.get("players") {
         Some(Json::Arr(p)) => p.clone(),
         _ => panic!(),
@@ -369,4 +376,84 @@ fn ranked_two_replicas_shared_redis() {
             _ => panic!(),
         }
     }
+}
+
+#[test]
+fn ranked_match_on_brinepeak_from_map_pool() {
+    let srv = start_server("brine-pod", &[("RANKED_MAPS", "brinepeak")]);
+    let port = srv.port;
+    let mut a = Client::hello(port, "MonkMira");
+    let mut b = Client::hello(port, "GateKeeper");
+    let (ea, _eb) = play_match(&mut a, &mut b, "MonkMira", "GateKeeper");
+    assert_eq!(ea.str_of("map"), Some("brinepeak"));
+    let found = a.log.iter().find(|v| v.str_of("type") == Some("match_found")).unwrap();
+    assert_eq!(found.str_of("map"), Some("brinepeak"));
+    let sel = a.log.iter().find(|v| v.str_of("type") == Some("agent_select")).unwrap();
+    assert_eq!(sel.str_of("map_code"), Some("de_brinepeak"));
+    let ms = a.log.iter().find(|v| v.str_of("type") == Some("match_start")).unwrap();
+    assert_eq!(ms.str_of("map"), Some("brinepeak"));
+    assert_eq!(num(ms, &["sites"]) as i32, 3);
+    // round 1 spawns: team a defends from the upper cloister (z = -31), b attacks from the lower gate (z = 31)
+    let r1a = a.log.iter().find(|v| v.str_of("type") == Some("round")).unwrap();
+    let r1b = b.log.iter().find(|v| v.str_of("type") == Some("round")).unwrap();
+    assert_eq!(num(r1a, &["you", "z"]), -31.0);
+    assert_eq!(num(r1b, &["you", "z"]), 31.0);
+    // history over HTTP carries the map
+    let (_, prof) = http_get(port, "/strike/ranked/profile/MonkMira");
+    match prof.get("history") {
+        Some(Json::Arr(h)) => assert_eq!(h[0].str_of("map"), Some("brinepeak")),
+        _ => panic!("history missing"),
+    }
+}
+
+/// Casual (non-ranked) server: each map is its own room; missing/unknown map -> dustline.
+#[test]
+fn casual_map_rooms() {
+    let srv = start_server("casual-pod", &[]);
+    let port = srv.port;
+    let mut brine1 = Client::connect_path(port, "/strike");
+    brine1.send("{\"type\":\"join\",\"name\":\"Bellringer\",\"map\":\"brinepeak\"}");
+    let w1 = brine1.expect("welcome", 5);
+    assert_eq!(w1.str_of("map"), Some("brinepeak"));
+    assert_eq!(w1.str_of("map_code"), Some("de_brinepeak"));
+    assert_eq!(w1.str_of("team"), Some("alpha"));
+    assert!(matches!(w1.get("maps"), Some(Json::Arr(m)) if m.len() == 2));
+
+    let mut dust = Client::connect_path(port, "/strike");
+    dust.send("{\"type\":\"join\",\"name\":\"OldClient\"}"); // no map field (older client)
+    let wd = dust.expect("welcome", 5);
+    assert_eq!(wd.str_of("map"), Some("dustline"));
+    assert!(matches!(wd.get("players"), Some(Json::Arr(p)) if p.len() == 1), "rooms are separate");
+    assert_eq!(wd.str_of("team"), Some("alpha"), "teams are balanced per room");
+
+    let mut bogus = Client::connect_path(port, "/strike");
+    bogus.send("{\"type\":\"join\",\"name\":\"Typo\",\"map\":\"de_nowhere\"}");
+    assert_eq!(bogus.expect("welcome", 5).str_of("map"), Some("dustline"));
+
+    let mut brine2 = Client::connect_path(port, "/strike");
+    brine2.send("{\"type\":\"join\",\"name\":\"Lantern\",\"map\":\"de_brinepeak\"}");
+    let w2 = brine2.expect("welcome", 5);
+    assert_eq!(w2.str_of("map"), Some("brinepeak"));
+    assert_eq!(w2.str_of("team"), Some("omega"));
+    assert!(matches!(w2.get("players"), Some(Json::Arr(p)) if p.len() == 2));
+    let pj = brine1.expect("player_join", 5);
+    assert_eq!(pj.get("player").and_then(|p| p.str_of("name")), Some("Lantern"));
+
+    // chat + kills stay inside a room
+    brine2.send("{\"type\":\"chat\",\"text\":\"bell court clear\"}");
+    assert_eq!(brine1.expect("chat", 5).str_of("text"), Some("bell court clear"));
+    let id1 = w1.str_of("id").unwrap().to_string();
+    brine2.send(&format!("{{\"type\":\"hit\",\"target\":\"{}\",\"dmg\":160}}", id1));
+    let k = brine1.expect("kill", 5);
+    assert_eq!(num(&k, &["omega"]) as i32, 1);
+    // a dustline player cannot hit someone in the brinepeak room
+    dust.send(&format!("{{\"type\":\"hit\",\"target\":\"{}\",\"dmg\":160}}", id1));
+    let t0 = Instant::now();
+    while t0.elapsed() < Duration::from_millis(600) {
+        let _ = dust.poll();
+        let _ = bogus.poll();
+    }
+    let leaked = |c: &Client| c.log.iter().any(|v| matches!(v.str_of("type"), Some("chat") | Some("kill")) || v.str_of("type") == Some("player_join") && v.get("player").and_then(|p| p.str_of("name")) == Some("Lantern"));
+    assert!(!leaked(&dust), "brinepeak traffic leaked into the dustline room: {:?}", dust.log.len());
+    assert!(!leaked(&bogus));
 }

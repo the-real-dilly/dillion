@@ -222,7 +222,7 @@ export default {
   title: 'DE_BRINEPEAK',
   desc: 'Mountain monastery · A · B courtyard · C · three sites',
   kicker: 'Operation Brinepeak',
-  online: false,
+  online: true,
   lighting: 'mountain',
   shadow: { half: 58 },
   bounds: { minX: X0, maxX: -X0, minZ: Z0, maxZ: -Z0 },

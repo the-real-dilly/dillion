@@ -81,14 +81,28 @@ function renderLoadout() {
       <div class="lo-cat">Slot ${w.slot} · ${cat}</div>
       <div class="lo-art">${(DS() && DS().weaponIcon && DS().weaponIcon(w.id, 'shade')) ? `<img class="lo-render" alt="" src="${DS().weaponIcon(w.id, 'shade')}">` : `<svg viewBox="0 0 200 70" fill="currentColor">${WSVG[w.id] || ''}</svg>`}</div>
       <div class="lo-name">${esc(w.name)}</div>
-      <div class="lo-meta"><span>${w.melee ? 'Free' : 'Mag ' + w.mag}</span><b>${w.cost ? '$' + w.cost : 'Default'}</b></div>
+      <div class="lo-meta"><span>${w.melee ? 'Free' : 'Mag ' + w.mag}</span>${w.cost ? `<b class="cr">${w.cost}</b>` : '<b>Default</b>'}</div>
       ${stat('Damage', s.dmg | 0)}${stat('Fire rate', s.rpm | 0)}${stat('Pen.', s.pen | 0)}${stat('Accuracy', s.acc | 0)}
     </div>`;
   }).join('');
 }
+function renderHomeHero() {
+  const host = $('home-hero'); if (!host) return;
+  const a = agentById(profile.agent);
+  host.style.setProperty('--ac', a.ac);
+  host.innerHTML = `<div class="hh-name">${esc(a.name)}</div><div class="hh-art">${agentSVG(a)}</div><div class="hh-tag"><small>${esc(a.role)} · your agent</small><b>${esc(a.name)}</b></div>`;
+}
+/* portrait for HUD pips / scoreboard rows: you show your picked agent, everyone else a stable roster slot */
+const faceCache = new Map();
+function agentFor(idx, foe, isMe) { return isMe ? agentById(profile.agent) : AGENTS[(idx + (foe ? 2 : 1)) % AGENTS.length]; }
+function face(idx, foe, isMe) {
+  const a = agentFor(idx, foe, isMe);
+  if (!faceCache.has(a.id)) faceCache.set(a.id, agentSVG(a, true));
+  return faceCache.get(a.id);
+}
 function renderRoster() {
   const host = $('mm-agents'); if (!host) return;
-  host.innerHTML = AGENTS.map((a) => `<div class="ag-card" style="--ac:${a.ac}"><div class="ag-art">${agentSVG(a)}</div><div class="ag-body"><div class="ag-role">${a.role}</div><div class="ag-name">${a.name}</div><p>${esc(a.bio)}</p></div></div>`).join('');
+  host.innerHTML = AGENTS.map((a) => `<div class="ag-card${a.id === profile.agent ? ' sel' : ''}" style="--ac:${a.ac}"><div class="ag-art">${agentSVG(a)}</div><div class="ag-body"><div class="ag-role">${a.role}</div><div class="ag-name">${a.name}</div><p>${esc(a.bio)}</p></div></div>`).join('');
 }
 
 /* ---------------- menu navigation ---------------- */
@@ -113,6 +127,8 @@ function renderAgentSelect() {
   const fmt = (c) => !c ? '?' : c.startsWith('Key') ? c.slice(3) : c.startsWith('Digit') ? c.slice(5) : c.replace('Left', '').toUpperCase();
   const keyFor = { flash: binds.flash, smoke: binds.smoke, dash: binds.dash };
   $('as-portrait').innerHTML = agentSVG(a);
+  $('agent-select').style.setProperty('--ac', a.ac);
+  const hero = document.querySelector('#agent-select .as-hero'); if (hero) hero.dataset.name = a.name;
   $('as-role').textContent = a.role; $('as-role').style.setProperty('--ac', a.ac);
   $('as-name').textContent = a.name;
   $('as-bio').textContent = a.bio;
@@ -140,7 +156,7 @@ function openAgentSelect() {
 function closeAgentSelect() { clearInterval(AS.timer); showScreen('agent-select', false); }
 function deploy() {
   // called from a click so the game's pointer-lock request is allowed
-  profile.agent = AS.pick; saveProfile();
+  profile.agent = AS.pick; saveProfile(); renderHomeHero(); renderRoster();
   closeAgentSelect();
   const a = agentById(AS.pick), ct = $('ml-ct'), t = $('ml-t');
   ct.innerHTML = `<div class="mini">${agentSVG(a, true)}</div>`;
@@ -169,6 +185,7 @@ function startRounds() {
   E.setRoundTime(115);
   $('hud').classList.add('rounds');
   const a = agentById(profile.agent), ha = $('hud-agent'); if (ha) { ha.innerHTML = agentSVG(a, true); ha.classList.add('on'); }
+  ['q', 'e', 'c'].forEach((k, i) => { const n = document.querySelector(`#ab-${k} span`); if (n && a.abil[i]) n.textContent = a.abil[i][1]; });
   syncRoundHud();
 }
 function stopRounds() { R.on = false; R.ending = false; $('hud').classList.remove('rounds'); $('buy-phase').classList.remove('on'); hideBanner(); }
@@ -178,11 +195,12 @@ function syncRoundHud() {
   const sbr = $('sb-round'); if (sbr) sbr.textContent = `Round ${R.round} · ${R.ct}–${R.t}`;
 }
 let bannerT = 0;
-function hideBanner() { const b = $('round-banner'); if (b) b.classList.remove('on', 'win', 'loss'); }
+function hideBanner() { const b = $('round-banner'); if (b) b.classList.remove('on', 'win', 'loss'); const c = $('rb-cash'); if (c) c.classList.remove('cr'); }
 function showBanner(win, kicker, title, sub, mvp, why, cash) {
   const b = $('round-banner');
   $('rb-kicker').textContent = kicker; $('rb-title').textContent = title; $('rb-sub').textContent = sub;
   $('rb-mvp-name').textContent = mvp; $('rb-mvp-why').textContent = why; $('rb-cash').textContent = cash;
+  $('rb-cash').classList.toggle('cr', /^\+\d/.test(cash));
   b.classList.remove('win', 'loss'); void b.offsetWidth; b.classList.add('on', win ? 'win' : 'loss');
   clearTimeout(bannerT); bannerT = setTimeout(hideBanner, 3200);
 }
@@ -195,9 +213,9 @@ function endRound(win, reason) {
   const bots = E.bots(), foe = bots.length ? bots[Math.floor(Math.random() * bots.length)].name : 'Hostile';
   const name = E.me.name || 'DillyAgent';
   const mvpMe = win || kills >= 2; if (mvpMe) R.mvps++;
-  const sub = win ? (reason === 'time' ? 'Alpha held the site until time expired' : 'All hostiles eliminated') : 'Alpha eliminated';
+  const sub = win ? (reason === 'time' ? 'Defenders held the site until time expired' : 'All attackers eliminated') : 'Your team was eliminated';
   showBanner(win, `Round ${R.round}`, win ? 'Round won' : 'Round lost', sub, mvpMe ? name : foe,
-    mvpMe ? `${kills} elimination${kills === 1 ? '' : 's'} this round` : 'Most eliminations', `+$${award} credits`);
+    mvpMe ? `${kills} elimination${kills === 1 ? '' : 's'} this round` : 'Most eliminations', `+${award}`);
   E.sfxTone(win ? 660 : 330, 0.35, 'triangle', 0.08, win ? 990 : 220);
   syncRoundHud();
   setTimeout(() => {
@@ -221,7 +239,7 @@ function endMatch(win) {
   const a = agentById(profile.agent);
   $('me-mvp-art').innerHTML = agentSVG(a); $('me-mvp-name').textContent = E.me.name || 'DillyAgent'; $('me-mvp-agent').textContent = `${a.name} · ${mvps} MVP${mvps === 1 ? '' : 's'}`;
   const kd = deaths ? (kills / deaths).toFixed(2) : kills.toFixed(2);
-  const stats = [['Kills', kills], ['Deaths', deaths], ['K/D', kd], ['Rounds won', ct], ['MVPs', mvps], ['Credits earned', '$' + earned.toLocaleString()]];
+  const stats = [['Kills', kills], ['Deaths', deaths], ['K/D', kd], ['Rounds won', ct], ['MVPs', mvps], ['Credits earned', `<span class="cr">${earned.toLocaleString()}</span>`]];
   $('me-stats').innerHTML = stats.map(([l, v]) => `<div class="me-stat"><small>${l}</small><b>${v}</b></div>`).join('');
   $('me-xp-gain').textContent = `+${xp} XP`; $('me-xp-fill').style.width = '0%';
   showScreen('match-end', true);
@@ -239,13 +257,31 @@ function tick() {
   const now = performance.now(), bp = $('buy-phase'), left = Math.max(0, R.buyUntil - now);
   bp.classList.toggle('on', left > 0 && !R.ending);
   if (left > 0) $('buy-phase-t').textContent = `0:${String(Math.ceil(left / 1000)).padStart(2, '0')}`;
-  const bk = $('buy-kicker'); if (bk) bk.textContent = left > 0 ? `Buy phase · ${Math.ceil(left / 1000)}s left` : `Round ${R.round} · ${(DS() && DS().getMap) ? DS().getMap().code : 'de_dustline'}`;
+  const bk = $('buy-kicker'); if (bk) bk.textContent = left > 0 ? `Buy phase · ${Math.ceil(left / 1000)}s left` : `Round ${R.round} · ${(DS() && DS().getMap) ? DS().getMap().name : 'Dustline'}`;
   const key = $('buy-key'); if (key && d.getBinds) { const c = d.getBinds().buy || 'KeyB'; key.textContent = c.startsWith('Key') ? c.slice(3) : c; }
   if (R.ending) { R.lastSec = secs; return; }
   if (E.me.kills - R.k0 >= ELIMS) endRound(true, 'elim');
   else if (E.me.deaths > R.d0) endRound(false, 'elim');
   else if (secs > R.lastSec + 30) endRound(true, 'time'); // clock wrapped: defenders hold
   R.lastSec = secs;
+}
+
+/* ---------------- map names: show the plain map name ("Dustline") wherever a map code is printed ---------------- */
+const prettyMap = (t) => t.replace(/\bde_([a-z0-9]+)/gi, (_, n) => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase());
+function fixMapText(node) {
+  if (node.nodeType === 3) { if (/de_/i.test(node.nodeValue)) node.nodeValue = prettyMap(node.nodeValue); return; }
+  if (node.nodeType !== 1 || !/de_/i.test(node.textContent || '')) return;
+  const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) if (/de_/i.test(n.nodeValue)) n.nodeValue = prettyMap(n.nodeValue);
+}
+function bindMapNames() {
+  fixMapText(document.body);
+  new MutationObserver((recs) => {
+    for (const r of recs) {
+      if (r.type === 'characterData') fixMapText(r.target);
+      else for (const n of r.addedNodes) fixMapText(n);
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true });
 }
 
 /* ---------------- settings tabs, crosshair editor, interface ---------------- */
@@ -308,7 +344,7 @@ function buildSettings() {
   $('xe-reset').addEventListener('click', () => { Object.assign(XH, XH_DEF); applyXhair(); buildSettingsCrosshairOnly(rows); });
   const irows = [
     segRow('Weapon key hints', 'hints', [[1, 'Show'], [0, 'Hide']], IFS, applyIface),
-    segRow('Radar callouts', 'callouts', [[1, 'Show'], [0, 'Hide']], IFS, applyIface),
+    segRow('Minimap callouts', 'callouts', [[1, 'Show'], [0, 'Hide']], IFS, applyIface),
     segRow('Reduce motion', 'motion', [[0, 'Off'], [1, 'On']], IFS, applyIface)
   ];
   $('if-controls').innerHTML = irows.map((r) => r.html).join('');
@@ -330,7 +366,7 @@ function bindEnd() {
 function boot() {
   bindMenu(); bindAgentSelect(); bindEnd(); buildSettings();
   applyXhair(); applyIface();
-  renderRoster(); renderLoadout(); syncProfile();
+  renderRoster(); renderHomeHero(); renderLoadout(); syncProfile(); bindMapNames();
   if (!ENG()) setTimeout(renderLoadout, 400);
   window.addEventListener('dillystrike:icons', renderLoadout); // swap SVGs for 3D-rendered weapon icons
   setInterval(tick, 150);
@@ -340,6 +376,6 @@ function boot() {
     if ($('agent-select').classList.contains('on')) closeAgentSelect();
     else if ($('match-end').classList.contains('on')) { showScreen('match-end', false); setView('home'); }
   });
-  window.DillyStrikeUI = { setView, openAgentSelect, deploy, endRound, endMatch, rounds: () => ({ ...R }), AGENTS, agentSVG, showScreen }; // RANKED: AGENTS/agentSVG/showScreen used by ranked.js
+  window.DillyStrikeUI = { setView, openAgentSelect, deploy, endRound, endMatch, rounds: () => ({ ...R }), AGENTS, agentSVG, showScreen, agent: () => profile.agent, agentById, agentFor, face }; // RANKED: AGENTS/agentSVG/showScreen used by ranked.js
 }
 if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot); else boot();
