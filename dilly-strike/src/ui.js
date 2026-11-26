@@ -163,7 +163,10 @@ function deploy() {
   t.innerHTML = AGENTS.filter((x) => x.id !== a.id).concat(AGENTS[0]).slice(0, 5).map((x) => `<div class="mini">${agentSVG(x, true)}</div>`).join('');
   showScreen('match-load', true);
   const d = DS(); if (d && d.enterMatch) d.enterMatch(false);
-  setTimeout(() => showScreen('match-load', false), 1500);
+  // stays up (max ~8 s) while photo materials are still streaming; photomat.js drives its bar meanwhile
+  const M = window.DillyStrikeMaterials, t0 = performance.now();
+  const hide = () => { if (!M || M.state().done || performance.now() - t0 > 8000) showScreen('match-load', false); else setTimeout(hide, 150); };
+  setTimeout(hide, 1500);
 }
 function bindAgentSelect() {
   const solo = $('btn-play-solo'); if (solo) solo.onclick = openAgentSelect; // replaces the direct enterMatch(false)

@@ -1,0 +1,23 @@
+{
+  "note": "Photo-scanned CC0 PBR sets from Poly Haven (polyhaven.com), credits in /assets/CREDITS.md. Each folder: color.jpg (sRGB albedo, AO baked at 50%), normal.jpg (OpenGL), arm.jpg (R=AO, G=roughness, B=metalness).",
+  "materials": {
+    "rectangular_paving": { "size": 2048, "meters": 2.0 },
+    "large_sandstone_blocks": { "size": 2048, "meters": 3.0 },
+    "monastery_stone_floor": { "size": 2048, "meters": 1.8 },
+    "yellow_plaster": { "size": 1024, "meters": 2.0 },
+    "patterned_clay_plaster": { "size": 1024, "meters": 2.0 },
+    "sandstone_blocks": { "size": 1024, "meters": 3.0 },
+    "brown_planks": { "size": 1024, "meters": 1.0 },
+    "blue_painted_planks": { "size": 1024, "meters": 1.0 },
+    "weathered_brown_planks": { "size": 1024, "meters": 1.8 },
+    "rusty_metal": { "size": 1024, "meters": 1.0 },
+    "rock_surface": { "size": 1024, "meters": 2.0 },
+    "coast_sand": { "size": 1024, "meters": 15.0 },
+    "japanese_stone_wall": { "size": 1024, "meters": 1.9 },
+    "white_stucco": { "size": 1024, "meters": 1.8 },
+    "grey_roof_tiles": { "size": 1024, "meters": 3.0 },
+    "distressed_painted_planks": { "size": 1024, "meters": 1.6 },
+    "gravel_floor": { "size": 1024, "meters": 2.25 }
+  },
+  "hdri": ["goegap_1k.hdr", "fouriesburg_mountain_cloudy_1k.hdr"]
+}

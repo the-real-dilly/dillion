@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { mergeBufferGeometries } from '../../vendor/jsm/utils/BufferGeometryUtils.js';
 import * as TX from './textures.js';
 import { registerEnv } from './render.js';
+import { initPhotoMaterials, usePhoto, useBlend, withPhoto, crateSet, applySet } from './photomat.js';
 
 const GLSL_NOISE = `
 float wh_(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -20,36 +21,58 @@ float wn_(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(wh_(i), wh_(i + vec2(1.0, 0.0)), f.x), mix(wh_(i + vec2(0.0, 1.0)), wh_(i + vec2(1.0, 1.0)), f.x), f.y); }
 float wf_(vec2 p){ return wn_(p) * 0.5 + wn_(p * 2.03 + 7.1) * 0.3 + wn_(p * 4.1 + 3.3) * 0.2; }`;
 
-// World-projected PBR material. opts: tile (m), dirt (0..1), dirtH (m), streak (0..1), macro (0..1), color
+// World-projected PBR material. opts: tile (m), dirt (0..1), dirtH (m), streak (0..1), macro (0..1), color,
+// roof (1 = up-facing UVs follow the slope direction, so tile rows run along every eave)
+// Per-mesh variation: each mesh's own origin hashes to a UV offset + slight tint, so neighbouring
+// boxes never repeat the same texture area. Optional second "blend" layer (photomat.useBlend):
+// a noise mask mixes in another photo set (albedo, normal, roughness), e.g. drifted sand on paving.
 export function worldMaterial(set, opts = {}) {
   const m = new THREE.MeshStandardMaterial({
     map: set.map, normalMap: set.normalMap, roughnessMap: set.roughnessMap,
     color: opts.color != null ? opts.color : 0xffffff, roughness: opts.roughness != null ? opts.roughness : 1, metalness: 0,
     normalScale: new THREE.Vector2(opts.normal || 1, opts.normal || 1)
   });
-  const U = { uTile: { value: opts.tile || 3 }, uDirt: { value: opts.dirt != null ? opts.dirt : 1 }, uDirtH: { value: opts.dirtH || 0.9 }, uStreak: { value: opts.streak != null ? opts.streak : 1 }, uMacro: { value: opts.macro != null ? opts.macro : 1 }, uGround: { value: opts.ground || 0 } };
+  const U = { uTile: { value: opts.tile || 3 }, uDirt: { value: opts.dirt != null ? opts.dirt : 1 }, uDirtH: { value: opts.dirtH || 0.9 }, uStreak: { value: opts.streak != null ? opts.streak : 1 }, uMacro: { value: opts.macro != null ? opts.macro : 1 }, uGround: { value: opts.ground || 0 },
+    uRoof: { value: opts.roof || 0 }, uVary: { value: opts.vary != null ? opts.vary : 1 },
+    uBlendMap: { value: null }, uBlendNor: { value: null }, uBlendArm: { value: null }, uBlendTile: { value: 4 }, uBlendAmt: { value: 0 }, uBlendCol: { value: new THREE.Color(1, 1, 1) } };
   m.userData.U = U;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTile; varying vec3 vWP; varying vec3 vWN;')
+      .replace('#include <common>', '#include <common>\nuniform float uTile, uRoof, uVary; varying vec3 vWP; varying vec3 vWN; varying float vVar_;')
       .replace('#include <uv_vertex>', `
         vec4 wp_ = modelMatrix * vec4(position, 1.0);
         vec3 wn_ = normalize(mat3(modelMatrix) * normal);
         vWP = wp_.xyz; vWN = wn_;
         vec3 an_ = abs(wn_);
-        vec2 puv_ = an_.y > max(an_.x, an_.z) ? wp_.xz : (an_.x > an_.z ? vec2(wp_.z, wp_.y) : vec2(wp_.x, wp_.y));
+        vec2 puv_ = an_.y > max(an_.x, an_.z) ? (uRoof > 0.5 && an_.x > an_.z ? wp_.zx : wp_.xz) : (an_.x > an_.z ? vec2(wp_.z, wp_.y) : vec2(wp_.x, wp_.y));
+        vec3 org_ = modelMatrix[3].xyz;
+        float h_ = fract(sin(dot(org_.xz + org_.y, vec2(12.9898, 78.233))) * 43758.5453);
+        vVar_ = h_;
         #ifdef USE_UV
-        vUv = puv_ / uTile;
+        vUv = puv_ / uTile + vec2(h_ * 7.31, fract(h_ * 13.7) * 3.17) * uVary;
         #endif`);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uDirt, uDirtH, uStreak, uMacro, uGround; varying vec3 vWP; varying vec3 vWN;' + GLSL_NOISE)
+      .replace('#include <common>', `#include <common>
+        uniform float uDirt, uDirtH, uStreak, uMacro, uGround, uVary; varying vec3 vWP; varying vec3 vWN; varying float vVar_;
+        #ifdef USE_PBLEND
+        uniform sampler2D uBlendMap, uBlendNor, uBlendArm; uniform float uBlendTile, uBlendAmt, uTile; uniform vec3 uBlendCol;
+        #endif` + GLSL_NOISE)
       .replace('#include <map_fragment>', `#include <map_fragment>
+        float bMask_ = 0.0; vec2 bUv_ = vec2(0.0);
         {
           float vert = 1.0 - abs(vWN.y);
           float n1 = wn_(vWP.xz * 0.45 + vWP.y * 0.3);
           float mac = wn_(vWP.xz * 0.045 + vec2(vWP.y * 0.05, 0.0)) * 0.6 + wn_(vWP.zx * 0.13 + 3.1) * 0.4;
           diffuseColor.rgb *= mix(1.0, mix(0.84, 1.1, mac), uMacro);
+          // per-block tint (warm/cool + value), keyed to the mesh origin
+          diffuseColor.rgb *= mix(vec3(1.0), vec3(0.93 + 0.12 * vVar_, 0.94 + 0.1 * vVar_, 0.95 + 0.07 * fract(vVar_ * 7.0)), uVary);
+          #ifdef USE_PBLEND
+          bUv_ = vUv * uTile / uBlendTile;
+          float bn_ = wf_(vWP.xz * 0.11 + 4.0) * 0.75 + wn_(vWP.xz * 0.9) * 0.25;
+          bMask_ = smoothstep(0.62 - uBlendAmt * 0.45, 0.8 - uBlendAmt * 0.45, bn_) * (1.0 - vert);
+          diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(uBlendMap, bUv_).rgb * uBlendCol, bMask_);
+          #endif
           float h = vWP.y - uGround;
           float base = 1.0 - smoothstep(0.0, uDirtH * (0.7 + 0.6 * n1), h);
           diffuseColor.rgb *= mix(vec3(1.0), vec3(0.66, 0.6, 0.52), base * vert * uDirt);
@@ -58,9 +81,23 @@ export function worldMaterial(set, opts = {}) {
           float flo = (1.0 - vert);
           float stain = smoothstep(0.62, 0.8, wn_(vWP.xz * 0.21 + 5.0));
           diffuseColor.rgb *= 1.0 - stain * flo * 0.12 * uMacro;
-        }`);
+        }`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        #ifdef USE_PBLEND
+        roughnessFactor = mix(roughnessFactor, roughness * texture2D(uBlendArm, bUv_).g, bMask_);
+        #endif`)
+      .replace('#include <normal_fragment_maps>', `
+        #if defined( USE_PBLEND ) && defined( TANGENTSPACE_NORMALMAP ) && ! defined( USE_TANGENT )
+          vec3 mapN = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;
+          mapN.xy *= normalScale;
+          vec3 mapB_ = texture2D( uBlendNor, bUv_ ).xyz * 2.0 - 1.0;
+          mapN = normalize( mix( mapN, mapB_, bMask_ ) );
+          normal = perturbNormal2Arb( - vViewPosition, normal, mapN, faceDirection );
+        #else
+          #include <normal_fragment_maps>
+        #endif`);
   };
-  m.customProgramCacheKey = () => 'worldmat';
+  m.customProgramCacheKey = () => 'worldmat2';
   return m;
 }
 
@@ -160,7 +197,33 @@ export function materialLibrary(renderer) {
   L.lampGlow = new THREE.MeshStandardMaterial({ color: 0xffe2b0, emissive: 0xffc070, emissiveIntensity: 0.9, roughness: 0.4 });
   L.rubble = worldMaterial(stone, { tile: 0.9, dirt: 0, streak: 0, macro: 0.5 });
   LIB = L;
+  photoUpgrade(L, renderer);
   return L;
+}
+
+/* photo-scanned CC0 sets (photomat.js) replace the procedural maps as they stream in;
+   tile = metres per texture repeat (Poly Haven's scanned real-world size, nudged per surface) */
+function photoUpgrade(L, renderer) {
+  initPhotoMaterials(renderer);
+  usePhoto(L.floor, 'rectangular_paving', { tile: 2.4, normal: 1.0, color: 0xf4ece0 });
+  useBlend(L.floor, 'coast_sand', { tile: 5, amount: 0.38, color: 0xffe9cc });
+  usePhoto(L.stone, 'large_sandstone_blocks', { tile: 3.4, normal: 1.1, color: 0xffeedd });
+  usePhoto(L.plaster, 'yellow_plaster', { tile: 2.6, normal: 1.2, color: 0xeae2e2 });
+  usePhoto(L.plasterLight, 'patterned_clay_plaster', { tile: 2.4, normal: 1.0, color: 0xfff2e2 });
+  usePhoto(L.distant, 'patterned_clay_plaster', { tile: 4, normal: 0.6, color: 0xfff6ea });
+  usePhoto(L.trim, 'sandstone_blocks', { tile: 1.8, normal: 1.0, color: 0xfff6ea });
+  usePhoto(L.plinth, 'sandstone_blocks', { tile: 2.2, normal: 1.3, color: 0xc8b49a });
+  usePhoto(L.rubble, 'rock_surface', { tile: 0.9, normal: 1.2, color: 0xe8d4b8 });
+  usePhoto(L.door, 'blue_painted_planks', { rotation: Math.PI / 2, repeat: [1.6, 1.6] });
+  usePhoto(L.shutter, 'blue_painted_planks', { normal: 1.1 });
+  usePhoto(L.door2, 'weathered_brown_planks', { rotation: Math.PI / 2 });
+  usePhoto(L.beam, 'weathered_brown_planks', { color: 0xe0d0c0 });
+  [0x5d86b0, 0xb6503c, 0x7d915a].forEach((c, i) => usePhoto(L.barrel[i], 'rusty_metal', { metal: true, color: c, repeat: [1, 1.4] }));
+  withPhoto('brown_planks', (set) => {
+    const cs = crateSet(set);
+    applySet(L.crate, cs, { metal: true, color: 0xffffff });
+    applySet(L.crate2, cs, { metal: true, color: 0xc9b6a0 });
+  });
 }
 
 /* ---------------- decals ---------------- */

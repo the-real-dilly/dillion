@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import * as TX from '../textures.js';
 import { worldMaterial, chamferBox, Batch, decalMat, siteLetterTex, materialLibrary } from '../mapdetail.js';
 import { registerEnv } from '../render.js';
+import { usePhoto } from '../photomat.js';
 
 // H perimeter · # wall/building · . floor · 1/2/3 site A/B/C · D defender spawn · T attacker spawn
 // g covered hall · c crate · C crate stack · w balustrade · o lacquered column · p pond · t pine planter
@@ -188,6 +189,15 @@ function templeLibrary(renderer) {
     ghost: new THREE.MeshBasicMaterial({ visible: false })
   });
   TL.gravel.map.repeat.set(1, 1);
+  // photo-scanned CC0 sets (photomat.js), swapped in when they arrive; procedural above is the fallback
+  usePhoto(TL.floor, 'monastery_stone_floor', { tile: 2.6, normal: 1.0, color: 0xe6e8ea });
+  usePhoto(TL.stone, 'japanese_stone_wall', { tile: 2.6, normal: 1.1, color: 0xf2f0ea });
+  usePhoto(TL.plaster, 'white_stucco', { tile: 2.4, normal: 1.0, color: 0xfffcf6 });
+  usePhoto(TL.roof, 'grey_roof_tiles', { tile: 2.4, normal: 1.2, color: 0xcfd8d2 });
+  TL.roof.userData.U.uRoof.value = 1;
+  usePhoto(TL.lacquer, 'distressed_painted_planks', { color: 0xc4473a, rotation: Math.PI / 2 });
+  usePhoto(TL.timber, 'weathered_brown_planks', { color: 0xe8d8c8, rotation: Math.PI / 2 });
+  usePhoto(TL.gravel, 'gravel_floor', { repeat: [8, 8], color: 0xf0ece4 });
   return TL;
 }
 TX; // (textures used above)
@@ -386,7 +396,7 @@ export default {
     }
     // raked gravel in Koi Garden, painted site letters, moss / leaf decals
     const grv = new THREE.Mesh(new THREE.PlaneGeometry(10 * CELL - 0.2, 10 * CELL - 0.2), M.gravel); grv.rotation.x = -Math.PI / 2; grv.position.set(centre(21, 22, 30, 31)[0], 0.012, centre(21, 22, 30, 31)[1]); grv.receiveShadow = true; group.add(grv);
-    M.gravel.map.repeat.set(3, 3);
+    if (!M.gravel.map.userData.photo) M.gravel.map.repeat.set(3, 3);
     const DB = new Batch(group, false);
     for (const s of this.sites) {
       const mat = decalMat(siteLetterTex(s.letter, '#f2efe6'), { roughness: 0.7 });

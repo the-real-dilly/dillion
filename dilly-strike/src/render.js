@@ -13,6 +13,7 @@ import { ShaderPass } from '../../vendor/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from '../../vendor/jsm/postprocessing/UnrealBloomPass.js';
 import { FXAAShader } from '../../vendor/jsm/shaders/FXAAShader.js';
 import { Pass, FullScreenQuad } from '../../vendor/jsm/postprocessing/Pass.js';
+import { loadHDRI, initPhotoMaterials, onProgress, sweepReplaced } from './photomat.js';
 
 // must run before any THREE.Color is created by main.js (ES modules evaluate imports first)
 if (THREE.ColorManagement) THREE.ColorManagement.legacyMode = false;
@@ -178,10 +179,14 @@ const GRADE = {
 /* ---------------- lighting presets (one per map) ---------------- */
 export const PRESETS = {
   // warm late-afternoon desert sun: lower elevation for longer, readable shadows
-  desert: { id: 'desert', sun: [0.62, 0.56, 0.36], sunCol: 0xffdcb0, sunI: 2.35, hemi: [0xc9d6e8, 0xb48c5e, 0.66], fog: [0xd9c7a6, 0.0062], exp: 1.0, sky: {} },
+  // hdri: CC0 panorama used for image-based ambient/reflections once it streams in (sun disc clamped,
+  // rotated to match `sun`, normalised to `hdriMean`); hemiMul scales the hemisphere fill while it is active
+  desert: { id: 'desert', sun: [0.62, 0.56, 0.36], sunCol: 0xffdcb0, sunI: 2.35, hemi: [0xc9d6e8, 0xb48c5e, 0.66], fog: [0xd9c7a6, 0.0062], exp: 1.0, sky: {},
+    hdri: 'goegap_1k.hdr', hdriMean: 0.6, hdriSat: 0.45, hemiMul: 0.55, hdriExp: 1.0 },
   // cool mountain morning: low sun through thin mist, green-grey stone, distant ridges
   mountain: { id: 'mountain', sun: [-0.52, 0.5, 0.58], sunCol: 0xffe4c4, sunI: 2.2, hemi: [0xc2d2e6, 0x6f6a5c, 0.7], fog: [0xc4ccd0, 0.0078], exp: 1.1,
-    sky: { stops: [[0, '#3d6a98'], [0.25, '#7ea2c4'], [0.42, '#c4d4de'], [0.49, '#e4e2d8'], [0.5, '#d8d8cc'], [0.56, '#9aa49a'], [1, '#5d6658']], hills: 'mountains' } }
+    sky: { stops: [[0, '#3d6a98'], [0.25, '#7ea2c4'], [0.42, '#c4d4de'], [0.49, '#e4e2d8'], [0.5, '#d8d8cc'], [0.56, '#9aa49a'], [1, '#5d6658']], hills: 'mountains' },
+    hdri: 'fouriesburg_mountain_cloudy_1k.hdr', hdriMean: 0.66, hdriSat: 0.7, hemiMul: 0.5, hdriExp: 1.05 }
 };
 const PCACHE = {};
 export function applyLighting(p) {
@@ -202,14 +207,48 @@ export function applyLighting(p) {
       C.env = pm.fromEquirectangular(eq).texture; eq.dispose(); pm.dispose();
     } catch (e) { C.env = null; }
   }
-  R.envTex = C.env;
-  for (const m of R.envMats) { if (m.userData.lowStash) m.userData.lowStash.e = C.env; else m.envMap = C.env; }
+  setEnv(p, C);
+  if (p.hdri && C.hdr === undefined) {
+    C.hdr = null; // loading
+    loadHDRI(p.hdri, { sun: [sd.x, sd.y, sd.z], mean: p.hdriMean, sat: p.hdriSat }).then((t) => { C.hdr = t; if (t && R.preset === p) setEnv(p, C); });
+  }
+}
+// image-based light: the HDRI (when loaded) becomes scene.environment for every PBR material and the
+// explicit envMap of registered metals; until then (or offline) the procedural sky env is used as before
+function setEnv(p, C) {
+  const env = C.hdr || C.env;
+  R.envTex = env;
+  R.ibl = !!C.hdr;
+  R.scene.environment = C.hdr || null;
+  R.hemiMul = C.hdr ? p.hemiMul : 1;
+  R.baseHemi = p.hemi[2];
+  if (C.hdr && p.hdriExp) R.renderer.toneMappingExposure = p.exp * p.hdriExp;
+  for (const m of R.envMats) { if (m.userData.lowStash) m.userData.lowStash.e = env; else m.envMap = env; }
   R.lastHemi = -1;
 }
+/* every render (main post chain, AO pass, trailer post): the hemisphere fill is scaled down while the HDRI
+   lights the scene, and env intensity follows the hemisphere (the trailer animates it for time of day) */
+function iblBefore() {
+  const h = R.hemi; if (!h) return;
+  R._hemiI = h.intensity;
+  if (h.intensity !== R.lastHemi) {
+    R.lastHemi = h.intensity;
+    const s = THREE.MathUtils.clamp(h.intensity / (R.baseHemi || 0.66), 0.12, 1.6);
+    R.scene.traverse((o) => {
+      const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+      for (const m of ms) if (m.isMeshStandardMaterial) m.envMapIntensity = (m.userData.envK != null ? m.userData.envK : 1) * s;
+    });
+  }
+  if (R.ibl) h.intensity *= R.hemiMul;
+}
+function iblAfter() { if (R.hemi && R._hemiI != null) { R.hemi.intensity = R._hemiI; R._hemiI = null; } }
 
 /* ---------------- setup ---------------- */
 export function initRender(renderer, scene, camera, sun, hemi) {
   Object.assign(R, { renderer, scene, camera, sun, hemi });
+  initPhotoMaterials(renderer);
+  scene.onBeforeRender = iblBefore; scene.onAfterRender = iblAfter;
+  onProgress((st) => { if (st.done && st.loaded) setTimeout(() => sweepReplaced(scene), 0); }); // free the procedural maps photos replaced
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; // used by the direct (low quality) path and the trailer fallback
   renderer.toneMappingExposure = 1.0;
@@ -311,12 +350,6 @@ let lastNow = 0;
 export function renderFrame(scene, camera) {
   const now = performance.now(); const dtMs = lastNow ? now - lastNow : 16; lastNow = now;
   if (dtMs < 250) autoQuality(dtMs);
-  // env reflections follow the time-of-day ambient (trailer changes the hemisphere light)
-  if (R.hemi && R.hemi.intensity !== R.lastHemi) {
-    R.lastHemi = R.hemi.intensity;
-    const s = THREE.MathUtils.clamp(R.hemi.intensity / 0.66, 0.15, 1.6);
-    for (const m of R.envMats) m.envMapIntensity = m.userData.envK * s;
-  }
   if (R.stripped && now - R.lastStrip > 2500) applyStrip(true); // catch late-loaded meshes
   if (!R.post) { R.renderer.setRenderTarget(null); R.renderer.render(scene, camera); return; }
   R.grade.uniforms.time.value = now / 1000;
