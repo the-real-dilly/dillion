@@ -7,7 +7,7 @@
   <link rel="icon" href="../img/dilly-gaming-logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ranked.css"><!-- RANKED -->
   <script type="importmap">{ "imports": { "three": "../vendor/three.module.js" } }</script>
@@ -33,7 +33,10 @@
       <symbol id="i-health" viewBox="0 0 24 24"><path fill="currentColor" d="M9 2h6v7h7v6h-7v7H9v-7H2V9h7z"/></symbol>
       <symbol id="i-shield" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5z"/></symbol>
       <symbol id="i-target" viewBox="0 0 24 24"><path fill="currentColor" d="M11 1h2v3.1A8 8 0 0 1 19.9 11H23v2h-3.1A8 8 0 0 1 13 19.9V23h-2v-3.1A8 8 0 0 1 4.1 13H1v-2h3.1A8 8 0 0 1 11 4.1zm1 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12zm0 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></symbol>
-      <symbol id="i-minimap" viewBox="0 0 160 110"><rect x="2" y="2" width="156" height="106" rx="3" fill="#1d242d" stroke="#3a4655" stroke-width="2"/><rect x="72" y="8" width="18" height="40" fill="#556170"/><rect x="72" y="62" width="18" height="40" fill="#556170"/><rect x="60" y="51" width="40" height="8" fill="#4e6b55"/><rect x="88" y="14" width="28" height="7" fill="#556170"/><rect x="44" y="89" width="28" height="7" fill="#556170"/><rect x="22" y="22" width="10" height="10" fill="#8c6943"/><rect x="128" y="78" width="10" height="10" fill="#8c6943"/><rect x="18" y="40" width="5" height="30" fill="#556170"/><rect x="137" y="40" width="5" height="30" fill="#556170"/><circle cx="80" cy="17" r="9" fill="none" stroke="#e8a33a" stroke-width="2"/><text x="80" y="21" font-size="11" font-weight="700" fill="#e8a33a" text-anchor="middle" font-family="sans-serif">A</text><circle cx="80" cy="93" r="9" fill="none" stroke="#5ab0ff" stroke-width="2"/><text x="80" y="97" font-size="11" font-weight="700" fill="#5ab0ff" text-anchor="middle" font-family="sans-serif">B</text></symbol>
+      <symbol id="i-ab-flash" viewBox="0 0 24 24"><path fill="currentColor" d="m12 1 2.2 6.6L21 5l-3.4 6 5.4 1-5.4 1 3.4 6-6.8-2.6L12 23l-2.2-6.6L3 19l3.4-6L1 12l5.4-1L3 5l6.8 2.6zm0 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></symbol>
+      <symbol id="i-ab-smoke" viewBox="0 0 24 24"><path fill="currentColor" d="M7.5 9.5a5 5 0 0 1 9.6-1.6A4.2 4.2 0 1 1 18 16.3H6.4a3.4 3.4 0 0 1 1.1-6.8zM4 18.5h16V20H4zm3 2.5h10v1H7z"/></symbol>
+      <symbol id="i-ab-dash" viewBox="0 0 24 24"><path fill="currentColor" d="M2 5h5l7 7-7 7H2l7-7zm9 0h5l7 7-7 7h-5l7-7z"/></symbol>
+      <symbol id="i-minimap" viewBox="0 0 160 110"><rect x="0" y="0" width="160" height="110" fill="#0f1923"/><rect x="72" y="8" width="18" height="40" fill="#3a4a58"/><rect x="72" y="62" width="18" height="40" fill="#3a4a58"/><rect x="60" y="51" width="40" height="8" fill="#2f5d56"/><rect x="88" y="14" width="28" height="7" fill="#3a4a58"/><rect x="44" y="89" width="28" height="7" fill="#3a4a58"/><rect x="22" y="22" width="10" height="10" fill="#5b6a77"/><rect x="128" y="78" width="10" height="10" fill="#5b6a77"/><rect x="18" y="40" width="5" height="30" fill="#3a4a58"/><rect x="137" y="40" width="5" height="30" fill="#3a4a58"/><path d="M71 8h18l-4 18H67z" fill="#ff4655" opacity=".35"/><text x="80" y="21" font-size="12" font-weight="700" fill="#ece8e1" text-anchor="middle" font-family="sans-serif">A</text><path d="M71 84h18l-4 18H67z" fill="#4cd5b5" opacity=".35"/><text x="80" y="97" font-size="12" font-weight="700" fill="#ece8e1" text-anchor="middle" font-family="sans-serif">B</text></symbol>
     </defs>
   </svg>
 
@@ -56,31 +59,31 @@
     <div id="hitmarker"></div>
     <div id="hs-banner">HEADSHOT</div>
 
-    <!-- top-left: radar + callout + credits -->
-    <div id="cs-radar-wrap">
-      <div class="radar-frame">
-        <canvas id="cs-radar" width="184" height="184"></canvas>
+    <!-- top-left: minimap + callout + credits -->
+    <div id="minimap-wrap">
+      <div class="minimap-frame">
+        <canvas id="minimap" width="196" height="196"></canvas>
       </div>
-      <div id="radar-callout">T SPAWN</div>
-      <div id="cs-cash-pill"><span class="cash-sym">$</span><strong id="hud-cash">1200</strong></div>
+      <div id="radar-callout">Attacker side</div>
+      <div id="hud-credits"><strong id="hud-cash">1200</strong></div>
     </div>
 
-    <!-- top-centre: team scores, round clock, alive avatars, round/objective strip -->
-    <div id="cs-top-bar">
-      <div class="team-avatars ct" id="av-ct"></div>
+    <!-- top-centre: ally portraits · ally score · round clock · enemy score · enemy portraits -->
+    <div id="top-bar">
+      <div class="team-avatars ally" id="av-ct"></div>
       <div class="score-core">
-        <div class="team-score ct" id="sc-a">0</div>
+        <div class="team-score ally" id="sc-a">0</div>
         <div class="round-clock">
           <div id="round-timer">1:55</div>
-          <div id="sc-mode">DE_DUSTLINE</div>
+          <div id="sc-mode">Dustline</div>
         </div>
-        <div class="team-score t" id="sc-o">0</div>
+        <div class="team-score enemy" id="sc-o">0</div>
       </div>
-      <div class="team-avatars t" id="av-t"></div>
+      <div class="team-avatars enemy" id="av-t"></div>
       <div class="round-strip" id="round-strip">
-        <span class="rs-wins ct" id="rs-ct">0</span>
+        <span class="rs-wins ally" id="rs-ct">0</span>
         <span class="rs-obj" id="rs-obj"><svg><use href="#i-target"/></svg><b id="rs-obj-txt">Eliminate</b></span>
-        <span class="rs-wins t" id="rs-t">0</span>
+        <span class="rs-wins enemy" id="rs-t">0</span>
       </div>
       <div class="buy-phase" id="buy-phase"><b>Buy phase</b><span id="buy-phase-t">0:12</span><small>Press <kbd id="buy-key">B</kbd></small></div>
     </div>
@@ -94,41 +97,43 @@
       <input type="text" id="chat-inp" placeholder="Say (all) — Enter to send">
     </div>
 
-    <!-- bottom-left: agent card + health / armor -->
-    <div id="cs-bot-left">
-      <div class="hud-agent" id="hud-agent" aria-hidden="true"></div>
-      <div class="cs-stat hp">
-        <svg class="cs-ico"><use href="#i-health"/></svg>
-        <strong id="hud-hp">100</strong>
-        <div class="cs-bar"><div id="hp-fill" style="width:100%"></div></div>
+    <!-- bottom-centre: agent · shield / health · abilities (keybind under each slot) -->
+    <div id="hud-bottom">
+      <div id="vitals">
+        <div class="hud-agent" id="hud-agent" aria-hidden="true"></div>
+        <div class="vital-col">
+          <div class="vital hp">
+            <svg class="vital-ico"><use href="#i-health"/></svg>
+            <strong id="hud-hp">100</strong>
+            <div class="vital-bar"><div id="hp-fill" style="width:100%"></div></div>
+          </div>
+          <div class="vital arm">
+            <svg class="vital-ico"><use href="#i-shield"/></svg>
+            <strong id="hud-sh">100</strong>
+            <div class="vital-bar"><div id="sh-fill" style="width:100%"></div></div>
+          </div>
+        </div>
       </div>
-      <div class="cs-stat arm">
-        <svg class="cs-ico"><use href="#i-shield"/></svg>
-        <strong id="hud-sh">100</strong>
-        <div class="cs-bar"><div id="sh-fill" style="width:100%"></div></div>
+      <div id="bot-mid">
+        <div class="ab-chip ready" id="ab-q"><svg class="ab-ico"><use href="#i-ab-flash"/></svg><b>Q</b><span>Flare</span><small id="cd-q">READY</small></div>
+        <div class="ab-chip ready" id="ab-e"><svg class="ab-ico"><use href="#i-ab-smoke"/></svg><b>E</b><span>Smoke</span><small id="cd-e">READY</small></div>
+        <div class="ab-chip ready" id="ab-c"><svg class="ab-ico"><use href="#i-ab-dash"/></svg><b>C</b><span>Dash</span><small id="cd-c">READY</small></div>
       </div>
-    </div>
-
-    <!-- bottom-centre: utility -->
-    <div id="bot-mid">
-      <div class="ab-chip ready" id="ab-q"><b>Q</b><span>FLASHBANG</span><small id="cd-q">READY</small></div>
-      <div class="ab-chip ready" id="ab-e"><b>E</b><span>SMOKE</span><small id="cd-e">READY</small></div>
-      <div class="ab-chip ready" id="ab-c"><b>C</b><span>DASH</span><small id="cd-c">READY</small></div>
     </div>
 
     <!-- right edge: weapon slots -->
-    <div id="cs-loadout"></div>
+    <div id="wep-slots"></div>
 
-    <!-- bottom-right: ammo -->
-    <div id="cs-bot-right">
-      <div class="ammo-top">
-        <span id="wep-name">DILL-47</span>
-        <span class="ammo-hint" id="wep-hints"><b>F</b> Inspect · <b>B</b> Buy · <b>R</b> Reload</span>
-      </div>
+    <!-- bottom-right: weapon + ammo -->
+    <div id="ammo-box">
       <div class="ammo-main">
         <strong id="wep-mag">30</strong>
         <span class="ammo-slash">/</span>
         <span id="wep-res">90</span>
+      </div>
+      <div class="ammo-top">
+        <span id="wep-name">DILL-47</span>
+        <span class="ammo-hint" id="wep-hints"><b>F</b> Inspect · <b>B</b> Buy · <b>R</b> Reload</span>
       </div>
       <div id="ammo-pips"></div>
     </div>
@@ -148,9 +153,9 @@
         <nav class="mm-nav" id="mm-nav">
           <button class="mm-tab active" data-view="home"><svg><use href="#i-home"/></svg><span>Home</span></button>
           <button class="mm-tab play" data-view="play"><svg><use href="#i-play"/></svg><span>Play</span></button>
-          <button class="mm-tab" data-view="loadout"><svg><use href="#i-loadout"/></svg><span>Loadout</span></button>
+          <button class="mm-tab" data-view="loadout"><svg><use href="#i-loadout"/></svg><span>Collection</span></button>
           <button class="mm-tab" data-view="agents"><svg><use href="#i-agent"/></svg><span>Agents</span></button>
-          <button class="mm-tab" data-view="ranked"><svg><use href="#i-chevrons"/></svg><span>Ranked</span></button><!-- RANKED -->
+          <button class="mm-tab" data-view="ranked"><svg><use href="#i-chevrons"/></svg><span>Career</span></button><!-- RANKED -->
           <button class="mm-tab" id="btn-settings-lobby"><svg><use href="#i-gear"/></svg><span>Settings</span></button>
           <button class="mm-tab" id="btn-watch-trailer"><svg><use href="#i-film"/></svg><span>Trailer</span></button>
         </nav>
@@ -167,6 +172,7 @@
 
       <!-- HOME -->
       <section class="mm-view" data-view="home">
+        <div class="home-hero" id="home-hero" aria-hidden="true"></div>
         <div class="home-left">
           <div class="home-kicker">Season 01 · Operation Dustline</div>
           <h1 class="home-title">DILLY<span>STRIKE</span></h1>
@@ -192,7 +198,7 @@
             <div class="map-art" aria-hidden="true"><svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg></div>
             <div class="map-meta">
               <div class="map-tag">Active duty map</div>
-              <div class="map-name">de_dustline</div>
+              <div class="map-name">Dustline</div>
               <div class="map-desc">Desert citadel · A site · Mid doors · B site</div>
             </div>
           </div>
@@ -222,7 +228,7 @@
             <div class="mode-body">
               <div class="mode-tag blue">Online · Rust server</div>
               <strong>Casual Online</strong>
-              <small>Drop into the authoritative server with other players. Team chat, live killfeed.</small>
+              <small>Drop into the authoritative server with other players on the map you pick below. Team chat, live killfeed.</small>
             </div>
             <span class="mode-go">Connect<svg><use href="#i-play"/></svg></span>
           </button>
@@ -238,14 +244,14 @@
           </button>
         </div>
         <div class="map-strip">
-          <div class="map-chip active"><svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg><span>de_dustline</span></div>
+          <div class="map-chip active"><svg viewBox="0 0 160 110"><use href="#i-minimap"/></svg><span>Dustline</span></div>
           <div class="map-chip locked"><span>More maps soon</span></div>
         </div>
       </section>
 
       <!-- LOADOUT -->
       <section class="mm-view" data-view="loadout">
-        <div class="view-hd"><div class="view-kicker">Inventory</div><h2>Loadout</h2></div>
+        <div class="view-hd"><div class="view-kicker">Arsenal</div><h2>Collection</h2></div>
         <div class="lo-grid" id="mm-loadout"></div>
       </section>
 
@@ -257,7 +263,7 @@
 
       <!-- RANKED (rendered by src/ranked.js) -->
       <section class="mm-view" data-view="ranked">
-        <div class="view-hd"><div class="view-kicker">Competitive ladder</div><h2>Ranked</h2></div>
+        <div class="view-hd"><div class="view-kicker">Career · Competitive ladder</div><h2>Ranked</h2></div>
         <div id="rk-root" class="rk-root"><p class="rk-muted">Loading ranked…</p></div>
       </section>
     </div>
@@ -266,7 +272,7 @@
   <!-- AGENT SELECT (pre-match) -->
   <div class="ui-screen" id="agent-select" aria-hidden="true">
     <div class="as-top">
-      <div class="as-map"><small>Competitive · vs bots</small><b>de_dustline</b></div>
+      <div class="as-map"><small>Competitive · vs bots</small><b>Dustline</b></div>
       <div class="as-title">Choose your agent</div>
       <div class="as-timer"><span id="as-time">15</span><small>seconds</small></div>
     </div>
@@ -284,16 +290,18 @@
     </div>
     <div class="as-bottom">
       <div class="as-tiles" id="as-tiles"></div>
-      <button class="btn-lock" id="as-lock">Lock in</button>
-      <button class="as-cancel" id="as-cancel"><svg><use href="#i-back"/></svg>Back</button>
+      <div class="as-btns">
+        <button class="btn-lock" id="as-lock">Lock in</button>
+        <button class="as-cancel" id="as-cancel"><svg><use href="#i-back"/></svg>Back</button>
+      </div>
     </div>
   </div>
 
   <!-- MATCH LOADING -->
   <div class="ui-screen" id="match-load" aria-hidden="true">
-    <div class="ml-map">de_dustline</div>
+    <div class="ml-map">Dustline</div>
     <div class="ml-mode">Competitive · First to 7</div>
-    <div class="ml-vs"><div class="ml-side ct" id="ml-ct"></div><div class="ml-x">VS</div><div class="ml-side t" id="ml-t"></div></div>
+    <div class="ml-vs"><div class="ml-side ally" id="ml-ct"></div><div class="ml-x">VS</div><div class="ml-side enemy" id="ml-t"></div></div>
     <div class="ml-bar"><i></i></div>
   </div>
 
@@ -305,14 +313,14 @@
       <div class="rb-sub" id="rb-sub"></div>
     </div>
     <div class="rb-mvp" id="rb-mvp"><svg><use href="#i-star"/></svg><div><small>Round MVP</small><b id="rb-mvp-name">DillyAgent</b><span id="rb-mvp-why"></span></div></div>
-    <div class="rb-cash" id="rb-cash">+$3250</div>
+    <div class="rb-cash cr" id="rb-cash">+3250</div>
   </div>
 
   <!-- END OF MATCH -->
   <div class="ui-screen" id="match-end" aria-hidden="true">
     <div class="me-result" id="me-result">Victory</div>
-    <div class="me-score"><span class="ct" id="me-ct">7</span><i>:</i><span class="t" id="me-t">3</span></div>
-    <div class="me-map">Competitive · de_dustline</div>
+    <div class="me-score"><span class="ally" id="me-ct">7</span><i>:</i><span class="enemy" id="me-t">3</span></div>
+    <div class="me-map">Competitive · Dustline</div>
     <div class="me-body">
       <div class="me-mvp">
         <div class="me-mvp-art" id="me-mvp-art"></div>
@@ -329,61 +337,62 @@
     </div>
   </div>
 
-  <!-- BUY MENU (B) -->
+  <!-- SHOP (B) -->
   <div class="modal" id="modal-buy">
-    <div class="cs-buy-wrap">
-      <div class="cs-buy-left">
-        <div class="cs-buy-hdr">
+    <div class="shop-wrap">
+      <div class="shop-left">
+        <div class="shop-hdr">
           <div>
-            <div class="buy-kicker" id="buy-kicker">Buy phase · de_dustline</div>
-            <h2>Armory</h2>
+            <div class="buy-kicker" id="buy-kicker">Buy phase</div>
+            <h2>Shop</h2>
           </div>
           <div class="buy-wallet">
             <small>Credits</small>
-            <strong id="buy-cash">$1200</strong>
+            <strong id="buy-cash">1200</strong>
           </div>
+          <button class="shop-close" id="btn-buy-close">Esc / B</button>
         </div>
-        <div class="cs-wheel" id="buy-wheel">
-          <div class="wheel-center">
-            <span class="wc-lbl">Select</span>
-            <strong id="wheel-cash">$1200</strong>
-            <button class="btn ghost sm" id="btn-buy-close">ESC / B</button>
-          </div>
+        <div class="shop-grid" id="buy-wheel">
+          <div class="shop-col-h c1">Sidearms</div>
+          <div class="shop-col-h c2">Rifles</div>
+          <div class="shop-col-h c3">Snipers</div>
+          <div class="shop-col-h c4">Shields &amp; gear</div>
+          <span id="wheel-cash" hidden></span>
         </div>
       </div>
-      <div class="cs-buy-right" id="buy-inspector">
+      <div class="shop-insp" id="buy-inspector">
         <div class="insp-tag">Weapon stats</div>
         <h3 id="insp-name">Dill-47</h3>
-        <p id="insp-desc">High-caliber assault rifle. Iconic 1-tap headshot lethality.</p>
-        <div class="insp-price" id="insp-price">$2700</div>
+        <p id="insp-desc">High-caliber assault rifle.</p>
+        <div class="insp-price" id="insp-price">2700</div>
         <div class="insp-bars" id="insp-bars"></div>
-        <div class="insp-hint">Click a slot on the wheel to buy or equip. <b>B</b> to close.</div>
+        <div class="insp-hint">Click a card to buy or equip. <b>B</b> to close.</div>
       </div>
     </div>
   </div>
 
   <!-- SCOREBOARD (TAB) -->
   <div class="modal" id="modal-sb">
-    <div class="cs-sb-card">
+    <div class="sb-card">
       <div class="sb-top">
         <div>
-          <div class="sb-map">Competitive · de_dustline</div>
+          <div class="sb-map">Competitive · Dustline</div>
           <h2>Scoreboard</h2>
         </div>
         <div class="sb-totals">
-          <span class="ct-col"><b id="sb-ct-score">0</b></span>
+          <span class="ally-col"><b id="sb-ct-score">0</b></span>
           <span class="sb-vs" id="sb-round">Kills</span>
-          <span class="t-col"><b id="sb-t-score">0</b></span>
+          <span class="enemy-col"><b id="sb-t-score">0</b></span>
         </div>
       </div>
-      <div class="sb-team-hdr ct"><span>Alpha</span><small>Defenders</small></div>
-      <table class="sb">
-        <thead><tr><th>Player</th><th>K</th><th>D</th><th>K/D</th><th>Credits</th><th>Ping</th></tr></thead>
+      <div class="sb-team-hdr ally"><span>Alpha</span><small>Defenders</small></div>
+      <table class="sb ally">
+        <thead><tr><th class="sb-hide-sm"></th><th>Player</th><th>ACS</th><th>K / D / A</th><th>Econ</th><th class="sb-hide-sm">Ult</th></tr></thead>
         <tbody id="sb-ct-body"></tbody>
       </table>
-      <div class="sb-team-hdr t"><span>Omega</span><small>Attackers</small></div>
-      <table class="sb">
-        <thead><tr><th>Player</th><th>K</th><th>D</th><th>K/D</th><th>Credits</th><th>Ping</th></tr></thead>
+      <div class="sb-team-hdr enemy"><span>Omega</span><small>Attackers</small></div>
+      <table class="sb enemy">
+        <thead><tr><th class="sb-hide-sm"></th><th>Player</th><th>ACS</th><th>K / D / A</th><th>Econ</th><th class="sb-hide-sm">Ult</th></tr></thead>
         <tbody id="sb-t-body"></tbody>
       </table>
     </div>
@@ -391,8 +400,8 @@
 
   <!-- PAUSE MENU (ESC) -->
   <div class="modal" id="modal-pause">
-    <div class="cs-pause-card">
-      <div class="buy-kicker">de_dustline</div>
+    <div class="pause-card">
+      <div class="buy-kicker">Dustline</div>
       <h2>Paused</h2>
       <div class="pause-actions">
         <button class="btn green" id="btn-resume">Resume</button>
@@ -405,7 +414,7 @@
 
   <!-- SETTINGS (tabs: controls / crosshair / interface) -->
   <div class="modal" id="modal-settings">
-    <div class="cs-settings-card">
+    <div class="settings-card">
       <div class="set-top">
         <h2>Settings</h2>
         <nav class="set-tabs" id="set-tabs">
@@ -439,7 +448,7 @@
   <div id="fx" aria-hidden="true">
     <div id="vig"></div>
     <div id="tcard"><div class="kicker"></div><div class="txt"></div></div>
-    <div id="tlogo"><img class="dglogo" src="../img/dilly-gaming-logo.png" alt="" onerror="this.remove()"><div class="logo">Dilly<span class="l2">Strike</span></div><div class="tagline">de_dustline · 5v5 Tactical · Free in your browser</div><div class="soonbig">OUT NOW</div><div class="tagline" id="tpress">Press any key to play</div></div>
+    <div id="tlogo"><img class="dglogo" src="../img/dilly-gaming-logo.png" alt="" onerror="this.remove()"><div class="logo">Dilly<span class="l2">Strike</span></div><div class="tagline">Dustline · 5v5 Tactical · Free in your browser</div><div class="soonbig">OUT NOW</div><div class="tagline" id="tpress">Press any key to play</div></div>
     <div class="bar" id="barT"></div><div class="bar" id="barB"></div>
     <div id="trBadge"><i></i>OFFICIAL TRAILER · CAPTURED IN-ENGINE</div>
     <div id="skiphint">press any key to skip</div>

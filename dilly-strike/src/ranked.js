@@ -8,6 +8,8 @@
    Tier names and badges are original artwork.
    ========================================================================== */
 
+import { MAPS, resolveMapId } from './maps/index.js';
+
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const DS = () => window.DillyStrike || null;
@@ -112,7 +114,7 @@ function ensureOverlays() {
     <div class="rk-qpill" id="rk-qpill" hidden><span class="rk-spin"></span><b>Finding ranked match</b><span id="rk-qpill-t">0:00</span><button id="rk-qpill-x" title="Cancel">Cancel</button></div>
     <div class="rk-screen" id="rk-accept" aria-hidden="true">
       <div class="rk-accept-card">
-        <div class="rk-kicker">Ranked · de_dustline</div>
+        <div class="rk-kicker">Ranked · <span class="rk-map-code">${MAPS.dustline.code}</span></div>
         <h2>Match found</h2>
         <div class="rk-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="bg"/><circle cx="60" cy="60" r="52" class="fg" id="rk-ring-fg"/></svg><span id="rk-accept-t">15</span></div>
         <div class="rk-dots" id="rk-accept-dots"></div>
@@ -121,7 +123,7 @@ function ensureOverlays() {
       </div>
     </div>
     <div class="rk-screen" id="rk-select" aria-hidden="true">
-      <div class="rk-sel-top"><div><small id="rk-sel-side">Ranked</small><b>de_dustline</b></div><div class="rk-sel-title">Choose your agent</div><div class="rk-sel-timer"><span id="rk-sel-t">30</span><small>seconds</small></div></div>
+      <div class="rk-sel-top"><div><small id="rk-sel-side">Ranked</small><b class="rk-map-code">${MAPS.dustline.code}</b></div><div class="rk-sel-title">Choose your agent</div><div class="rk-sel-timer"><span id="rk-sel-t">30</span><small>seconds</small></div></div>
       <div class="rk-sel-main"><div class="rk-sel-team" id="rk-sel-team"></div><div class="rk-sel-hero" id="rk-sel-hero"></div></div>
       <div class="rk-sel-bottom"><div class="rk-sel-tiles" id="rk-sel-tiles"></div><button class="rk-btn go big" id="rk-sel-lock">Lock in</button></div>
       <small class="rk-sel-warn">Leaving agent select is a dodge: matchmaking cooldown and a small RR penalty.</small>
@@ -265,7 +267,14 @@ function showQueuePill() {
 /* ---------------- match model + server messages ---------------- */
 const teamName = (t) => (t === 'a' ? 'alpha' : 'omega');
 function newMatch(id) {
-  return { id, phase: 'ready', roster: new Map(), myTeam: 'a', side: 'def', alive: true, deployed: false, ended: false, pick: null, round: 0, score: [0, 0], used: 0, endsAt: 0, weapons: ['knife', 'sheriff'] };
+  return { id, map: 'dustline', phase: 'ready', roster: new Map(), myTeam: 'a', side: 'def', alive: true, deployed: false, ended: false, pick: null, round: 0, score: [0, 0], used: 0, endsAt: 0, weapons: ['knife', 'sheriff'] };
+}
+/* map the server picked for this match (match_found / agent_select / match_start / match_state); missing -> dustline */
+const mapOf = (id) => MAPS[resolveMapId(id)];
+function setMatchMap(m) {
+  const M = S.match; if (!M) return;
+  if (m && m.map != null) M.map = resolveMapId(m.map);
+  document.querySelectorAll('.rk-map-code').forEach((e) => { e.textContent = mapOf(M.map).code; });
 }
 function myKey() { return S.account ? String(S.account.callsign).toLowerCase() : ''; }
 
@@ -287,6 +296,7 @@ function onMsg(m) {
     case 'match_found':
       S.queued = false; showQueuePill();
       S.match = newMatch(m.match_id);
+      ensureOverlays(); setMatchMap(m);
       openAccept(m.accept_ms, m.total); break;
     case 'ready_update': renderDots(m.accepted, m.total); break;
     case 'match_cancelled':
@@ -352,6 +362,7 @@ function onSelect(m) {
   if (!S.match) S.match = newMatch(m.match_id);
   const M = S.match; M.phase = 'select'; M.myTeam = m.team; M.side = m.side; M.allies = m.allies; M.enemyCount = m.enemies;
   M.endsAt = Date.now() + m.left_ms;
+  setMatchMap(m);
   const mine = (m.allies || []).find((a) => a.id === myKey());
   if (mine && mine.agent) M.pick = mine.agent;
   M.locked = !!(mine && mine.locked);
@@ -386,10 +397,11 @@ function renderSelect() {
 function onStart(m) {
   const M = S.match || (S.match = newMatch(m.match_id));
   M.phase = 'starting'; M.rtw = m.rounds_to_win;
+  setMatchMap(m);
   M.roster = new Map(m.players.map((p) => [p.id, p]));
   const me = M.roster.get(myKey()); if (me) M.myTeam = me.team;
   screen('rk-select', false); screen('rk-accept', false);
-  showDeploy(`Ranked · first to ${m.rounds_to_win}${m.overtime ? ' · overtime' : ''}`, 'Match ready');
+  showDeploy(`Ranked · ${mapOf(M.map).code} · first to ${m.rounds_to_win}${m.overtime ? ' · overtime' : ''}`, 'Match ready');
 }
 function showDeploy(kicker, title) {
   const M = S.match, ui = UI(); ensureOverlays();
@@ -405,9 +417,9 @@ function deploy() {
   const M = S.match, R = RK(); if (!M || !R) return;
   screen('rk-deploy', false);
   R.attach(netHook);
-  R.enter();
+  R.enter(M.map); // loads the map the server picked (activateMap)
   M.deployed = true;
-  const scm = $('sc-mode'); if (scm) scm.textContent = 'RANKED · DE_DUSTLINE';
+  const scm = $('sc-mode'); if (scm) scm.textContent = 'RANKED · ' + mapOf(M.map).title;
   const me = R.me; me.team = teamName(M.myTeam); me.kills = 0; me.deaths = 0;
   for (const p of M.roster.values()) if (p.id !== myKey()) ensureRemote(p.id);
   if (M.lastRound) applyRound(M.lastRound, true);
@@ -478,11 +490,12 @@ function onSnapshot(m) {
   const M = S.match; M.roster = new Map(m.players.map((p) => [p.id, p]));
   const me = M.roster.get(myKey()); if (me) M.myTeam = me.team;
   M.rtw = m.rounds_to_win;
+  ensureOverlays(); setMatchMap(m);
   if (m.phase === 'ready') { M.phase = 'ready'; if (!m.accepted) openAccept(m.left_ms, m.players.length); return; }
   if (m.phase === 'select') { send({ type: 'sync' }); return; }
   const fake = { phase: m.phase, round: m.round, left_ms: m.left_ms, score: m.score, you: m.you, alive: m.players.filter((p) => p.alive).map((p) => p.id), ot: m.ot };
   M.lastRound = fake; M.phase = m.phase;
-  if (!M.deployed) showDeploy('Ranked · match in progress', 'Rejoin match');
+  if (!M.deployed) showDeploy(`Ranked · ${mapOf(M.map).code} · match in progress`, 'Rejoin match');
   else { applyRound(fake, true); for (const p of m.players) if (p.id !== myKey() && RK()) RK().moveRemote(p.id, p.x, p.y, p.z, p.yaw, true); }
 }
 function onDamaged(m) {
@@ -577,7 +590,7 @@ export function showEnd(m) {
   host.innerHTML = `<div class="rk-end">
     <div class="rk-end-res">${title}</div>
     <div class="rk-end-score"><span class="a">${mine[0]}</span><i>:</i><span class="b">${mine[1]}</span></div>
-    <div class="rk-muted">Ranked · de_dustline${m.overtime ? ' · overtime' : ''}${m.forfeit ? ' · forfeit' : ''}${m.abandoned ? ' · you left (counts as a loss)' : ''}</div>
+    <div class="rk-muted">Ranked · ${esc(mapOf(m.map || (S.match && S.match.map)).code)}${m.overtime ? ' · overtime' : ''}${m.forfeit ? ' · forfeit' : ''}${m.abandoned ? ' · you left (counts as a loss)' : ''}</div>
     <div class="rk-end-rank">
       <div class="rk-end-badge" id="rk-end-badge">${badgeSVG(b.tier_index, b.division, b.placed, 132)}</div>
       <div class="rk-end-info">
@@ -702,7 +715,7 @@ function rightPanel() {
     else if (!S.history.length) body = '<p class="rk-muted">No ranked matches yet. Your first five are placement matches.</p>';
     else body = `<div class="rk-hist">${S.history.map((h) => {
       const ag = UI() && UI().AGENTS.find((a) => a.id === h.agent);
-      return `<div class="rk-hrow ${h.result}"><span class="rk-hres">${h.result === 'win' ? 'W' : h.result === 'draw' ? 'D' : 'L'}</span>${ag ? `<span class="mini">${UI().agentSVG(ag, true)}</span>` : ''}<span class="rk-hscore">${h.score[0]}–${h.score[1]}</span><span>${h.kills}/${h.deaths} · ${h.headshots} HS</span><span class="rk-muted">${new Date(h.ended_ms).toLocaleDateString()}</span><b class="${h.rr_delta >= 0 ? 'up' : 'down'}">${h.placement ? 'Placement' : (h.rr_delta >= 0 ? '+' : '') + h.rr_delta + ' RR'}</b>${h.abandoned ? '<em>left</em>' : ''}</div>`;
+      return `<div class="rk-hrow ${h.result}"><span class="rk-hres">${h.result === 'win' ? 'W' : h.result === 'draw' ? 'D' : 'L'}</span>${ag ? `<span class="mini">${UI().agentSVG(ag, true)}</span>` : ''}<span class="rk-hscore">${h.score[0]}–${h.score[1]}</span><span>${h.kills}/${h.deaths} · ${h.headshots} HS</span><span class="rk-muted">${esc(mapOf(h.map).code)} · ${new Date(h.ended_ms).toLocaleDateString()}</span><b class="${h.rr_delta >= 0 ? 'up' : 'down'}">${h.placement ? 'Placement' : (h.rr_delta >= 0 ? '+' : '') + h.rr_delta + ' RR'}</b>${h.abandoned ? '<em>left</em>' : ''}</div>`;
     }).join('')}</div>`;
   } else if (S.tab === 'ladder') {
     if (S.server !== 'ok' || S.leaderboard == null) body = '<p class="rk-muted">The leaderboard is read from the ranked server, which is offline right now.</p>';

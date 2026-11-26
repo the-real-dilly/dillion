@@ -1,12 +1,12 @@
 /* ==========================================================================
-   DILLY STRIKE — Authentic CS:GO Visuals & Tactical 3D FPS
-   Three.js WebGL 2 · de_dustline PBR Desert Citadel · 5 Multi-Part 3D Weapons
-   Gloved Hands · Inspect (F) · Bullet Decals · Circular Radar · Radial Buy Wheel
+   DILLY STRIKE — Tactical 3D FPS
+   Three.js WebGL 2 · Dustline PBR Desert Citadel · 5 Multi-Part 3D Weapons
+   Gloved Hands · Inspect (F) · Bullet Decals · Minimap · Shop
    ========================================================================== */
 
 import * as THREE from 'three';
 import { initRender, renderFrame, applyLighting, PRESETS, RENDER } from './render.js';
-import { MAPS, savedMapId, saveMapId } from './maps/index.js';
+import { MAPS, savedMapId, saveMapId, resolveMapId } from './maps/index.js';
 import { createViewmodel, renderWeaponIcons, loadGuns } from './viewmodel.js';
 import { loadCharacters, charsReady, Operator } from './characters.js';
 loadCharacters().catch((e) => console.warn('character models unavailable, using fallback figures', e));
@@ -23,7 +23,7 @@ const WEAPONS = {
     desc: 'Heavy-caliber assault rifle. Iconic 1-tap headshot lethality through helmet.'
   },
   phantom: {
-    id: 'phantom', name: 'Viper-S', slot: 2, cost: 2900, dmg: 33, hsMult: 3.6, rpm: 660,
+    id: 'phantom', name: 'Adder-S', slot: 2, cost: 2900, dmg: 33, hsMult: 3.6, rpm: 660,
     mag: 25, reserve: 100, auto: true, spread: 0.007, recoil: 0.014,
     stats: { dmg: 80, rpm: 84, pen: 82, acc: 92 },
     desc: 'Silenced tactical carbine with laser-tight spray control and reduced muzzle signature.'
@@ -52,9 +52,9 @@ const WEAPONS = {
 const BIND_META = [
   ['fwd', 'Move Forward'], ['back', 'Move Backward'], ['left', 'Strafe Left'], ['right', 'Strafe Right'],
   ['jump', 'Jump'], ['crouch', 'Crouch (Tighter Spread)'], ['reload', 'Reload Weapon'], ['inspect', 'Inspect Weapon'],
-  ['buy', 'Open Buy Wheel'], ['flash', 'Flashbang'], ['smoke', 'Smoke Grenade'], ['dash', 'Tactical Dash'],
+  ['buy', 'Open Shop'], ['flash', 'Ability · Flash'], ['smoke', 'Ability · Smoke'], ['dash', 'Ability · Dash'],
   ['chat', 'Team / All Chat'], ['scoreboard', 'Scoreboard'],
-  ['slot1', 'Slot 1 (Dill-47)'], ['slot2', 'Slot 2 (Viper-S)'], ['slot3', 'Slot 3 (Apex-50)'],
+  ['slot1', 'Slot 1 (Dill-47)'], ['slot2', 'Slot 2 (Adder-S)'], ['slot3', 'Slot 3 (Apex-50)'],
   ['slot4', 'Slot 4 (Kodiak .50)'], ['slot5', 'Slot 5 (Dilly Fang)']
 ];
 const DEFAULT_BINDS = {
@@ -370,10 +370,10 @@ function buildMapChips() {
   strip.querySelectorAll('.map-chip').forEach((c) => c.addEventListener('click', () => selectMap(c.dataset.map)));
 }
 buildMapChips();
-activateMap('dustline'); // always built first (trailer + online map)
+activateMap('dustline'); // always built first (trailer + default online map)
 if (selectedMapId !== 'dustline') activateMap(selectedMapId);
 
-// ---------- Detailed Multi-Part CS:GO 3D Weapon Viewmodels + Gloved Hands ----------
+// ---------- Detailed Multi-Part 3D Weapon Viewmodels + Gloved Hands ----------
 const vmRoot = new THREE.Group();
 vmRoot.position.set(0.24, -0.22, -0.44);
 camera.add(vmRoot);
@@ -489,7 +489,7 @@ muzzleFlash.add(
 muzzleFlash.position.set(0, 0.02, -0.68);
 vmRoot.add(muzzleFlash);
 
-// ---------- Upgraded CS:GO CT & T 3D Operative Models ----------
+// ---------- 3D Operative Models (alpha / omega teams) ----------
 function nameTagSprite(name, team) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 42;
   const cx = c.getContext('2d');
@@ -539,7 +539,7 @@ function createBlockyAgent(name, team) {
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), new THREE.MeshStandardMaterial({ color: 0xe6bd96, roughness: 0.65 }));
   head.position.y = 1.72; head.castShadow = true; head.userData = { part: 'head' };
 
-  // CT Ballistic Helmet / T Desert Headwrap
+  // Alpha ballistic helmet / Omega desert headwrap
   const helmet = new THREE.Mesh(
     new THREE.BoxGeometry(0.42, 0.22, 0.42),
     new THREE.MeshStandardMaterial({ color: isCT ? 0x1f2d3d : 0x7c2d12, roughness: 0.6 })
@@ -581,7 +581,7 @@ let paused = false;
 let buyOpen = false;
 let chatOpen = false;
 let sbOpen = false;
-let roundTime = 115; // 1:55 CS:GO round clock
+let roundTime = 115; // 1:55 round clock
 
 const me = {
   id: 'local',
@@ -649,7 +649,8 @@ const rankedApi = {
   showRemote(id, on) { const r = remotes.get(id); if (r) r.model.group.visible = !!on; },
   setScore(a, o) { scoreAlpha = a; scoreOmega = o; syncHud(); },
   setRoundTime(t) { roundTime = t; },
-  enter: () => enterMatch(true),
+  enter: (mapId) => enterMatch(true, mapId),
+  map: () => ({ id: CUR_MAP.id, code: CUR_MAP.code, title: CUR_MAP.title, name: CUR_MAP.name }),
   equip: (id) => equipWeapon(id),
   rerenderBuy() { if (buyOpen) renderBuyMenu(); },
   closeBuy() { buyOpen = false; $('modal-buy').classList.remove('open'); },
@@ -833,7 +834,7 @@ const botWp = (i) => CUR_MAP.waypoints[i];
 function spawnBots() {
   for (const b of bots) scene.remove(b.model.group);
   bots = [];
-  const names = ['BOT-Phoenix', 'BOT-Viper', 'BOT-Reaper', 'BOT-Kodiak', 'BOT-Ghost'];
+  const names = ['BOT-Ember', 'BOT-Adder', 'BOT-Scythe', 'BOT-Kodiak', 'BOT-Wisp'];
   for (let i = 0; i < names.length; i++) {
     const model = createAgentModel(names[i], 'omega');
     const sp = CUR_MAP.botSpawn(i);
@@ -1017,7 +1018,7 @@ function updatePlayer(dt) {
   camera.rotation.order = 'YXZ';
   camera.rotation.set(me.pitch, me.yaw, 0);
 
-  // Dynamic CS:GO Crosshair
+  // Dynamic crosshair
   const gap = Math.round(4 + (ml > 0.1 ? 6 : 0) + me.recoilKick * 88 - (me.crouching ? 2 : 0));
   $('xhair').style.setProperty('--gap', Math.max(2, gap) + 'px');
 
@@ -1088,27 +1089,27 @@ function useDash() {
   me.vel.z = dir.z * 24;
 }
 
-// ---------- Authentic CS:GO 2D Circular Tactical Radar ----------
-const radarCanvas = $('cs-radar');
+// ---------- 2D tactical minimap (player-up) ----------
+const radarCanvas = $('minimap');
 const rctx = radarCanvas.getContext('2d');
 
 function drawRadar() {
   const W = radarCanvas.width, H = radarCanvas.height;
   const cx = W / 2, cy = H / 2, scale = 2.35;
   rctx.clearRect(0, 0, W, H);
-  rctx.fillStyle = '#101820';
+  rctx.fillStyle = '#0f1923';
   rctx.fillRect(0, 0, W, H);
 
   rctx.save();
   rctx.translate(cx, cy);
-  rctx.rotate(me.yaw); // Rotate map so player always faces UP like CS:GO radar
+  rctx.rotate(me.yaw); // rotate the minimap so the player always faces up
 
   const toR = (wx, wz) => [(wx - me.pos.x) * scale, (wz - me.pos.z) * scale];
 
   // Floor footprint
   const bnd = CUR_MAP.bounds;
   const [fx, fz] = toR(bnd.minX, bnd.minZ);
-  rctx.fillStyle = '#252d36';
+  rctx.fillStyle = '#1f2e3b';
   rctx.fillRect(fx, fz, (bnd.maxX - bnd.minX) * scale, (bnd.maxZ - bnd.minZ) * scale);
 
   // Bombsites (from the map)
@@ -1120,7 +1121,7 @@ function drawRadar() {
   // Walls & Crates
   for (const b of radarBoxes) {
     const [rx, rz] = toR(b.x - b.w / 2, b.z - b.d / 2);
-    rctx.fillStyle = b.isCrate || (b.w < 1.7 && b.d < 1.7) ? '#8c6943' : '#536273';
+    rctx.fillStyle = b.isCrate || (b.w < 1.7 && b.d < 1.7) ? '#3e5160' : '#6b7a87';
     rctx.fillRect(rx, rz, b.w * scale, b.d * scale);
   }
 
@@ -1136,9 +1137,9 @@ function drawRadar() {
     const [ex, ez] = toR(pos.x, pos.z);
     rctx.beginPath();
     rctx.arc(ex, ez, 4.2, 0, Math.PI * 2);
-    rctx.fillStyle = e.team === me.team ? '#6eb3f7' : '#ef4444';
+    rctx.fillStyle = e.team === me.team ? '#4cd5b5' : '#ff4655';
     rctx.fill();
-    rctx.strokeStyle = '#000'; rctx.lineWidth = 1.2; rctx.stroke();
+    rctx.strokeStyle = '#0f1923'; rctx.lineWidth = 1.5; rctx.stroke();
   }
   rctx.restore();
 
@@ -1146,13 +1147,13 @@ function drawRadar() {
   rctx.save();
   rctx.translate(cx, cy);
   const fg = rctx.createRadialGradient(0, 0, 2, 0, 0, 56);
-  fg.addColorStop(0, 'rgba(255,255,255,0.26)');
-  fg.addColorStop(1, 'rgba(255,255,255,0)');
+  fg.addColorStop(0, 'rgba(236,232,225,0.3)');
+  fg.addColorStop(1, 'rgba(236,232,225,0)');
   rctx.fillStyle = fg;
   rctx.beginPath(); rctx.moveTo(0, 0); rctx.arc(0, 0, 56, -Math.PI * 0.72, -Math.PI * 0.28); rctx.closePath(); rctx.fill();
 
   // Player Chevron
-  rctx.fillStyle = '#6ee755';
+  rctx.fillStyle = '#f2d36b';
   rctx.beginPath(); rctx.moveTo(0, -6); rctx.lineTo(5, 5); rctx.lineTo(0, 2.5); rctx.lineTo(-5, 5); rctx.closePath();
   rctx.fill();
   rctx.restore();
@@ -1170,12 +1171,14 @@ function connectMultiplayer(name) {
       if (!settled) { settled = true; try { ws.close(); } catch (_) {} reject(new Error('Could not reach ' + DILLY_STRIKE_WS)); }
     }, 4500);
 
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'join', name }));
+    // the server puts us in the room for this map (older servers ignore it and answer dustline)
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'join', name, map: selectedMapId }));
     ws.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch (_) { return; }
       if (m.type === 'welcome') {
         clearTimeout(timer);
         me.id = m.id; me.team = m.team || 'alpha';
+        m.map = resolveMapId(m.map); // missing / unknown -> dustline
         scoreAlpha = m.alpha || 0; scoreOmega = m.omega || 0;
         for (const p of (m.players || [])) if (p.id !== me.id) addRemote(p);
         if (!settled) { settled = true; resolve(m); }
@@ -1219,7 +1222,7 @@ function addRemote(p) {
   remotes.set(p.id, { ...p, model, targetPos: model.group.position.clone(), targetYaw: p.yaw || 0 });
 }
 
-// ---------- CS:GO HUD Sync, Vertical Loadout, Avatars & Killfeed ----------
+// ---------- HUD sync: vitals, weapon slots, team portraits & kill feed ----------
 function syncHud() {
   $('sc-a').textContent = scoreAlpha;
   $('sc-o').textContent = scoreOmega;
@@ -1228,7 +1231,7 @@ function syncHud() {
   $('hud-cash').textContent = me.cash;
   $('hp-fill').style.width = Math.max(0, Math.min(100, me.hp)) + '%';
   $('sh-fill').style.width = Math.max(0, Math.min(100, me.shield)) + '%';
-  document.querySelector('.cs-stat.hp')?.classList.toggle('low', me.hp <= 25);
+  document.querySelector('.vital.hp')?.classList.toggle('low', me.hp <= 25);
 
   const w = WEAPONS[me.weaponId];
   $('wep-name').textContent = me.reloadTimer > 0 ? `${w.name} · RELOADING` : w.name;
@@ -1248,8 +1251,8 @@ function syncHud() {
     }
   }
 
-  // Right-edge CS:GO Vertical Weapon Loadout Strip
-  const lo = $('cs-loadout');
+  // Right-edge vertical weapon slots
+  const lo = $('wep-slots');
   lo.innerHTML = '';
   for (const wep of Object.values(WEAPONS)) {
     if (!me.owned.has(wep.id)) continue;
@@ -1259,24 +1262,25 @@ function syncHud() {
     lo.appendChild(row);
   }
 
-  // Top Alive Player Avatar Slots
+  // Top player portrait pips (agent art from src/ui.js; falls back to initials)
   const ctBox = $('av-ct'), tBox = $('av-t');
+  const UIX = window.DillyStrikeUI, face = (i, foe, nm) => (UIX && UIX.face ? UIX.face(i, foe, !foe && i === 0) : `<b>${String(nm || '?').replace(/^BOT-/, '').charAt(0)}</b>`);
   const allies = isMP
     ? Array.from(remotes.values()).filter(r => r.team === me.team)
     : bots.filter(b => b.team === me.team);
-  const ctSlots = [{ hp: me.hp }, ...allies].slice(0, 5);
-  ctBox.innerHTML = ctSlots.map(a => {
+  const ctSlots = [{ hp: me.hp, name: me.name }, ...allies].slice(0, 5);
+  ctBox.innerHTML = ctSlots.map((a, i) => {
     const alive = a.hp === undefined || a.hp > 0;
     const hpPct = a.hp === undefined ? 100 : Math.max(0, a.hp);
-    return `<div class="av-slot${alive ? '' : ' dead'}">${alive ? 'CT' : '✕'}<div class="av-hp"><i style="width:${hpPct}%"></i></div></div>`;
+    return `<div class="av-slot${alive ? '' : ' dead'}">${face(i, false, a.name)}<div class="av-hp"><i style="width:${hpPct}%"></i></div></div>`;
   }).join('');
   const foes = isMP
     ? Array.from(remotes.values()).filter(r => r.team !== me.team)
     : bots.filter(b => b.team !== me.team);
-  tBox.innerHTML = foes.slice(0, 5).map(e => {
+  tBox.innerHTML = foes.slice(0, 5).map((e, i) => {
     const alive = e.hp === undefined || e.hp > 0;
     const hpPct = e.hp === undefined ? 100 : Math.max(0, e.hp);
-    return `<div class="av-slot${alive ? '' : ' dead'}">${alive ? 'T' : '✕'}<div class="av-hp"><i style="width:${hpPct}%"></i></div></div>`;
+    return `<div class="av-slot${alive ? '' : ' dead'}">${face(i, true, e.name)}<div class="av-hp"><i style="width:${hpPct}%"></i></div></div>`;
   }).join('');
 }
 
@@ -1301,14 +1305,14 @@ function addChat(sender, text) {
   while (log.children.length > 6) log.removeChild(log.firstChild);
 }
 
-// ---------- CS:GO Radial Buy Wheel ----------
+// ---------- Shop (category grid; layout in styles.css) ----------
 const BUY_ITEMS = [
   { kind: 'wep', ...WEAPONS.vandal },
   { kind: 'wep', ...WEAPONS.phantom },
   { kind: 'wep', ...WEAPONS.operator },
   { kind: 'wep', ...WEAPONS.sheriff },
-  { kind: 'armor', id: 'armor', name: 'Kevlar + Helmet', cost: 1000, desc: 'Full 100 ballistic armor & helmet protection.', stats: { dmg: 0, rpm: 0, pen: 100, acc: 100 } },
-  { kind: 'util', id: 'util', name: 'Utility Pack', cost: 500, desc: 'Instantly resets Flashbang, Smoke & Dash cooldowns.', stats: { dmg: 20, rpm: 100, pen: 50, acc: 100 } }
+  { kind: 'armor', id: 'armor', name: 'Full Shield', cost: 1000, desc: 'Restores a full 100 shield that soaks incoming damage.', stats: { dmg: 0, rpm: 0, pen: 100, acc: 100 } },
+  { kind: 'util', id: 'util', name: 'Utility Pack', cost: 500, desc: 'Instantly recharges all three agent abilities.', stats: { dmg: 20, rpm: 100, pen: 50, acc: 100 } }
 ];
 
 function inspectBuyItem(it) {
@@ -1317,7 +1321,7 @@ function inspectBuyItem(it) {
   if (!art) { art = document.createElement('div'); art.id = 'insp-art'; $('insp-name').before(art); }
   art.innerHTML = it.kind === 'wep' ? wIcon(it.id, 'shade', 'insp-ico') : '';
   $('insp-desc').textContent = it.desc;
-  $('insp-price').textContent = '$' + it.cost;
+  $('insp-price').textContent = it.cost; // credits glyph comes from styles.css
   const st = it.stats || { dmg: 80, rpm: 70, pen: 80, acc: 80 };
   const rows = [['DAMAGE', st.dmg], ['FIRE RATE', st.rpm], ['ARMOR PEN', st.pen], ['ACCURACY', st.acc]];
   $('insp-bars').innerHTML = rows.map(([lbl, val]) =>
@@ -1326,8 +1330,8 @@ function inspectBuyItem(it) {
 }
 
 function renderBuyMenu() {
-  $('buy-cash').textContent = '$' + me.cash;
-  $('wheel-cash').textContent = '$' + me.cash;
+  $('buy-cash').textContent = me.cash;
+  $('wheel-cash').textContent = me.cash;
   const wheel = $('buy-wheel');
   wheel.querySelectorAll('.wheel-node').forEach(n => n.remove());
 
@@ -1342,7 +1346,7 @@ function renderBuyMenu() {
     btn.style.setProperty('--tx', tx);
     btn.style.setProperty('--ty', ty);
     btn.disabled = owned ? false : (me.cash < it.cost || (it.kind === 'armor' && me.shield >= 100));
-    btn.innerHTML = `<small>${idx + 1}</small>${it.kind === 'wep' ? wIcon(it.id, 'shade', 'wn-ico') : ''}<strong>${it.name}</strong><span>${owned ? 'EQUIP' : '$' + it.cost}</span>`;
+    btn.innerHTML = `<small>${idx + 1}</small>${it.kind === 'wep' ? wIcon(it.id, 'shade', 'wn-ico') : ''}<strong>${it.name}</strong><span class="wn-price">${owned ? 'EQUIP' : it.cost}</span>`;
     btn.onmouseenter = () => inspectBuyItem(it);
     btn.onclick = () => {
       if (rankedNet) { rankedNet.buy(it, owned); return; } /* RANKED: server-side economy */
@@ -1363,27 +1367,30 @@ function renderBuyMenu() {
 }
 
 function renderScoreboard() {
-  $('sb-ct-score').textContent = scoreAlpha;
-  $('sb-t-score').textContent = scoreOmega;
+  // first table = your team (teal), second = the opposition (red)
+  const mineAlpha = me.team === 'alpha';
+  $('sb-ct-score').textContent = mineAlpha ? scoreAlpha : scoreOmega;
+  $('sb-t-score').textContent = mineAlpha ? scoreOmega : scoreAlpha;
   const all = [
-    { name: me.name + ' (YOU)', team: me.team, kills: me.kills, deaths: me.deaths, cash: me.cash, ping: isMP ? 28 : 0 },
-    ...(isMP ? Array.from(remotes.values()) : bots).map(e => ({ name: e.name, team: e.team, kills: e.kills || 0, deaths: e.deaths || 0, cash: e.cash || 800, ping: isMP ? 36 : 0 }))
+    { name: me.name, me: true, team: me.team, kills: me.kills, deaths: me.deaths, assists: me.assists || 0, cash: me.cash },
+    ...(isMP ? Array.from(remotes.values()) : bots).map(e => ({ name: e.name, team: e.team, kills: e.kills || 0, deaths: e.deaths || 0, assists: e.assists || 0, cash: e.cash || 800 }))
   ];
-  const rowHtml = (r) => {
-    const kd = r.deaths > 0 ? (r.kills / r.deaths).toFixed(2) : r.kills.toFixed(2);
-    return `<tr><td><b>${r.name}</b></td><td>${r.kills}</td><td>${r.deaths}</td><td>${kd}</td><td style="color:#6ee755">$${r.cash}</td><td>${r.ping}ms</td></tr>`;
+  const UIX = window.DillyStrikeUI, rounds = Math.max(1, (UIX && UIX.rounds ? UIX.rounds().round : 0) || 1);
+  const rowHtml = (foe) => (r, i) => {
+    const acs = Math.round((r.kills * 150 + r.assists * 50 + r.deaths * 10) / rounds), ult = Math.min(7, r.kills + r.deaths);
+    const ag = UIX && UIX.face ? UIX.face(i, foe, !!r.me) : '';
+    return `<tr${r.me ? ' class="me"' : ''}><td class="sb-ag sb-hide-sm">${ag}</td><td><b>${r.name}</b></td><td>${acs}</td><td class="sb-kda">${r.kills}<i>/</i>${r.deaths}<i>/</i>${r.assists}</td><td class="sb-cr">${r.cash}</td><td class="sb-ult sb-hide-sm${ult >= 7 ? ' full' : ''}">${'<i class="on"></i>'.repeat(ult)}${'<i></i>'.repeat(7 - ult)}</td></tr>`;
   };
-  $('sb-ct-body').innerHTML = all.filter(r => r.team === 'alpha').map(rowHtml).join('');
-  $('sb-t-body').innerHTML = all.filter(r => r.team !== 'alpha').map(rowHtml).join('');
+  $('sb-ct-body').innerHTML = all.filter(r => r.team === me.team).map(rowHtml(false)).join('');
+  $('sb-t-body').innerHTML = all.filter(r => r.team !== me.team).map(rowHtml(true)).join('');
 }
 
 // ---------- Match Start & Controls ----------
-function enterMatch(mpMode) {
+function enterMatch(mpMode, serverMap) {
   if (typeof stopTrailerMode === 'function' && tr.active) stopTrailerMode(true);
   isMP = mpMode;
-  // online servers run de_dustline only; solo uses the selected map
-  activateMap(mpMode && !MAPS[selectedMapId].online ? 'dustline' : selectedMapId);
-  if (mpMode && !MAPS[selectedMapId].online) addChat('SYSTEM', `Online servers run ${MAPS.dustline.code} only — ${MAPS[selectedMapId].name} is solo vs bots for now.`);
+  // online / ranked: the server names the map (welcome / match_start; missing -> dustline); solo uses the selected map
+  activateMap(mpMode ? resolveMapId(serverMap) : selectedMapId);
   me.name = $('agent-name').value.trim() || 'DillyAgent';
   me.kills = 0; me.deaths = 0; me.cash = 1200; roundTime = 115;
   if (!mpMode) { scoreAlpha = 0; scoreOmega = 0; me.team = 'alpha'; spawnBots(); }
@@ -1400,8 +1407,10 @@ function enterMatch(mpMode) {
 $('btn-play-solo').onclick = () => enterMatch(false);
 $('btn-play-mp').onclick = async () => {
   try {
-    await connectMultiplayer($('agent-name').value.trim() || 'DillyAgent');
-    enterMatch(true);
+    const w = await connectMultiplayer($('agent-name').value.trim() || 'DillyAgent');
+    enterMatch(true, w.map);
+    if (w.map !== selectedMapId) addChat('SYSTEM', `This server is running ${MAPS[w.map].code} — joined that room instead of ${MAPS[selectedMapId].code}.`);
+    else addChat('SYSTEM', `Joined the ${MAPS[w.map].code} room.`);
   } catch (err) {
     $('mp-msg').textContent = '⚠️ ' + err.message + ' — You can play Solo vs Bots right now!';
   }
@@ -1416,6 +1425,7 @@ $('btn-leave').onclick = () => {
   $('modal-pause').classList.remove('open');
   $('modal-settings').classList.remove('open');
   $('modal-lobby').classList.add('open');
+  if (CUR_MAP.id !== selectedMapId && !tr.active) activateMap(selectedMapId); // back to the menu map after an online/ranked match
 };
 
 // ---------- Keybind Settings Modal Controller ----------
@@ -1438,7 +1448,7 @@ function syncBindLabels() {
       <span><b>${fmtKey(BINDS.crouch)}</b> Crouch (Tighter Spread)</span>
       <span><b>LMB</b> Fire · <b>RMB</b> Apex-50 Scope</span>
       <span><b>${fmtKey(BINDS.slot1)}–${fmtKey(BINDS.slot5)}</b> Weapons</span>
-      <span><b>${fmtKey(BINDS.buy)}</b> Buy Wheel · <b>${fmtKey(BINDS.reload)}</b> Reload</span>
+      <span><b>${fmtKey(BINDS.buy)}</b> Shop ·<b>${fmtKey(BINDS.reload)}</b> Reload</span>
       <span><b>${fmtKey(BINDS.inspect)}</b> Inspect Weapon</span>
       <span><b>${fmtKey(BINDS.flash)} / ${fmtKey(BINDS.smoke)} / ${fmtKey(BINDS.dash)}</b> Flash / Smoke / Dash</span>
       <span><b>${fmtKey(BINDS.scoreboard)}</b> Scoreboard · <b>${fmtKey(BINDS.chat)}</b> Chat</span>
@@ -1764,13 +1774,13 @@ function playTrailerScene(sceneName) {
     $('hud').classList.remove('active');
     vmRoot.visible = false;
     camera.fov = 70; camera.updateProjectionMatrix();
-    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -24, z: 8.5, tx: -6.5, tz: 3.2, speed: 4.6 });
-    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -26, z: 5.2, tx: -8.2, tz: 1.4, speed: 4.4 });
-    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -22, z: 11.8, tx: -6.2, tz: 7.8, speed: 4.3 });
-    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -19, z: -13.5, tx: -5.5, tz: -14.8, speed: 4.5 });
-    spawnTrActor({ name: 'OMEGA-Phoenix', team: 'omega', x: 15.5, z: -2.8, tx: 5.4, tz: -2.4, speed: 3.8 });
-    spawnTrActor({ name: 'OMEGA-Viper', team: 'omega', x: 17.5, z: 3.8, tx: 6.4, tz: 3.0, speed: 3.9 });
-    spawnTrActor({ name: 'OMEGA-Reaper', team: 'omega', x: 14.0, z: -14.0, tx: 2.8, tz: -15.2, speed: 3.7 });
+    spawnTrActor({ name: 'Falcon', team: 'alpha', x: -24, z: 8.5, tx: -6.5, tz: 3.2, speed: 4.6 });
+    spawnTrActor({ name: 'Frost', team: 'alpha', x: -26, z: 5.2, tx: -8.2, tz: 1.4, speed: 4.4 });
+    spawnTrActor({ name: 'Warden', team: 'alpha', x: -22, z: 11.8, tx: -6.2, tz: 7.8, speed: 4.3 });
+    spawnTrActor({ name: 'Striker', team: 'alpha', x: -19, z: -13.5, tx: -5.5, tz: -14.8, speed: 4.5 });
+    spawnTrActor({ name: 'OMEGA-Ember', team: 'omega', x: 15.5, z: -2.8, tx: 5.4, tz: -2.4, speed: 3.8 });
+    spawnTrActor({ name: 'OMEGA-Adder', team: 'omega', x: 17.5, z: 3.8, tx: 6.4, tz: 3.0, speed: 3.9 });
+    spawnTrActor({ name: 'OMEGA-Scythe', team: 'omega', x: 14.0, z: -14.0, tx: 2.8, tz: -15.2, speed: 3.7 });
     spawnTrActor({ name: 'OMEGA-Kodiak', team: 'omega', x: 18.5, z: -8.5, tx: 8.2, tz: -7.8, speed: 3.6 });
     spawnTrActor({ name: 'OMEGA-Ghost', team: 'omega', x: 11.5, z: -20.5, tx: -1.0, tz: -20.5, speed: 3.8 });
   } else if (sceneName === 'ak_entry') {
@@ -1781,17 +1791,17 @@ function playTrailerScene(sceneName) {
     me.ammo.vandal = [30, 90];
     me.pos.set(-24.5, 0, -21.2); me.vel.set(0, 0, 0);
     me.yaw = -Math.PI / 2; me.pitch = -0.02;
-    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -16, z: 3.5, tx: -5.5, tz: 2.5, speed: 3.8, kills: 6, deaths: 5 });
-    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -19, z: 12, tx: -7, tz: 14, speed: 3.6, kills: 5, deaths: 5 });
-    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -22, z: -12, tx: -12, tz: -14, speed: 3.9, kills: 4, deaths: 6 });
-    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -14, z: -4, tx: -6, tz: -4, speed: 3.7, kills: 4, deaths: 6 });
-    spawnTrActor({ name: 'BOT-Phoenix', team: 'omega', x: 3.2, z: -21.2, tx: -0.6, tz: -20.8, speed: 2.2, kills: 7, deaths: 5 });
-    spawnTrActor({ name: 'BOT-Viper', team: 'omega', x: 3.6, z: -14.2, tx: -1.8, tz: -13.8, speed: 2.5, kills: 6, deaths: 6 });
-    spawnTrActor({ name: 'BOT-Reaper', team: 'omega', x: 7.2, z: 3.5, tx: 4.5, tz: 2.5, speed: 3.0, kills: 5, deaths: 6 });
+    spawnTrActor({ name: 'Falcon', team: 'alpha', x: -16, z: 3.5, tx: -5.5, tz: 2.5, speed: 3.8, kills: 6, deaths: 5 });
+    spawnTrActor({ name: 'Frost', team: 'alpha', x: -19, z: 12, tx: -7, tz: 14, speed: 3.6, kills: 5, deaths: 5 });
+    spawnTrActor({ name: 'Warden', team: 'alpha', x: -22, z: -12, tx: -12, tz: -14, speed: 3.9, kills: 4, deaths: 6 });
+    spawnTrActor({ name: 'Striker', team: 'alpha', x: -14, z: -4, tx: -6, tz: -4, speed: 3.7, kills: 4, deaths: 6 });
+    spawnTrActor({ name: 'BOT-Ember', team: 'omega', x: 3.2, z: -21.2, tx: -0.6, tz: -20.8, speed: 2.2, kills: 7, deaths: 5 });
+    spawnTrActor({ name: 'BOT-Adder', team: 'omega', x: 3.6, z: -14.2, tx: -1.8, tz: -13.8, speed: 2.5, kills: 6, deaths: 6 });
+    spawnTrActor({ name: 'BOT-Scythe', team: 'omega', x: 7.2, z: 3.5, tx: 4.5, tz: 2.5, speed: 3.0, kills: 5, deaths: 6 });
     spawnTrActor({ name: 'BOT-Kodiak', team: 'omega', x: 6.0, z: 19.5, tx: 1.5, tz: 20.0, speed: 2.8, kills: 4, deaths: 6 });
-    spawnTrActor({ name: 'BOT-Ghost', team: 'omega', x: 15.0, z: -8.0, tx: 8.5, tz: -6.5, speed: 3.1, kills: 4, deaths: 6 });
+    spawnTrActor({ name: 'BOT-Wisp', team: 'omega', x: 15.0, z: -8.0, tx: 8.5, tz: -6.5, speed: 3.1, kills: 4, deaths: 6 });
     equipWeapon('vandal');
-    $('sc-mode').textContent = 'DE_DUSTLINE';
+    $('sc-mode').textContent = CUR_MAP.title; // trailer always runs on dustline
     $('hud').classList.add('active');
     vmRoot.visible = true;
     syncHud(); drawRadar();
@@ -1803,17 +1813,17 @@ function playTrailerScene(sceneName) {
     me.ammo.phantom = [25, 100]; me.ammo.sheriff = [7, 35];
     me.pos.set(-12.2, 0, 2.8); me.vel.set(0, 0, 0);
     me.yaw = -1.45; me.pitch = -0.02;
-    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -10, z: 8, tx: -6.5, tz: 16, speed: 4.2, kills: 9, deaths: 6 });
-    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -14, z: -18, tx: -4, tz: -19, speed: 3.8, kills: 7, deaths: 7 });
-    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -8, z: -5, tx: -5, tz: -3, speed: 3.4, kills: 6, deaths: 7 });
-    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -20, z: 4, tx: -20, tz: 4, hp: 0, kills: 5, deaths: 8 });
-    spawnTrActor({ name: 'BOT-Reaper', team: 'omega', x: -1.6, z: 13.4, tx: -2.5, tz: 12.6, speed: 1.8, kills: 8, deaths: 8 });
+    spawnTrActor({ name: 'Falcon', team: 'alpha', x: -10, z: 8, tx: -6.5, tz: 16, speed: 4.2, kills: 9, deaths: 6 });
+    spawnTrActor({ name: 'Frost', team: 'alpha', x: -14, z: -18, tx: -4, tz: -19, speed: 3.8, kills: 7, deaths: 7 });
+    spawnTrActor({ name: 'Warden', team: 'alpha', x: -8, z: -5, tx: -5, tz: -3, speed: 3.4, kills: 6, deaths: 7 });
+    spawnTrActor({ name: 'Striker', team: 'alpha', x: -20, z: 4, tx: -20, tz: 4, hp: 0, kills: 5, deaths: 8 });
+    spawnTrActor({ name: 'BOT-Scythe', team: 'omega', x: -1.6, z: 13.4, tx: -2.5, tz: 12.6, speed: 1.8, kills: 8, deaths: 8 });
     spawnTrActor({ name: 'BOT-Kodiak', team: 'omega', x: 5.2, z: 20.6, tx: 1.8, tz: 20.4, speed: 2.0, kills: 7, deaths: 8 });
-    spawnTrActor({ name: 'BOT-Ghost', team: 'omega', x: 5.5, z: 1.8, tx: 4.2, tz: 2.0, speed: 2.2, kills: 7, deaths: 8 });
-    spawnTrActor({ name: 'BOT-Phoenix', team: 'omega', x: 12, z: -18, tx: 6, tz: -18, speed: 2.8, kills: 6, deaths: 9 });
-    spawnTrActor({ name: 'BOT-Viper', team: 'omega', x: 18, z: 12, tx: 18, tz: 12, hp: 0, kills: 5, deaths: 9 });
+    spawnTrActor({ name: 'BOT-Wisp', team: 'omega', x: 5.5, z: 1.8, tx: 4.2, tz: 2.0, speed: 2.2, kills: 7, deaths: 8 });
+    spawnTrActor({ name: 'BOT-Ember', team: 'omega', x: 12, z: -18, tx: 6, tz: -18, speed: 2.8, kills: 6, deaths: 9 });
+    spawnTrActor({ name: 'BOT-Adder', team: 'omega', x: 18, z: 12, tx: 18, tz: 12, hp: 0, kills: 5, deaths: 9 });
     equipWeapon('phantom');
-    $('sc-mode').textContent = 'DE_DUSTLINE';
+    $('sc-mode').textContent = CUR_MAP.title; // trailer always runs on dustline
     $('hud').classList.add('active');
     vmRoot.visible = true;
     syncHud(); drawRadar();
@@ -1825,21 +1835,21 @@ function playTrailerScene(sceneName) {
     me.ammo.operator = [5, 30];
     me.pos.set(-7.2, 0, -5.5); me.vel.set(0, 0, 0);
     me.yaw = -1.32; me.pitch = 0.0;
-    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -16, z: -19, tx: -8, tz: -20, speed: 3.2, kills: 13, deaths: 9, cash: 3100 });
-    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -14, z: 15, tx: -9, tz: 16, speed: 3.0, kills: 11, deaths: 10, cash: 2800 });
-    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -22, z: 0, tx: -22, tz: 0, hp: 0, kills: 9, deaths: 11, cash: 1900 });
-    spawnTrActor({ name: 'CT-Striker', team: 'alpha', x: -24, z: 4, tx: -24, tz: 4, hp: 0, kills: 8, deaths: 12, cash: 2100 });
+    spawnTrActor({ name: 'Falcon', team: 'alpha', x: -16, z: -19, tx: -8, tz: -20, speed: 3.2, kills: 13, deaths: 9, cash: 3100 });
+    spawnTrActor({ name: 'Frost', team: 'alpha', x: -14, z: 15, tx: -9, tz: 16, speed: 3.0, kills: 11, deaths: 10, cash: 2800 });
+    spawnTrActor({ name: 'Warden', team: 'alpha', x: -22, z: 0, tx: -22, tz: 0, hp: 0, kills: 9, deaths: 11, cash: 1900 });
+    spawnTrActor({ name: 'Striker', team: 'alpha', x: -24, z: 4, tx: -24, tz: 4, hp: 0, kills: 8, deaths: 12, cash: 2100 });
     // 3 already eliminated in the Ace round + 2 alive finalists
-    spawnTrActor({ name: 'BOT-Phoenix', team: 'omega', x: 18, z: -18, hp: 0, kills: 12, deaths: 13, cash: 2400 });
-    spawnTrActor({ name: 'BOT-Viper', team: 'omega', x: 18, z: -14, hp: 0, kills: 11, deaths: 13, cash: 2200 });
-    spawnTrActor({ name: 'BOT-Reaper', team: 'omega', x: 18, z: -10, hp: 0, kills: 10, deaths: 14, cash: 1800 });
-    spawnTrActor({ name: 'BOT-Ghost', team: 'omega', x: 6.8, z: -2.1, tx: 1.8, tz: -3.2, speed: 3.5, kills: 10, deaths: 12, cash: 3400 });
+    spawnTrActor({ name: 'BOT-Ember', team: 'omega', x: 18, z: -18, hp: 0, kills: 12, deaths: 13, cash: 2400 });
+    spawnTrActor({ name: 'BOT-Adder', team: 'omega', x: 18, z: -14, hp: 0, kills: 11, deaths: 13, cash: 2200 });
+    spawnTrActor({ name: 'BOT-Scythe', team: 'omega', x: 18, z: -10, hp: 0, kills: 10, deaths: 14, cash: 1800 });
+    spawnTrActor({ name: 'BOT-Wisp', team: 'omega', x: 6.8, z: -2.1, tx: 1.8, tz: -3.2, speed: 3.5, kills: 10, deaths: 12, cash: 3400 });
     spawnTrActor({ name: 'OMEGA-Boss', team: 'omega', x: -5.6, z: 0.4, tx: -6.5, tz: -3.0, speed: 1.65, kills: 14, deaths: 11, cash: 4100 });
-    addKillfeed('DillyAgent', 'BOT-Phoenix', 'Dill-47', true, 'alpha', 'omega', true);
-    addKillfeed('DillyAgent', 'BOT-Viper', 'Viper-S', true, 'alpha', 'omega', true);
-    addKillfeed('DillyAgent', 'BOT-Reaper', 'Kodiak .50', true, 'alpha', 'omega', true);
+    addKillfeed('DillyAgent', 'BOT-Ember', 'Dill-47', true, 'alpha', 'omega', true);
+    addKillfeed('DillyAgent', 'BOT-Adder', 'Adder-S', true, 'alpha', 'omega', true);
+    addKillfeed('DillyAgent', 'BOT-Scythe', 'Kodiak .50', true, 'alpha', 'omega', true);
     equipWeapon('operator');
-    $('sc-mode').textContent = 'MATCH POINT · DE_DUSTLINE';
+    $('sc-mode').textContent = 'MATCH POINT · ' + CUR_MAP.title;
     $('hud').classList.add('active');
     vmRoot.visible = true;
     syncHud(); drawRadar();
@@ -1847,13 +1857,13 @@ function playTrailerScene(sceneName) {
     $('hud').classList.remove('active');
     vmRoot.visible = false;
     camera.fov = 68; camera.updateProjectionMatrix();
-    spawnTrActor({ name: 'CT-Falcon', team: 'alpha', x: -13, z: -21, tx: -4.5, tz: -20.5, speed: 3.6 });
-    spawnTrActor({ name: 'CT-Frost', team: 'alpha', x: -11, z: -15, tx: -3.2, tz: -15.5, speed: 3.8 });
+    spawnTrActor({ name: 'Falcon', team: 'alpha', x: -13, z: -21, tx: -4.5, tz: -20.5, speed: 3.6 });
+    spawnTrActor({ name: 'Frost', team: 'alpha', x: -11, z: -15, tx: -3.2, tz: -15.5, speed: 3.8 });
     spawnTrActor({ name: 'DillyAgent', team: 'alpha', x: -9.5, z: -18.5, tx: -1.8, tz: -18.8, speed: 4.0 });
-    spawnTrActor({ name: 'CT-Warden', team: 'alpha', x: -15, z: -23, tx: -7.0, tz: -22.5, speed: 3.5 });
+    spawnTrActor({ name: 'Warden', team: 'alpha', x: -15, z: -23, tx: -7.0, tz: -22.5, speed: 3.5 });
     spawnTrActor({ name: 'OMEGA-Boss', team: 'omega', x: 9.5, z: -21.5, tx: 2.2, tz: -21.2, speed: 3.4 });
-    spawnTrActor({ name: 'OMEGA-Viper', team: 'omega', x: 8.5, z: -14.2, tx: 2.5, tz: -14.5, speed: 3.6 });
-    spawnTrActor({ name: 'OMEGA-Reaper', team: 'omega', x: 11.5, z: -18.5, tx: 5.5, tz: -19.8, speed: 3.3 });
+    spawnTrActor({ name: 'OMEGA-Adder', team: 'omega', x: 8.5, z: -14.2, tx: 2.5, tz: -14.5, speed: 3.6 });
+    spawnTrActor({ name: 'OMEGA-Scythe', team: 'omega', x: 11.5, z: -18.5, tx: 5.5, tz: -19.8, speed: 3.3 });
     spawnTrActor({ name: 'OMEGA-Ghost', team: 'omega', x: 6.5, z: -24.0, tx: 0.8, tz: -23.2, speed: 3.5 });
     spawnSmoke(2.4, 1.9, -15.2);
   }
@@ -2019,13 +2029,13 @@ function updateTrailerDirector(rawDt) {
     updateSquadCrossfire(dt);
     trOnce('sm1', 1.05, () => spawnSmoke(-2.4, 1.9, 2.2));
     trOnce('k1', 2.55, () => {
-      const ph = bots.find(b => b.name === 'OMEGA-Phoenix');
+      const ph = bots.find(b => b.name === 'OMEGA-Ember');
       if (ph) { ph.hp = 0; spawnImpactSparks(new THREE.Vector3(ph.pos.x, 1.6, ph.pos.z), 0xff4757, 12); }
     });
     trOnce('sm2', 3.25, () => spawnSmoke(3.5, 1.9, -11.0));
   } else if (tr.scene === 'ak_entry') {
-    const ph = bots.find(b => b.name === 'BOT-Phoenix');
-    const vp = bots.find(b => b.name === 'BOT-Viper');
+    const ph = bots.find(b => b.name === 'BOT-Ember');
+    const vp = bots.find(b => b.name === 'BOT-Adder');
 
     trOnce('buy_open', 0.05, () => {
       renderBuyMenu();
@@ -2077,7 +2087,7 @@ function updateTrailerDirector(rawDt) {
     else if (tr.t >= 2.75 && vp) lookPt = new THREE.Vector3(vp.pos.x, 1.74, vp.pos.z);
     drivePovFrame(dt, moveGoal, lookPt, tr.t < 1.15 ? 2.5 : 6.0, 14);
   } else if (tr.scene === 'utility_breach') {
-    const rp = bots.find(b => b.name === 'BOT-Reaper');
+    const rp = bots.find(b => b.name === 'BOT-Scythe');
     const kd = bots.find(b => b.name === 'BOT-Kodiak');
 
     trOnce('ut_smoke', 0.35, () => {
@@ -2116,7 +2126,7 @@ function updateTrailerDirector(rawDt) {
     else if (tr.t >= 2.75 && kd) lookPt = new THREE.Vector3(kd.pos.x, 1.74, kd.pos.z);
     drivePovFrame(dt, moveGoal, lookPt, spd, 15);
   } else if (tr.scene === 'awp_karambit_ace') {
-    const gh = bots.find(b => b.name === 'BOT-Ghost');
+    const gh = bots.find(b => b.name === 'BOT-Wisp');
     const boss = bots.find(b => b.name === 'OMEGA-Boss');
 
     trOnce('awp_scope', 0.24, () => {
@@ -2174,7 +2184,7 @@ function updateTrailerDirector(rawDt) {
     updateSquadCrossfire(dt);
     trOnce('fin_sm', 1.2, () => spawnSmoke(-7.2, 1.9, -19.5));
     trOnce('fin_k1', 2.1, () => {
-      const v = bots.find(b => b.name === 'OMEGA-Viper');
+      const v = bots.find(b => b.name === 'OMEGA-Adder');
       if (v) { v.hp = 0; spawnImpactSparks(new THREE.Vector3(v.pos.x, 1.6, v.pos.z), 0xff4757, 12); }
     });
   }

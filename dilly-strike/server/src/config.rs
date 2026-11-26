@@ -1,5 +1,6 @@
 /* Ranked configuration, all from environment variables (see server/README.md). */
 
+use crate::maps::{self, MapDef};
 use std::env;
 
 #[derive(Debug, Clone)]
@@ -29,6 +30,8 @@ pub struct RankedConfig {
     pub msg_rate_per_sec: f64,
     pub msg_burst: f64,
     pub conn_per_ip_per_min: u32,
+    /// Maps ranked matches are drawn from (RANKED_MAPS, comma separated ids; default: every map).
+    pub map_pool: Vec<&'static MapDef>,
 }
 
 fn num<T: std::str::FromStr>(k: &str, d: T) -> T {
@@ -62,6 +65,7 @@ impl RankedConfig {
             msg_rate_per_sec: 40.0,
             msg_burst: 80.0,
             conn_per_ip_per_min: 30,
+            map_pool: maps::MAPS.to_vec(),
         }
     }
 
@@ -94,6 +98,7 @@ impl RankedConfig {
             msg_rate_per_sec: num("RANKED_MSG_RATE", d.msg_rate_per_sec).max(1.0),
             msg_burst: num("RANKED_MSG_BURST", d.msg_burst).max(1.0),
             conn_per_ip_per_min: num("RANKED_CONN_PER_IP_PER_MIN", d.conn_per_ip_per_min).max(1),
+            map_pool: env::var("RANKED_MAPS").map(|v| maps::parse_pool(&v)).unwrap_or(d.map_pool),
         }
     }
 

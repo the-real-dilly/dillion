@@ -2,7 +2,7 @@
 
 This is a single zero-dependency Rust binary (`dilly-strike-server`, port 8081). It serves:
 
-- **Casual online play** (`wss://…/strike`). This is the original drop-in server and it is unchanged.
+- **Casual online play** (`wss://…/strike`). The original drop-in server, now with one room per map: the client's `join` may carry `"map"` (`dustline` / `brinepeak`, or the `de_` code). Each room has its own players, teams, score and broadcasts (Redis channel `dilly:strike:events` for dustline, `dilly:strike:events:<map>` for the others). A missing or unknown map joins dustline, so older clients keep working. `welcome` answers with `map`, `map_code` and the list of `maps`.
 - **Ranked** (`wss://…/strike/ranked`, plus HTTP `…/strike/ranked/*`). Any request path that contains `/ranked` goes to `src/ranked.rs`.
 
 ## Ranked at a glance
@@ -12,6 +12,7 @@ This is a single zero-dependency Rust binary (`dilly-strike-server`, port 8081).
 | Identity | `src/auth.rs` (and the copy in `dilly-hub/server/src/session.rs`) | The hub's `POST /api/auth/login` checks the PIN and returns a token: `v1.<b64url callsign>.<exp>.<HMAC-SHA256>`, valid for 7 days. The strike server checks that token with the same `DILLY_SESSION_SECRET`. Client-sent names are never trusted. |
 | Matchmaking | `src/matchmaker.rs` | Each player's MMR window starts at `base` and grows by `growth`/s up to `max`. The longest-waiting player anchors the lobby, and every candidate must fit inside both the anchor's window and their own. Teams are split by exhaustive search for the smallest MMR gap. |
 | Match rules | `src/game.rs` | Pure state machine: ready check → agent select (unique agent per team, only your own team's picks are visible) → buy → live → round end. First to 13. Sides swap after 12 rounds. Optional overtime at 12–12 (win by two, sides swap every round, capped, then a draw). The server runs the economy and checks buys. Damage comes from the server weapon table. There are fire-rate, range, movement-speed and map-bounds checks, and one charge per ability per round. |
+| Maps | `src/maps.rs` | Data-driven map table (id, code, bounds, y range, site count, defender/attacker spawn rows) mirroring `dilly-strike/src/maps/*.js`; unit tests parse the client files to keep bounds and spawns in sync. Each ranked match draws its map from `RANKED_MAPS` (seeded by the match id) and announces it in `match_found`, `agent_select`, `match_start` and `match_state`; it is stored in `ranked_matches.map`. |
 | Rating | `src/rating.rs` | Glicko-2 hidden MMR (each match is one rating period against the enemy team as a composite opponent). The first 5 matches are placements with the rank hidden, then RR is seeded from MMR. After that, each match moves RR by a base ±18 plus a pull toward the RR your MMR implies, clamped to 8–35. Wins always gain RR and losses always cost RR. |
 | Tiers | `src/rating.rs` | Seedling, Sprout, Gherkin, Dill, Brine, Kosher, Pickle Master (divisions I–III, 100 RR each), then Legend (2100+ RR, no cap). |
 | Leavers / dodgers | `src/matchmaker.rs`, `src/game.rs`, `src/ranked.rs` | Declining or ignoring the ready check gives a cooldown that escalates 1×, 3×, 10×, 30× within 24h. Leaving agent select is a dodge: the match is cancelled, the dodger gets a cooldown and loses `RANKED_DODGE_RR`, and everyone else is re-queued with their original queue time. Disconnecting mid-match starts a reconnect grace period. If you don't return in time, or you are AFK or leave on purpose, that is an abandon: it counts as a loss even if your team wins, costs an extra `RANKED_LEAVER_RR`, and starts a cooldown that doubles each time. Teammates of a leaver lose only half the usual RR. If a whole team leaves, the other team wins by forfeit. |
@@ -41,6 +42,7 @@ Every replica accepts ranked sockets. The replica that holds the matchmaker leas
 | `RANKED_DECLINE_COOLDOWN_SECS`, `RANKED_LEAVER_COOLDOWN_SECS` | 60, 600 | Base cooldowns before escalation. |
 | `RANKED_LEAVER_RR`, `RANKED_DODGE_RR` | 15, 5 | Extra RR penalties. |
 | `RANKED_MSG_RATE`, `RANKED_MSG_BURST`, `RANKED_CONN_PER_IP_PER_MIN` | 40/s, 80, 30 | Rate limits. |
+| `RANKED_MAPS` | `dustline,brinepeak` | Ranked map pool (comma separated ids). Unknown ids are ignored; an empty/invalid list means every map. |
 | `RANKED_TRUST_PROXY` | `0` | Set to `1` only behind your ingress, so the per-IP limit uses `X-Forwarded-For`. |
 
 ## Running locally
@@ -56,13 +58,13 @@ python3 -m http.server 8000
 ```
 The static GitHub Pages site can't run this server. Its Ranked tab shows a "Ranked server unreachable" card when `wss://apibuild.dillonmay.com/strike/ranked` doesn't answer.
 
-Migrations (`migrations/*.sql`) apply automatically when the server starts. To apply one by hand: `psql "$DATABASE_URL" -f dilly-strike/server/migrations/001_ranked.sql`. It is idempotent. Tables: `ranked_players`, `ranked_matches`, `ranked_match_players`.
+Migrations (`migrations/*.sql`) apply automatically when the server starts. To apply one by hand: `psql "$DATABASE_URL" -f dilly-strike/server/migrations/001_ranked.sql`. It is idempotent. Tables: `ranked_players`, `ranked_matches` (with `map`, added by `002_match_map.sql`), `ranked_match_players`.
 
 ## Tests
 
 ```bash
 cd dilly-strike/server
-cargo test                       # 40 unit tests + 3 end-to-end tests (real binary, headless WS clients, in-memory)
+cargo test                       # 49 unit tests + 5 end-to-end tests (real binary, headless WS clients, in-memory)
 TEST_REDIS_URL=redis://:pw@127.0.0.1:6379 TEST_DATABASE_URL=postgres://u:pw@127.0.0.1:5432/db cargo test
                                  # also runs the Redis backend test + a 2-replica match persisted to Postgres
 ```
@@ -85,9 +87,9 @@ Client → server:
 | `abandon` | – | leave the match (counts as a loss) |
 | `sync` / `ping` | – | full state resend / keepalive |
 
-Server → client: `hello_ok {user,name,profile,cooldown_ms,in_match}`, `queue_status {queued,elapsed_ms,window,in_queue}`, `cooldown {cooldown_ms,reason}`, `match_found {match_id,accept_ms,total}`, `ready_update`, `match_cancelled {reason,requeued,penalized,cooldown_ms}`, `agent_select {team,side,allies[],enemies,left_ms}`, `match_start {players[],rounds_to_win,half,overtime}`, `round {phase,round,left_ms,score[a,b],side_a,ot,you{hp,armor,cash,weapons,alive,x,y,z,yaw},alive[]}`, `match_state` (full snapshot sent on reconnect), `state` (relayed movement), `damaged`, `hit_ok`, `kill {killer_id,victim_id,weapon,hs,…}`, `econ {cash,armor,weapons,abilities}`, `round_end {winner,reason,score,mvp,match_point,final}`, `halftime`, `smoke`, `flash`, `chat`, `correct {x,y,z}`, `player_conn`, `player_left`, `abandoned {cooldown_ms}`, `match_end {result,score,rank_before,rank_after,rr_delta,mmr_delta,promoted,demoted,revealed,players[]}`, `error {code,msg}`.
+Server → client: `hello_ok {user,name,profile,cooldown_ms,in_match}`, `queue_status {queued,elapsed_ms,window,in_queue}`, `cooldown {cooldown_ms,reason}`, `match_found {match_id,map,map_code,accept_ms,total}`, `ready_update`, `match_cancelled {reason,requeued,penalized,cooldown_ms}`, `agent_select {map,map_code,team,side,allies[],enemies,left_ms}`, `match_start {map,map_code,sites,players[],rounds_to_win,half,overtime}`, `round {phase,round,left_ms,score[a,b],side_a,ot,you{hp,armor,cash,weapons,alive,x,y,z,yaw},alive[]}`, `match_state` (full snapshot sent on reconnect), `state` (relayed movement), `damaged`, `hit_ok`, `kill {killer_id,victim_id,weapon,hs,…}`, `econ {cash,armor,weapons,abilities}`, `round_end {winner,reason,score,mvp,match_point,final}`, `halftime`, `smoke`, `flash`, `chat`, `correct {x,y,z}`, `player_conn`, `player_left`, `abandoned {cooldown_ms}`, `match_end {map,result,score,rank_before,rank_after,rr_delta,mmr_delta,promoted,demoted,revealed,players[]}`, `error {code,msg}`.
 
-HTTP (CORS `*`, read-only): `GET /strike/ranked/status`, `GET /strike/ranked/leaderboard?limit=N` (placed players only), `GET /strike/ranked/profile/<callsign>` (rank plus the last 20 matches with per-match stats). Hidden MMR is never published.
+HTTP (CORS `*`, read-only): `GET /strike/ranked/status`, `GET /strike/ranked/leaderboard?limit=N` (placed players only), `GET /strike/ranked/profile/<callsign>` (rank plus the last 20 matches with per-match stats and map). Hidden MMR is never published.
 
 ## Honest gaps
 - Hits are still detected on the client. The server checks weapon ownership, fire rate, range, that both players are alive and on opposite teams, and computes the damage itself. It does **not** trace line of sight against the map, and it trusts the client's `hs` flag. Positions are speed- and bounds-checked, but walls are not collision-checked.

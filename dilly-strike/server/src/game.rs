@@ -11,17 +11,16 @@
    ========================================================================== */
 
 use crate::config::RankedConfig;
+use crate::maps::{self, MapDef};
 use crate::matchmaker::{Lobby, Offense};
 use crate::util::{json_esc, Json};
 
 pub const AGENTS: [&str; 5] = ["sprig", "brine", "vanta", "ember", "relay"];
-pub const MAP: &str = "de_dustline";
 const CREDIT_CAP: i32 = 9000;
 const KILL_REWARD: i32 = 200;
 const WIN_REWARD: i32 = 3000;
 const LOSS_BASE: i32 = 1900;
 const LOSS_STEP: i32 = 500;
-const MAP_HALF: f64 = 60.0;
 const MAX_SPEED: f64 = 30.0;
 
 pub struct Weapon {
@@ -174,6 +173,8 @@ pub struct PlayerSummary {
 #[derive(Debug, Clone)]
 pub struct MatchSummary {
     pub id: String,
+    /// map id ("dustline" / "brinepeak")
+    pub map: &'static str,
     pub team_size: usize,
     pub score: [u32; 2],
     pub winner: Option<Team>,
@@ -219,15 +220,10 @@ pub struct Match {
     pub started_ms: u64,
     pub forfeit: bool,
     pub winner: Option<Team>,
+    /// Map for the whole match: drawn from `cfg.map_pool` (seeded by the match id) when the
+    /// match is formed, announced in match_found / agent_select / match_start / match_state.
+    pub map: &'static MapDef,
     last_round_winner: Option<Team>,
-}
-
-fn spawn_for(side: Side, idx: usize) -> ([f64; 3], f64) {
-    let z = -8.0 + idx as f64 * 4.0;
-    match side {
-        Side::Def => ([-23.0, 0.0, z], -1.18),
-        Side::Atk => ([23.0, 0.0, z], 1.95),
-    }
 }
 
 impl Match {
@@ -270,8 +266,10 @@ impl Match {
                 });
             }
         }
+        let map = maps::pick(&cfg.map_pool, &id);
         let m = Match {
             id,
+            map,
             phase: Phase::Ready,
             phase_end_ms: now + cfg.accept_ms,
             round: 0,
@@ -289,8 +287,10 @@ impl Match {
             cfg,
         };
         let msg = format!(
-            "{{\"type\":\"match_found\",\"match_id\":\"{}\",\"team_size\":{},\"accept_ms\":{},\"total\":{}}}",
+            "{{\"type\":\"match_found\",\"match_id\":\"{}\",\"map\":\"{}\",\"map_code\":\"{}\",\"team_size\":{},\"accept_ms\":{},\"total\":{}}}",
             json_esc(&m.id),
+            m.map.id,
+            m.map.code,
             m.cfg.team_size,
             m.cfg.accept_ms,
             m.players.len()
@@ -482,8 +482,10 @@ impl Match {
                 Out::To(
                     p.key.clone(),
                     format!(
-                        "{{\"type\":\"agent_select\",\"match_id\":\"{}\",\"left_ms\":{},\"team\":\"{}\",\"side\":\"{}\",\"allies\":[{}],\"enemies\":{}}}",
+                        "{{\"type\":\"agent_select\",\"match_id\":\"{}\",\"map\":\"{}\",\"map_code\":\"{}\",\"left_ms\":{},\"team\":\"{}\",\"side\":\"{}\",\"allies\":[{}],\"enemies\":{}}}",
                         json_esc(&self.id),
+                        self.map.id,
+                        self.map.code,
                         self.left_ms(now),
                         p.team.code(),
                         self.side_of(p.team).code(),
@@ -523,9 +525,11 @@ impl Match {
             .collect::<Vec<_>>()
             .join(",");
         let mut out = vec![Out::All(format!(
-            "{{\"type\":\"match_start\",\"match_id\":\"{}\",\"map\":\"{}\",\"rounds_to_win\":{},\"half\":{},\"overtime\":{},\"players\":[{}]}}",
+            "{{\"type\":\"match_start\",\"match_id\":\"{}\",\"map\":\"{}\",\"map_code\":\"{}\",\"sites\":{},\"rounds_to_win\":{},\"half\":{},\"overtime\":{},\"players\":[{}]}}",
             json_esc(&self.id),
-            MAP,
+            self.map.id,
+            self.map.code,
+            self.map.sites,
             self.cfg.rounds_to_win,
             self.cfg.half_rounds(),
             self.cfg.overtime,
@@ -555,9 +559,10 @@ impl Match {
         let credits = if self.ot { self.cfg.ot_credits } else { self.cfg.start_credits };
         let mut idx = [0usize; 2];
         let side_a = self.side_a;
+        let map = self.map;
         for p in self.players.iter_mut() {
             let side = if p.team == Team::A { side_a } else { side_a.flip() };
-            let (pos, yaw) = spawn_for(side, idx[p.team.idx()]);
+            let (pos, yaw) = map.spawn(side == Side::Def, idx[p.team.idx()]);
             idx[p.team.idx()] += 1;
             let survivor = p.alive && played > 0;
             if reset_econ {
@@ -657,9 +662,10 @@ impl Match {
             .collect::<Vec<_>>()
             .join(",");
         format!(
-            "{{\"type\":\"match_state\",\"match_id\":\"{}\",\"map\":\"{}\",\"phase\":\"{}\",\"round\":{},\"left_ms\":{},\"score\":[{},{}],\"side_a\":\"{}\",\"rounds_to_win\":{},\"ot\":{},\"accepted\":{},\"you\":{},\"players\":[{}]}}",
+            "{{\"type\":\"match_state\",\"match_id\":\"{}\",\"map\":\"{}\",\"map_code\":\"{}\",\"phase\":\"{}\",\"round\":{},\"left_ms\":{},\"score\":[{},{}],\"side_a\":\"{}\",\"rounds_to_win\":{},\"ot\":{},\"accepted\":{},\"you\":{},\"players\":[{}]}}",
             json_esc(&self.id),
-            MAP,
+            self.map.id,
+            self.map.code,
             self.phase.code(),
             self.round,
             self.left_ms(now),
@@ -675,6 +681,7 @@ impl Match {
     }
 
     fn on_state(&mut self, i: usize, msg: &Json, now: u64) -> Vec<Out> {
+        let map = self.map;
         let p = &mut self.players[i];
         p.last_input_ms = now;
         if !p.alive {
@@ -696,7 +703,7 @@ impl Match {
             if let (Some(x), Some(y), Some(z)) = (msg.num_of("x"), msg.num_of("y"), msg.num_of("z")) {
                 let dt = (now.saturating_sub(p.last_pos_ms)) as f64 / 1000.0;
                 let d = ((x - p.pos[0]).powi(2) + (z - p.pos[2]).powi(2)).sqrt();
-                let in_bounds = x.abs() <= MAP_HALF && z.abs() <= MAP_HALF && (-2.0..=15.0).contains(&y);
+                let in_bounds = map.in_bounds(x, y, z);
                 if in_bounds && d <= 2.5 + MAX_SPEED * dt {
                     p.pos = [x, y, z];
                     p.last_pos_ms = now;
@@ -1073,6 +1080,7 @@ impl Match {
             .collect();
         vec![Out::Ended(MatchSummary {
             id: self.id.clone(),
+            map: self.map.id,
             team_size: self.cfg.team_size,
             score: self.score,
             winner: self.winner,
@@ -1452,4 +1460,87 @@ mod tests {
         // B second loss in a row: +2400
         assert_eq!(m.players[1].cash, 5100);
     }
+
+    fn msg_of<'a>(out: &'a [Out], ty: &str) -> Option<&'a String> {
+        out.iter().find_map(|o| match o {
+            Out::All(s) | Out::To(_, s) if s.contains(&format!("\"type\":\"{}\"", ty)) => Some(s),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn map_comes_from_pool_and_is_announced() {
+        let mut c = cfg(1, 13, true);
+        c.map_pool = crate::maps::parse_pool("brinepeak");
+        let (mut m, out) = Match::new("m-brine".into(), &lobby(1), c, 0);
+        assert_eq!(m.map.id, "brinepeak");
+        assert!(msg_of(&out, "match_found").unwrap().contains("\"map\":\"brinepeak\""));
+        let mut out = Vec::new();
+        for k in m.keys() {
+            out.extend(m.handle(&k, &j(r#"{"type":"accept"}"#), 0));
+        }
+        assert!(msg_of(&out, "agent_select").unwrap().contains("\"map_code\":\"de_brinepeak\""));
+        let out = m.tick(1001);
+        let start = msg_of(&out, "match_start").unwrap();
+        assert!(start.contains("\"map\":\"brinepeak\",\"map_code\":\"de_brinepeak\",\"sites\":3"), "{}", start);
+        assert!(m.snapshot("a0", 1001).contains("\"map\":\"brinepeak\""));
+        // default pool: deterministic per id, both maps reachable
+        let mut seen = std::collections::HashSet::new();
+        for i in 0..40 {
+            let (m, _) = Match::new(format!("rk-{:x}-{}", 1_700_000_000_000u64 + i * 31, i), &lobby(1), cfg(1, 13, true), 0);
+            seen.insert(m.map.id);
+        }
+        assert_eq!(seen.len(), 2);
+    }
+
+    #[test]
+    fn brinepeak_spawns_and_bounds() {
+        let mut c = cfg(5, 13, true);
+        c.map_pool = crate::maps::parse_pool("brinepeak");
+        let (mut m, _) = Match::new("m-b5".into(), &lobby(5), c, 0);
+        let mut now = 0;
+        to_live(&mut m, &mut now);
+        let map = crate::maps::BRINEPEAK;
+        for p in &m.players {
+            assert!(map.in_bounds(p.pos[0], p.pos[1], p.pos[2]));
+            // team A starts on defence (north, z = -31), team B on attack (south, z = 31)
+            assert_eq!(p.pos[2], if p.team == Team::A { -31.0 } else { 31.0 });
+        }
+        let xs: std::collections::HashSet<i64> = m.players.iter().filter(|p| p.team == Team::A).map(|p| p.pos[0] as i64).collect();
+        assert_eq!(xs.len(), 5, "distinct spawn slots");
+        // x = 45 is out of bounds on dustline but a legal spot (cart road) on brinepeak:
+        // walk there in small steps without a correction
+        let a0 = m.players[0].pos;
+        let mut x = a0[0];
+        let mut z = a0[2];
+        let mut corrected = false;
+        while x < 45.0 || z < -10.0 {
+            now += 100;
+            x = (x + 2.0).min(45.0);
+            z = (z + 1.5).min(-10.0);
+            let out = m.handle("a0", &j(&format!(r#"{{"type":"state","x":{},"y":0,"z":{},"yaw":0}}"#, x, z)), now);
+            corrected |= msg_of(&out, "correct").is_some();
+        }
+        assert!(!corrected);
+        assert_eq!((m.players[0].pos[0], m.players[0].pos[2]), (45.0, -10.0));
+        // ... but outside the 104 x 80 grid is corrected
+        now += 100;
+        let out = m.handle("a0", &j(r#"{"type":"state","x":46.5,"y":0,"z":-41,"yaw":0}"#), now);
+        assert!(msg_of(&out, "correct").is_some());
+    }
+
+    #[test]
+    fn dustline_bounds_still_enforced() {
+        let mut c = cfg(1, 13, true);
+        c.map_pool = crate::maps::parse_pool("dustline");
+        let (mut m, _) = Match::new("m-d".into(), &lobby(1), c, 0);
+        let mut now = 0;
+        to_live(&mut m, &mut now);
+        assert_eq!(m.players[0].pos, [-23.0, 0.0, -8.0]);
+        m.players[0].pos = [37.5, 0.0, 0.0];
+        now += 100;
+        let out = m.handle("a0", &j(r#"{"type":"state","x":38.5,"y":0,"z":0,"yaw":0}"#), now);
+        assert!(msg_of(&out, "correct").is_some());
+    }
+
 }

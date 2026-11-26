@@ -78,7 +78,7 @@ export default {
     addBox(-28, 1.8, 0, 2, 3.6, 12, MAT_WALL_DARK);
     addBox(28, 1.8, 0, 2, 3.6, 12, MAT_WALL_DARK);
 
-    // Accent CS:GO crates in Mid & Lanes
+    // Accent crates in Mid & Lanes
     addBox(-4, 0.9, 6, 2.2, 1.8, 2.2, MAT_CRATE);
     addBox(5, 0.9, -6, 2.2, 1.8, 2.2, MAT_CRATE);
     addBox(-20, 0.9, 6, 2.4, 1.8, 2.4, MAT_CRATE);
