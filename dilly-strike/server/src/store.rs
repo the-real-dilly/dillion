@@ -13,7 +13,10 @@ use crate::rating::{Glicko, PlayerRank};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-pub const MIGRATIONS: [(i32, &str); 1] = [(1, include_str!("../migrations/001_ranked.sql"))];
+pub const MIGRATIONS: [(i32, &str); 2] = [
+    (1, include_str!("../migrations/001_ranked.sql")),
+    (2, include_str!("../migrations/002_match_map.sql")),
+];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlayerRecord {
@@ -45,6 +48,8 @@ impl PlayerRecord {
 #[derive(Debug, Clone)]
 pub struct MatchRow {
     pub id: String,
+    /// map id ("dustline" / "brinepeak")
+    pub map: String,
     pub team_size: usize,
     pub score: [u32; 2],
     pub winner: Option<char>,
@@ -80,6 +85,7 @@ pub struct MatchPlayerRow {
 #[derive(Debug, Clone)]
 pub struct HistoryItem {
     pub match_id: String,
+    pub map: String,
     pub ended_ms: u64,
     pub score: [u32; 2],
     pub team_size: u32,
@@ -123,7 +129,7 @@ impl RankedStore for MemStore {
         }
         let mut h = self.history.lock().unwrap();
         for r in rows {
-            h.push(HistoryItem { match_id: m.id.clone(), ended_ms: m.ended_ms, score: m.score, team_size: m.team_size as u32, row: r.clone() });
+            h.push(HistoryItem { match_id: m.id.clone(), map: m.map.clone(), ended_ms: m.ended_ms, score: m.score, team_size: m.team_size as u32, row: r.clone() });
         }
         Ok(())
     }
@@ -230,9 +236,10 @@ impl RankedStore for PgStore {
     fn record_match(&self, m: &MatchRow, rows: &[MatchPlayerRow], players: &[PlayerRecord]) -> Result<(), String> {
         let mut sql = String::from("BEGIN;");
         sql.push_str(&format!(
-            "INSERT INTO ranked_matches (id, team_size, score_a, score_b, winner, rounds, overtime, forfeit, pod, started_at, ended_at) \
-             VALUES ('{}',{},{},{},{},{},{},{},'{}',to_timestamp({:.3}),to_timestamp({:.3}));",
+            "INSERT INTO ranked_matches (id, map, team_size, score_a, score_b, winner, rounds, overtime, forfeit, pod, started_at, ended_at) \
+             VALUES ('{}','{}',{},{},{},{},{},{},{},'{}',to_timestamp({:.3}),to_timestamp({:.3}));",
             pg_escape(&m.id),
+            pg_escape(&m.map),
             m.team_size,
             m.score[0],
             m.score[1],
@@ -288,7 +295,7 @@ impl RankedStore for PgStore {
         let rows = self.ha.pg_query(&format!(
             "SELECT mp.match_id, (EXTRACT(EPOCH FROM m.ended_at) * 1000)::BIGINT, m.score_a, m.score_b, m.team_size, \
              mp.player_key, mp.display_name, mp.team, mp.agent, mp.result, mp.abandoned, mp.kills, mp.deaths, mp.headshots, mp.damage, mp.mvps, \
-             mp.rating_before, mp.rating_after, mp.rr_before, mp.rr_after, mp.rr_delta, mp.placements_after \
+             mp.rating_before, mp.rating_after, mp.rr_before, mp.rr_after, mp.rr_delta, mp.placements_after, m.map \
              FROM ranked_match_players mp JOIN ranked_matches m ON m.id = mp.match_id \
              WHERE mp.player_key = '{}' ORDER BY m.ended_at DESC LIMIT {};",
             pg_escape(key),
@@ -299,6 +306,7 @@ impl RankedStore for PgStore {
             .filter(|r| r.len() >= 22)
             .map(|r| HistoryItem {
                 match_id: r[0].clone(),
+                map: crate::maps::resolve(r.get(22).map(|s| s.as_str())).id.to_string(),
                 ended_ms: n(&r[1]),
                 score: [n(&r[2]), n(&r[3])],
                 team_size: n(&r[4]),

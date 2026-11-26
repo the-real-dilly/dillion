@@ -3,6 +3,7 @@ pub mod auth;
 pub mod config;
 pub mod game;
 pub mod ha;
+pub mod maps;
 pub mod matchmaker;
 pub mod queue;
 pub mod ranked;
